@@ -19,9 +19,9 @@ from core_10x.ts_store import TsStore
 class VaultRoles:
     """Create vault collections and the worker/admin DB roles. Superuser connection."""
 
-    WORKER_ROLE = TsStore.VAULT_WORKER_ROLE
-    ADMIN_ROLE = TsStore.VAULT_ADMIN_ROLE
-    _VAULT_CLASSES = (VaultUser, VaultResourceAccessor)
+    WORKER_ROLE     = TsStore.VAULT_WORKER_ROLE
+    ADMIN_ROLE      = TsStore.VAULT_ADMIN_ROLE
+    _VAULT_CLASSES  = (VaultUser, VaultResourceAccessor)
 
     @staticmethod
     def _class_collection_name(traitable_cls) -> str:
@@ -49,27 +49,27 @@ class VaultRoles:
         admin_role: str | None = None,
     ) -> RC:
         worker_role = worker_role or cls.WORKER_ROLE
-        admin_role = admin_role or cls.ADMIN_ROLE
+        admin_role  = admin_role or cls.ADMIN_ROLE
         if not store.can_serve_as_vault():
             return RC(False, f'{type(store).__name__} cannot serve as a vault')
 
         rc = cls.ensure_schema(store)
         if not rc:
             return rc
-        vu = cls._class_collection_name(VaultUser)
+        vu  = cls._class_collection_name(VaultUser)
         vra = cls._class_collection_name(VaultResourceAccessor)
-        rc = store.setup_vault_roles(
-            user_collection=vu,
-            user_history=TraitableHistory.history_collection_name(vu),
-            accessor_collection=vra,
-            accessor_history=TraitableHistory.history_collection_name(vra),
-            worker_role=worker_role,
-            admin_role=admin_role,
+        rc  = store.setup_vault_roles(
+            user_collection     = vu,
+            user_history        = TraitableHistory.history_collection_name(vu),
+            accessor_collection = vra,
+            accessor_history    = TraitableHistory.history_collection_name(vra),
+            worker_role         = worker_role,
+            admin_role          = admin_role,
         )
         if rc and worker:
-            rc = store.create_vault_user(worker, worker_password or '', worker_role=worker_role, admin_role=admin_role)
+            rc = store.create_vault_user(worker, worker_password or '', worker_role = worker_role, admin_role = admin_role)
         if rc and vault_admin:
-            rc = store.create_vault_admin(vault_admin, admin_password or '', worker_role=worker_role, admin_role=admin_role)
+            rc = store.create_vault_admin(vault_admin, admin_password or '', worker_role = worker_role, admin_role = admin_role)
         return rc
 
     @classmethod
@@ -78,9 +78,9 @@ class VaultRoles:
         try:
             with store:
                 for tcls in cls._VAULT_CLASSES:
-                    tcls.collection(create_if_needed=True)
+                    tcls.collection(create_if_needed = True)
                     if tcls.s_history_class is not None:
-                        tcls.s_history_class.collection(create_if_needed=True)
+                        tcls.s_history_class.collection(create_if_needed = True)
         except Exception as e:  # noqa: BLE001
             return RC(False, f'vault schema setup failed: {e}')
         return RC_TRUE

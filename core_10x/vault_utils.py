@@ -7,7 +7,7 @@ from core_10x.traitable import RC, RC_TRUE, Resource, Traitable, TsStore, VaultR
 
 
 class VaultUtils:
-    MIN_CHARS   = 8
+    MIN_CHARS = 8
     @classmethod
     def verify_new_password(cls, pwd: str, pwd2: str) -> RC:
         rc = RC(True)
@@ -92,8 +92,8 @@ class VaultUtils:
         if not rc:
             return rc
 
-        rc_mp, existing_master = SecKeys.retrieve_master_password()
-        rc_vl, existing_login, existing_password = SecKeys.retrieve_vault_login_password(vault_uri)
+        rc_mp, existing_master                      = SecKeys.retrieve_master_password()
+        rc_vl, existing_login, existing_password    = SecKeys.retrieve_vault_login_password(vault_uri)
 
         if not new_machine:
             # -- a vault login alone is not a seed: the master password opens the private key
@@ -138,9 +138,9 @@ class VaultUtils:
             if not rc:
                 return rc
 
-            me = VaultUser()
+            me                              = VaultUser()
             private_key_pem, public_key_pem = SecKeys.generate_keys()
-            salt = SecKeys.generate_salt()
+            salt                            = SecKeys.generate_salt()
             me.set_values(
                 public_key              = public_key_pem,
                 private_key_encrypted   = SecKeys.encrypt_private_key(private_key_pem, master_pwd, salt),
@@ -165,7 +165,7 @@ class VaultUtils:
 
     @classmethod
     def _user_init_new_machine(cls, vault_uri: str, *, login: str = None, password: str = None, master_password: str = None) -> RC:
-        rc, vault, login, password = cls._get_and_check_vault_credentials(vault_uri, login=login, password=password)
+        rc, vault, login, password = cls._get_and_check_vault_credentials(vault_uri, login = login, password = password)
         if not rc:
             return rc
 
@@ -173,7 +173,7 @@ class VaultUtils:
         if login != username or vault.auth_user() != username:
             return RC(False, f'vault login must equal OS user {username!r} (got login {login!r}, store user {vault.auth_user()!r})')
         with vault:
-            me = VaultUser.existing_instance(user_id=username, _throw=False)
+            me = VaultUser.existing_instance(user_id = username, _throw = False)
             if not me:
                 return RC(
                     False,
@@ -192,8 +192,8 @@ class VaultUtils:
                 return RC(False, 'MasterPassword does not unlock the vault private key')
 
         # -- prove succeeded: seed local keyring only (no vault writes)
-        SecKeys.change_master_password(master_password, override=True)
-        SecKeys.change_vault_login_password(login, password, vault_uri=vault_uri, override=True)
+        SecKeys.change_master_password(master_password, override = True)
+        SecKeys.change_vault_login_password(login, password, vault_uri = vault_uri, override = True)
         return RC_TRUE
 
     @classmethod
@@ -225,13 +225,13 @@ class VaultUtils:
         if vault_uri == EnvVars.main_vault_uri:
             return cls.user_init()
 
-        rc, main_uri = SecKeys.check_vault_uri(main=True)
+        rc, main_uri = SecKeys.check_vault_uri(main = True)
         if not rc:
             return rc
 
         main_vault = cls.get_vault(main_uri)
         with main_vault:
-            user = VaultUser.existing_instance(_throw=False)
+            user = VaultUser.existing_instance(_throw = False)
 
         if not user:
             return RC(False, 'You must first run user_init utility')
@@ -240,7 +240,7 @@ class VaultUtils:
         if not rc:
             return rc
 
-        SecKeys.change_vault_login_password(login, password, vault_uri=vault_uri, override=True)
+        SecKeys.change_vault_login_password(login, password, vault_uri = vault_uri, override = True)
         return RC_TRUE
 
     @classmethod
@@ -260,7 +260,7 @@ class VaultUtils:
             return RC(False, 'vault admin role required to grant resource credentials for another user')
         vault_login = input('Enter the vault login issued to this user: ')
         with vault:
-            user = VaultUser.existing_instance(user_id=vault_login, _throw=False)
+            user = VaultUser.existing_instance(user_id = vault_login, _throw = False)
             if not user:
                 return RC(
                     False,
@@ -282,7 +282,7 @@ class VaultUtils:
             return RC(False, f'{type(vault).__name__} cannot serve as a vault'), None, None
         username = VaultUser.myname()
         with vault:
-            user = VaultUser.existing_instance(user_id=username, _throw=False)
+            user = VaultUser.existing_instance(user_id = username, _throw = False)
             if not user:
                 return RC(False, f'No Vault User {username!r}. Run xx-user-init'), None, None
             if user.suspended:
@@ -291,25 +291,25 @@ class VaultUtils:
 
     @classmethod
     def _prompt_and_save_ra(cls, vault: TsStore, username: str) -> RC:
-        res_choices = tuple(f'{name}: {i}' for i, name in enumerate(CONCRETE_RESOURCE.all_names()))
-        res_index = int(input(f'Choose CONCRETE_RESOURCE ({", ".join(res_choices)})'))
-        resource_dt = CONCRETE_RESOURCE.item(CONCRETE_RESOURCE.all_names()[res_index])
-        resource_cls = resource_dt.value
-        uri = input(f'Enter URI for {resource_dt}: ')
-        login = input(f'Enter {resource_cls.s_login_label} ({username}): ')
+        res_choices     = tuple(f'{name}: {i}' for i, name in enumerate(CONCRETE_RESOURCE.all_names()))
+        res_index       = int(input(f'Choose CONCRETE_RESOURCE ({", ".join(res_choices)})'))
+        resource_dt     = CONCRETE_RESOURCE.item(CONCRETE_RESOURCE.all_names()[res_index])
+        resource_cls    = resource_dt.value
+        uri             = input(f'Enter URI for {resource_dt}: ')
+        login           = input(f'Enter {resource_cls.s_login_label} ({username}): ')
         if not login:
             login = username
         password = getpass.getpass(f'Enter {resource_cls.s_secret_label} for {login}: ')
 
         try:
-            resource_cls.instance_from_uri(uri, username=login, password=password, _cache=False)
+            resource_cls.instance_from_uri(uri, username = login, password = password, _cache = False)
         except Exception as ex:
             rc = RC(False, f'Failed to connect to {login} @ {uri}')
             rc.add_error(str(ex))
             return rc
 
         with vault:
-            return VaultResourceAccessor.save_ra(resource_dt, uri, password, login=login, username=username)
+            return VaultResourceAccessor.save_ra(resource_dt, uri, password, login = login, username = username)
 
     # @classmethod
     # def enter_resource_accessors(cls) -> RC:

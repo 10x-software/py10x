@@ -18,7 +18,7 @@ from core_10x.ts_store import SaveIfChanged
 class TestTsStoreTransaction:
     """Transaction semantics: commit applies changes, abort discards. Runs against ts_instance from conftest."""
 
-    @pytest.fixture(autouse=True)
+    @pytest.fixture(autouse = True)
     def _skip_if_store_does_not_support_transactions(self, ts_instance):
         """Skip this class when the store lacks transactions (Mongo standalone) - fail under strict."""
         need(ts_instance.supports_transactions(), 'store supports transactions (replica-set Mongo, not standalone)')
@@ -36,7 +36,7 @@ class TestTsStoreTransaction:
         from core_10x.trait_definition import T
         from core_10x.traitable import Traitable
 
-        class _Pad(Traitable, custom_collection=True, keep_history=False):
+        class _Pad(Traitable, custom_collection = True, keep_history = False):
             pad: int = T()
 
         c = store.collection(coll_name, _Pad.s_dir)  # writable schema; raw dict payloads OK
@@ -50,48 +50,48 @@ class TestTsStoreTransaction:
             assert not tx.ended
 
     def test_commit_applies_pending_writes(self, store, coll):
-        coll.save_new({'_id': 'a', '_rev': 0}, overwrite=False)
+        coll.save_new({'_id': 'a', '_rev': 0}, overwrite = False)
         assert coll.count() == 1
         with store.transaction() as tx:
-            coll.save_new({'_id': 'b', '_rev': 0}, overwrite=False)
+            coll.save_new({'_id': 'b', '_rev': 0}, overwrite = False)
             assert coll.count() == 2
             tx.commit()
         assert coll.count() == 2
         assert coll.id_exists('b')
 
     def test_abort_discards_pending_writes(self, store, coll):
-        coll.save_new({'_id': 'a', '_rev': 0}, overwrite=False)
+        coll.save_new({'_id': 'a', '_rev': 0}, overwrite = False)
         with store.transaction() as tx:
-            coll.save_new({'_id': 'b', '_rev': 0}, overwrite=False)
+            coll.save_new({'_id': 'b', '_rev': 0}, overwrite = False)
             tx.abort()
         assert coll.count() == 1
         assert not coll.id_exists('b')
 
     def test_exception_triggers_abort(self, store, coll):
-        coll.save_new({'_id': 'a', '_rev': 0}, overwrite=False)
-        with pytest.raises(RuntimeError, match='rollback'), store.transaction():
-            coll.save_new({'_id': 'd', '_rev': 0}, overwrite=False)
+        coll.save_new({'_id': 'a', '_rev': 0}, overwrite = False)
+        with pytest.raises(RuntimeError, match = 'rollback'), store.transaction():
+            coll.save_new({'_id': 'd', '_rev': 0}, overwrite = False)
             raise RuntimeError('rollback')
         assert coll.count() == 1
         assert not coll.id_exists('d')
 
     def test_manual_commit_before_exit(self, store, coll):
         with store.transaction() as tx:
-            coll.save_new({'_id': 'x', '_rev': 0}, overwrite=False)
+            coll.save_new({'_id': 'x', '_rev': 0}, overwrite = False)
             tx.commit()
         assert coll.count() == 1
         assert coll.id_exists('x')
 
     def test_double_commit_no_op(self, store, coll):
         with store.transaction() as tx:
-            coll.save_new({'_id': 'y', '_rev': 0}, overwrite=False)
+            coll.save_new({'_id': 'y', '_rev': 0}, overwrite = False)
             tx.commit()
             tx.commit()
         assert coll.count() == 1
 
     def test_transaction_sees_own_pending_in_find(self, store, coll):
         with store.transaction() as tx:
-            coll.save_new({'_id': 'z', '_rev': 0}, overwrite=False)
+            coll.save_new({'_id': 'z', '_rev': 0}, overwrite = False)
             docs = list(coll.find())
             assert len(docs) == 1
             assert docs[0]['_id'] == 'z'
@@ -99,7 +99,7 @@ class TestTsStoreTransaction:
         assert coll.count() == 1
 
     def test_transaction_delete_pending(self, store, coll):
-        coll.save_new({'_id': 'del', '_rev': 0}, overwrite=False)
+        coll.save_new({'_id': 'del', '_rev': 0}, overwrite = False)
         with store.transaction() as tx:
             assert coll.delete('del')
             assert not coll.id_exists('del')
@@ -108,7 +108,7 @@ class TestTsStoreTransaction:
         assert not coll.id_exists('del')
 
     def test_transaction_delete_then_abort_restores_visibility(self, store, coll):
-        coll.save_new({'_id': 'del2', '_rev': 0}, overwrite=False)
+        coll.save_new({'_id': 'del2', '_rev': 0}, overwrite = False)
         with store.transaction() as tx:
             coll.delete('del2')
             assert not coll.id_exists('del2')
@@ -122,7 +122,7 @@ class _Leaf(Traitable, embeddable = True):
 
 
 class _Part(Traitable, embeddable = True):
-    value: int = T()
+    value: int  = T()
     leaf: _Leaf = T()
 
 
@@ -130,23 +130,23 @@ class TestSaveIfChanged:
     @pytest.fixture
     def data(self, ts_instance):
 
-        class A(Traitable, custom_collection=True):
-            i: int = T(T.ID)
-            value: int = T()
+        class A(Traitable, custom_collection = True):
+            i: int      = T(T.ID)
+            value: int  = T()
 
-        class B(Traitable, custom_collection=True):
-            i: int = T(T.ID)
-            value: int = T()
+        class B(Traitable, custom_collection = True):
+            i: int      = T(T.ID)
+            value: int  = T()
 
             def value_verify(self, t, value) -> bool:
                 return RC(value > 0, 'value must be positive')
 
-        tracked = (A, B)
-        coll_names = tuple(f'save_if_changed#{cls.__name__.lower()}#{uuid7().hex}' for cls in tracked)
+        tracked     = (A, B)
+        coll_names  = tuple(f'save_if_changed#{cls.__name__.lower()}#{uuid7().hex}' for cls in tracked)
         assert not set(coll_names).intersection(ts_instance.collection_names())
 
         with ts_instance:
-            yield lambda: tuple(cls(i=i, _collection_name=coll_name) for i, (coll_name, cls) in enumerate(zip(coll_names, tracked, strict=False)))
+            yield lambda: tuple(cls(i = i, _collection_name = coll_name) for i, (coll_name, cls) in enumerate(zip(coll_names, tracked, strict = False)))
 
         for coll_name in coll_names:
             ts_instance.delete_collection(coll_name)
@@ -166,7 +166,7 @@ class TestSaveIfChanged:
         a.delete()
         assert a.__class__.collection(a._collection_name).count() == 0
 
-        with pytest.raises(RuntimeError, match='must be positive'), SaveIfChanged() as tracker:
+        with pytest.raises(RuntimeError, match = 'must be positive'), SaveIfChanged() as tracker:
             a.value = 20
             b.value = -1
 
@@ -177,11 +177,11 @@ class TestSaveIfChanged:
         assert b.__class__.collection(b._collection_name).count() == 0
 
     def test_save_if_changed_does_not_persist_when_body_raises(self, data):
-        a, b = data()
+        a, b    = data()
         a.value = 1
         a.save().throw()
 
-        with pytest.raises(RuntimeError, match=r'^body failed$'), SaveIfChanged():
+        with pytest.raises(RuntimeError, match = r'^body failed$'), SaveIfChanged():
             a.value = 7
             raise RuntimeError('body failed')
 
@@ -189,7 +189,7 @@ class TestSaveIfChanged:
         assert a.value == 1, a.value
 
         # b fails verify on save(); that error must not replace the body exception, or be persisted.
-        with pytest.raises(RuntimeError, match=r'^body failed$'), SaveIfChanged():
+        with pytest.raises(RuntimeError, match = r'^body failed$'), SaveIfChanged():
             b.value = -1
             raise RuntimeError('body failed')
 
@@ -201,13 +201,13 @@ class TestSaveIfChanged:
             def is_storable(cls):
                 return False
 
-        with pytest.raises(RuntimeError, match='SaveIfChanged must be storable'), SaveIfChanged([NotStorable]):
+        with pytest.raises(RuntimeError, match = 'SaveIfChanged must be storable'), SaveIfChanged([NotStorable]):
             pass
 
     def test_save_if_changed_auto_save_false_defers_until_explicit_save(self, ts_instance, data):
         a, _b = data()
 
-        ctx = SaveIfChanged(auto_save=False)
+        ctx = SaveIfChanged(auto_save = False)
 
         with ctx:
             a.value = 10
@@ -223,7 +223,7 @@ class TestSaveIfChanged:
     def test_save_if_changed_reused_instance_tracks_only_new_edits_after_save(self, ts_instance, data):
         a, b = data()
 
-        ctx = SaveIfChanged(auto_save=False)
+        ctx = SaveIfChanged(auto_save = False)
         with ctx:
             a.value = 10
         assert ctx.tracked_objects() == [a]
@@ -245,7 +245,7 @@ class TestSaveIfChanged:
         a.value = 1
         a.save().throw()
 
-        ctx = SaveIfChanged(auto_save=False)
+        ctx = SaveIfChanged(auto_save = False)
         with ctx:
             a.value = 99
         assert ctx.tracked_objects() == [a]
@@ -258,7 +258,7 @@ class TestSaveIfChanged:
     def test_save_if_changed_failed_save_keeps_tracked_objects(self, ts_instance, data):
         a, b = data()
 
-        ctx = SaveIfChanged(auto_save=False)
+        ctx = SaveIfChanged(auto_save = False)
 
         with ctx:
             a.value = 10
@@ -273,13 +273,13 @@ class TestSaveIfChanged:
     def test_save_if_changed_parent_isolates_until_save(self, ts_instance, data):
         from core_10x.exec_control import INTERACTIVE
 
-        a, _b = data()
-        original = a.value
+        a, _b       = data()
+        original    = a.value
 
         # Constructed while `parent` is not current -- the constructor must
         # still enter it itself so get/set_trait_value forwards there.
-        parent = INTERACTIVE()
-        ctx = SaveIfChanged(auto_save=False, parent=parent)
+        parent  = INTERACTIVE()
+        ctx     = SaveIfChanged(auto_save = False, parent = parent)
 
         with ctx:
             a.value = 42
@@ -299,14 +299,14 @@ class TestSaveIfChanged:
     def test_save_if_changed_parent_already_current_reenters_safely(self, ts_instance, data):
         from core_10x.exec_control import INTERACTIVE
 
-        a, _b = data()
-        parent = INTERACTIVE()
+        a, _b   = data()
+        parent  = INTERACTIVE()
         with parent:
             # parent is already current at construction -- SaveIfChanged always
             # enters/exits it itself regardless, and re-entering an
             # already-current BTraitableProcessor is safe (no special-casing
             # needed here).
-            ctx = SaveIfChanged(auto_save=False, parent=parent)
+            ctx = SaveIfChanged(auto_save = False, parent = parent)
             with ctx:
                 a.value = 7
             assert a.value == 7  # still current, visible immediately
@@ -318,9 +318,9 @@ class TestSaveIfChanged:
     def test_save_if_changed_parent_reused_across_sessions(self, ts_instance, data):
         from core_10x.exec_control import INTERACTIVE
 
-        a, b = data()
-        parent = INTERACTIVE()
-        ctx = SaveIfChanged(auto_save=False, parent=parent)
+        a, b    = data()
+        parent  = INTERACTIVE()
+        ctx     = SaveIfChanged(auto_save = False, parent = parent)
 
         with ctx:
             a.value = 1
@@ -336,8 +336,8 @@ class TestSaveIfChanged:
 
     def test_save_if_changed_no_parent_edits_directly_visible(self, ts_instance, data):
         # No parent passed (defaults to nullcontext()) -- no isolation, matching pre-nesting behavior.
-        a, _b = data()
-        ctx = SaveIfChanged(auto_save=False)
+        a, _b   = data()
+        ctx     = SaveIfChanged(auto_save = False)
 
         with ctx:
             a.value = 5
@@ -354,11 +354,11 @@ class TestSaveIfChanged:
         a, _b = data()
 
         accumulator = INTERACTIVE()
-        tracker = SaveIfChanged(auto_save=False, parent=accumulator)
+        tracker     = SaveIfChanged(auto_save = False, parent = accumulator)
 
         with accumulator:
             staging = INTERACTIVE()  # nested in the accumulator, not in the ambient scope
-        nested = SaveIfChanged(auto_save=False, parent=staging)
+        nested = SaveIfChanged(auto_save = False, parent = staging)
         with nested:
             a.value = 10
 
@@ -376,11 +376,11 @@ class TestSaveIfChanged:
         a, _b = data()
 
         accumulator = INTERACTIVE()
-        tracker = SaveIfChanged(auto_save=False, parent=accumulator)
+        tracker     = SaveIfChanged(auto_save = False, parent = accumulator)
 
         with accumulator:
             staging = INTERACTIVE()
-        nested = SaveIfChanged(auto_save=False, parent=staging)
+        nested = SaveIfChanged(auto_save = False, parent = staging)
         with nested:
             a.value = 99
 
@@ -392,11 +392,11 @@ class TestSaveIfChanged:
         scope in twice is a no-op."""
         a, b = data()
 
-        ctx = SaveIfChanged(auto_save=False)
+        ctx = SaveIfChanged(auto_save = False)
         with ctx:
             a.value = 1
 
-        other = SaveIfChanged(auto_save=False)
+        other = SaveIfChanged(auto_save = False)
         with other:
             a.value = 2  # already tracked by ctx
             b.value = 3
@@ -416,15 +416,15 @@ class TestSaveIfChanged:
         """Dedup is by ID, not by identity. The kernel's own dedup is pointer-based, so two
         instances of one entity are tracked separately -- but they share values and revision,
         so only one of them should ever be saved."""
-        a, _b = data()
-        same = a.__class__(i=a.i, _collection_name=a._collection_name)
+        a, _b   = data()
+        same    = a.__class__(i = a.i, _collection_name = a._collection_name)
         assert same is not a and same == a
 
-        ctx = SaveIfChanged(auto_save=False)
+        ctx = SaveIfChanged(auto_save = False)
         with ctx:
             a.value = 1
 
-        other = SaveIfChanged(auto_save=False)
+        other = SaveIfChanged(auto_save = False)
         with other:
             same.value = 2
         assert other.tracked_objects() == [same]
@@ -441,15 +441,15 @@ class TestSaveIfChanged:
         not collapse them -- both have to survive to be saved. This rests on unshared IDs
         comparing by identity (see test_traitable_id.py::test_unshared_ids_are_distinct)."""
 
-        a, _b = data()
-        cls, coll = a.__class__, a._collection_name
+        a, _b       = data()
+        cls, coll   = a.__class__, a._collection_name
 
         with INTERACTIVE():
-            x = cls(_collection_name=coll)
-            y = cls(_collection_name=coll)
+            x = cls(_collection_name = coll)
+            y = cls(_collection_name = coll)
             assert x != y, 'precondition: unshared objects are distinct entities'
 
-            ctx = SaveIfChanged(auto_save=False)
+            ctx = SaveIfChanged(auto_save = False)
             with ctx:
                 x.value = 1
                 y.value = 2
@@ -463,12 +463,12 @@ class TestSaveIfChanged:
         """Classes, each with its own collection; objects are constructed by the tests themselves."""
 
         class A(Traitable, custom_collection = True):
-            i: int = T(T.ID)
-            value: int = T()
+            i: int      = T(T.ID)
+            value: int  = T()
 
         class B(Traitable, custom_collection = True):
-            i: int = T(T.ID)
-            value: int = T()
+            i: int      = T(T.ID)
+            value: int  = T()
 
         class X(Traitable, custom_collection = True):  # ID exogenous
             value: int = T()
@@ -477,7 +477,7 @@ class TestSaveIfChanged:
             value: int = T()
 
         classes = (A, B, X)
-        colls = {cls: f'save_if_changed#{cls.__name__.lower()}#{uuid7().hex}' for cls in classes}
+        colls   = {cls: f'save_if_changed#{cls.__name__.lower()}#{uuid7().hex}' for cls in classes}
         assert not set(colls.values()).intersection(ts_instance.collection_names())
 
         with ts_instance:
@@ -576,14 +576,14 @@ class TestSaveIfChanged:
         """A factory (the leak check forbids yielding a Traitable) for an object holding embedded ones, saved with part.value == 1."""
 
         class Owner(Traitable, custom_collection = True):
-            i: int = T(T.ID)
+            i: int      = T(T.ID)
             part: _Part = T()
             parts: list = T(T.EMBEDDED)
 
         coll_name = f'save_if_changed#owner#{uuid7().hex}'
         with ts_instance:
-            o = Owner(i = 0, _collection_name = coll_name)
-            o.part = _Part(value = 1)
+            o       = Owner(i = 0, _collection_name = coll_name)
+            o.part  = _Part(value = 1)
             o.parts = []
             o.save().throw()
             del o
@@ -593,8 +593,8 @@ class TestSaveIfChanged:
 
     @pytest.mark.parametrize('filtered', [False, True])
     def test_save_if_changed_saves_the_holder_of_an_embedded_object_changed_in_place(self, owner, filtered):
-        owner = owner()
-        ctx = SaveIfChanged([owner.__class__] if filtered else (), auto_save = False)
+        owner   = owner()
+        ctx     = SaveIfChanged([owner.__class__] if filtered else (), auto_save = False)
         with ctx:
             owner.part.value = 2
         assert ctx.tracked_objects() == [owner.part]  # the owner itself was not touched
@@ -605,8 +605,8 @@ class TestSaveIfChanged:
 
     @pytest.mark.parametrize('filtered', [False, True])
     def test_save_if_changed_never_saves_an_embedded_object_by_itself(self, owner, filtered):
-        owner = owner()
-        ctx = SaveIfChanged([owner.__class__] if filtered else (), auto_save = False)
+        owner   = owner()
+        ctx     = SaveIfChanged([owner.__class__] if filtered else (), auto_save = False)
         with ctx:
             owner.part = _Part(value = 3)
             _Part(value = 99)  # held by nobody: nothing to save, and no error
@@ -616,16 +616,16 @@ class TestSaveIfChanged:
         assert owner.part.value == 3
 
     def test_save_if_changed_finds_the_holder_through_embedded_objects_and_lists(self, owner):
-        owner = owner()
+        owner           = owner()
         owner.part.leaf = _Leaf(value = 1)
-        item = _Part(value = 1)
-        owner.parts = [item]
+        item            = _Part(value = 1)
+        owner.parts     = [item]
         owner.save().throw()
 
         ctx = SaveIfChanged(auto_save = False)
         with ctx:
-            owner.part.leaf.value = 2  # embedded in embedded
-            item.value = 2  # in a list
+            owner.part.leaf.value   = 2  # embedded in embedded
+            item.value              = 2  # in a list
         ctx.save().throw()
 
         assert owner.reload()
@@ -633,8 +633,8 @@ class TestSaveIfChanged:
         assert [p.value for p in owner.parts] == [2]
 
     def test_save_if_changed_reload_reverts_an_embedded_object_changed_in_place(self, owner):
-        owner = owner()
-        ctx = SaveIfChanged(auto_save = False)
+        owner   = owner()
+        ctx     = SaveIfChanged(auto_save = False)
         with ctx:
             owner.part.value = 2
 

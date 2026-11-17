@@ -5,7 +5,7 @@ from decimal import Decimal
 from xxfin.mkt_adaptor import MktDataAdaptorSingleQuote
 
 
-class BbgAdaptor(MktDataAdaptorSingleQuote, provider_name='BBG'):
+class BbgAdaptor(MktDataAdaptorSingleQuote, provider_name = 'BBG'):
     # provider_name='BBG' is inherited unchanged by every subclass (ir/fx/commodity alike), so
     # they all share one connector via MktDataAdaptor.connector() without needing an override here.
     SUFFIX = None

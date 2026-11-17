@@ -53,7 +53,7 @@ class CcyCross(Traitable):
     @classmethod
     def verify(cls, cross = '', base_ccy = None, quote_ccy = None) -> RC:
         try:
-            cls.currencies(cross=cross, base_ccy=base_ccy, quote_ccy=quote_ccy)
+            cls.currencies(cross = cross, base_ccy = base_ccy, quote_ccy = quote_ccy)
             return RC_TRUE
         except Exception as e:
             return RC(False, str(e))
@@ -62,9 +62,9 @@ class CcyCross(Traitable):
         return self.from_currencies(self.base_ccy, self.quote_ccy)
 
     def cross_set(self, trait, cross: str) -> RC:
-        ccy1, ccy2 = self.to_currencies(cross)
-        rc1 = self.set_value('base_ccy', ccy1)
-        rc2 = self.set_value('quote_ccy', ccy2)
+        ccy1, ccy2  = self.to_currencies(cross)
+        rc1         = self.set_value('base_ccy', ccy1)
+        rc2         = self.set_value('quote_ccy', ccy2)
         if rc1 and rc2:
             return RC_TRUE
         rc = RC(True)
@@ -73,8 +73,8 @@ class CcyCross(Traitable):
         return rc
 
     def is_deliverable_get(self) -> bool:
-        base_deliverable = self.base_ccy.is_deliverable
-        quote_deliverable = self.quote_ccy.is_deliverable
+        base_deliverable    = self.base_ccy.is_deliverable
+        quote_deliverable   = self.quote_ccy.is_deliverable
         return base_deliverable and quote_deliverable
 
     def delivery_ccy_get(self) -> Ccy:
@@ -154,8 +154,8 @@ class CcyCross(Traitable):
         if base_ccy == quote_ccy:
             return (CCY_CROSS_TYPE.NONE, None, CCY_CROSS_TYPE.NONE, None)
 
-        base_exc = base_ccy in cls.amer_exceptions()
-        quote_exc = quote_ccy in cls.amer_exceptions()
+        base_exc    = base_ccy in cls.amer_exceptions()
+        quote_exc   = quote_ccy in cls.amer_exceptions()
 
         #-- 1) AMER EX / A
         if base_exc:
@@ -222,7 +222,7 @@ class CcyCross(Traitable):
     _other_EM_good_liq  = ('ZAR', 'TRY', 'PLN', 'HUF', 'CZK', 'MXN', 'BRL', 'CLP', 'COP')
     _other_EM_less_liq  = ('RUB', 'INR', 'IDR', 'MYR', 'PHP', 'PEN', 'ILS', 'SAR', 'ARS')    ## SAR, AED are low due to peg; ILS maybe higher
 
-    _ccy_hierarchies = (
+    _ccy_hierarchies    = (
         _major_ccys,
         _nordics,
         _dev_asia,
@@ -243,8 +243,8 @@ class CcyCross(Traitable):
 
     @classmethod
     def is_normal_cross(cls, cross: str) -> bool:
-        ccy1, ccy2 = cls.currencies(cross = cross)
-        normal_cross = cls.normal_cross(ccy1.name, ccy2.name)
+        ccy1, ccy2      = cls.currencies(cross = cross)
+        normal_cross    = cls.normal_cross(ccy1.name, ccy2.name)
         return cross == normal_cross
 
     @classmethod

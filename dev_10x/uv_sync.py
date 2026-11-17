@@ -17,7 +17,7 @@ See CONTRIBUTING.md#development-setup."""
 
 
 def main(argv: list[str] | None = None) -> int:
-    print(MESSAGE, file=sys.stderr)
+    print(MESSAGE, file = sys.stderr)
     return 2
 
 

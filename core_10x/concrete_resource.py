@@ -7,6 +7,6 @@ from core_10x.ts_store import TsStore
 
 
 class CONCRETE_RESOURCE(NamedConstant):
-    TS_STORE = TsStore
-    REL_DB = RelDb
-    OIDC = OidcSecret
+    TS_STORE    = TsStore
+    REL_DB      = RelDb
+    OIDC        = OidcSecret

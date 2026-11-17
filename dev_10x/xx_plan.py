@@ -31,20 +31,20 @@ class PkgInput(Traitable):
     no git.
     """
 
-    name: str = RT()
-    packages: dict = RT()  # the {name: Package} registry (sibling-aware context)
-    tag_prefix: str = RT(T.STICKY)  # "v" for core, "py10x-kernel-v" for a sibling
-    repo: Path = RT(T.STICKY)
-    src_dir: Path = RT(T.STICKY)
-    siblings: set = RT(T.STICKY)  # names this package forward-pins (published deps)
-    is_core: bool = RT(T.STICKY)
-    is_downstream: bool = RT(T.STICKY)
-    parsed_tags: list = RT(T.STICKY)  # selection tags (yanked excluded)
-    generation_tags: list = RT(T.STICKY)  # generation floor (yanked *included* - consumed)
-    footprint: tuple = RT(T.STICKY)  # git pathspecs of this package's release footprint
-    footprint_changed: bool = RT(T.STICKY)  # diff since the latest tag across `footprint`
-    current_forward: dict = RT(T.STICKY)  # exact == pins of `siblings` from latest tag
-    version_override: str | None = RT(None)  # `--next-version`: forces a cut onto this X.Y.Z instead of next_micro
+    name: str                       = RT()
+    packages: dict                  = RT()  # the {name: Package} registry (sibling-aware context)
+    tag_prefix: str                 = RT(T.STICKY)  # "v" for core, "py10x-kernel-v" for a sibling
+    repo: Path                      = RT(T.STICKY)
+    src_dir: Path                   = RT(T.STICKY)
+    siblings: set                   = RT(T.STICKY)  # names this package forward-pins (published deps)
+    is_core: bool                   = RT(T.STICKY)
+    is_downstream: bool             = RT(T.STICKY)
+    parsed_tags: list               = RT(T.STICKY)  # selection tags (yanked excluded)
+    generation_tags: list           = RT(T.STICKY)  # generation floor (yanked *included* - consumed)
+    footprint: tuple                = RT(T.STICKY)  # git pathspecs of this package's release footprint
+    footprint_changed: bool         = RT(T.STICKY)  # diff since the latest tag across `footprint`
+    current_forward: dict           = RT(T.STICKY)  # exact == pins of `siblings` from latest tag
+    version_override: str | None    = RT(None)  # `--next-version`: forces a cut onto this X.Y.Z instead of next_micro
 
     def _pkg(self):
         return self.packages[self.name]
@@ -80,7 +80,7 @@ class PkgInput(Traitable):
         return VersionHelpers.parse_pkg_tags(GitHelpers.list_tags(self.repo, f'{self.tag_prefix}*'), self.tag_prefix)
 
     def generation_tags_get(self) -> list:
-        return VersionHelpers.parse_pkg_tags(GitHelpers.list_tags(self.repo, f'{self.tag_prefix}*'), self.tag_prefix, include_yanked=True)
+        return VersionHelpers.parse_pkg_tags(GitHelpers.list_tags(self.repo, f'{self.tag_prefix}*'), self.tag_prefix, include_yanked = True)
 
     def footprint_get(self) -> tuple:
         # An explicit `footprint` (pyproject `[tool.dev_10x.*]`) is used as is. Default: the whole
@@ -107,13 +107,13 @@ class PkgInput(Traitable):
         if latest is None:
             return True
         fork = GitHelpers.git(self.repo, 'merge-base', latest[0], 'main')
-        if not GitHelpers.tree_changed_since_tag(self.repo, fork, *self.footprint, rev='main'):
+        if not GitHelpers.tree_changed_since_tag(self.repo, fork, *self.footprint, rev = 'main'):
             return False
         # Pin-only exemption: `main` epilogues rewrite first-party pins in pyprojects (this package's
         # or, for a nested downstream, core's root one) - those edits alone are not a footprint change.
         if not (self.is_core or self.is_downstream):
             return True
-        pyprojects = {
+        pyprojects  = {
             (p.src_dir / 'pyproject.toml').resolve().relative_to(self.repo.resolve()).as_posix()
             for p in self.packages.values()
             if p.repo == self.repo
@@ -136,8 +136,8 @@ class PkgInput(Traitable):
         latest = VersionHelpers.latest_tag(parsed)
         if latest is None:
             return {}
-        rel = (self.src_dir / 'pyproject.toml').resolve().relative_to(self.repo.resolve()).as_posix()
-        text = GitHelpers.file_at_ref(self.repo, latest[0], rel)
+        rel     = (self.src_dir / 'pyproject.toml').resolve().relative_to(self.repo.resolve()).as_posix()
+        text    = GitHelpers.file_at_ref(self.repo, latest[0], rel)
         return PyProjectHelpers.exact_pins_from_text(text, self.siblings) if text else {}
 
 
@@ -157,8 +157,8 @@ def _coordinated_version(inp: PkgInput) -> tuple[str | None, bool]:
     that target rather than the automatic next micro.
     """
     if inp.footprint_changed or inp.version_override:
-        gen = inp.generation_tags
-        target = _next_rc_target(inp)
+        gen     = inp.generation_tags
+        target  = _next_rc_target(inp)
         return f'{target}rc{VersionHelpers.next_rc(gen, target)}', True
     latest = VersionHelpers.latest_tag(inp.parsed_tags)
     return (str(latest[1]) if latest is not None else None), False
@@ -175,7 +175,7 @@ def _prod_target(inp: PkgInput) -> str | None:
     return VersionHelpers.base_version(latest[1])
 
 
-@dataclass(frozen=True)
+@dataclass(frozen = True)
 class MainEdit:
     """A `main`-epilogue pyproject edit (rendered as a MainEditStep).
 
@@ -184,12 +184,12 @@ class MainEdit:
     """
 
     description: str
-    forward_pins: dict[str, str] = field(default_factory=dict)
-    test_pin: str | list[str] | None = None
-    target: str | None = None
+    forward_pins: dict[str, str]        = field(default_factory = dict)
+    test_pin: str | list[str] | None    = None
+    target: str | None                  = None
 
 
-@dataclass(frozen=True)
+@dataclass(frozen = True)
 class Plan:
     """One package's promote action - the **same shape** for `pre` (cut rc) and `prod` (stack final).
 
@@ -202,32 +202,32 @@ class Plan:
 
     name: str
     act: bool  # cut (pre) / promote (prod), vs skip
-    version: str | None = None  # coordinated version (rc for pre, final for prod)
-    tag: str | None = None  # f"{tag_prefix}{version}"
-    branch: str | None = None  # tool-owned release branch
-    base_kind: str = 'main'  # PromoteStep forks from "main" HEAD or latest "rc"
-    forward_pins: dict[str, str] = field(default_factory=dict)  # published [project.dependencies] pins
-    epilogue: tuple = ()  # MainEdit[] (main pin refresh on core / siblings / downstreams)
-    skip_reason: str | None = None
+    version: str | None             = None  # coordinated version (rc for pre, final for prod)
+    tag: str | None                 = None  # f"{tag_prefix}{version}"
+    branch: str | None              = None  # tool-owned release branch
+    base_kind: str                  = 'main'  # PromoteStep forks from "main" HEAD or latest "rc"
+    forward_pins: dict[str, str]    = field(default_factory = dict)  # published [project.dependencies] pins
+    epilogue: tuple                 = ()  # MainEdit[] (main pin refresh on core / siblings / downstreams)
+    skip_reason: str | None         = None
 
     FLAVOR: ClassVar[str]  # "pre" | "prod"
     BASE_KIND: ClassVar[str]  # "main" | "rc"
 
     @classmethod
     def create_batch(cls, inputs: list[PkgInput]) -> dict[str, Plan]:
-        decided = cls._decide(inputs)  # {name: (coordinated version | None, acts)}
-        core = next(i for i in inputs if i.is_core)
-        siblings = [i for i in inputs if not i.is_core and not i.is_downstream]
-        plans: dict[str, Plan] = {}
+        decided                 = cls._decide(inputs)  # {name: (coordinated version | None, acts)}
+        core                    = next(i for i in inputs if i.is_core)
+        siblings                = [i for i in inputs if not i.is_core and not i.is_downstream]
+        plans: dict[str, Plan]  = {}
         for inp in inputs:
             version, acts = decided[inp.name]
             if not acts:
-                plans[inp.name] = cls(name=inp.name, act=False, skip_reason=cls._skip_reason(inp))
+                plans[inp.name] = cls(name = inp.name, act = False, skip_reason = cls._skip_reason(inp))
                 continue
             if inp.is_core:
                 forward = {s.name: VersionHelpers.exact_pin(decided[s.name][0]) for s in siblings if decided[s.name][0] is not None}
             elif inp.is_downstream:
-                core_v = decided[core.name][0]
+                core_v  = decided[core.name][0]
                 forward = {core.name: VersionHelpers.exact_pin(core_v)} if core_v is not None else {}
                 # Co-released impl dist (same tag train / version as the product package).
                 # write_forward_pins only rewrites deps that already exist — no-op if absent.
@@ -235,14 +235,14 @@ class Plan:
             else:
                 forward = {}  # siblings pin nothing: core is in-tree, tested at the same commit
             plans[inp.name] = cls(
-                name=inp.name,
-                act=True,
-                version=version,
-                tag=f'{inp.tag_prefix}{version}',
-                branch=GitHelpers.release_branch(cls.FLAVOR, inp.name, inp.is_core),
-                base_kind=cls.BASE_KIND,
-                forward_pins=forward,
-                epilogue=cls._epilogue(inp, decided, inputs),
+                name            = inp.name,
+                act             = True,
+                version         = version,
+                tag             = f'{inp.tag_prefix}{version}',
+                branch          = GitHelpers.release_branch(cls.FLAVOR, inp.name, inp.is_core),
+                base_kind       = cls.BASE_KIND,
+                forward_pins    = forward,
+                epilogue        = cls._epilogue(inp, decided, inputs),
             )
         return plans
 
@@ -268,43 +268,43 @@ def _downstream_test_pins(decided: dict, inputs: list[PkgInput]) -> list[str]:
 class PrePlan(Plan):
     """`pre`: cut the next coordinated rc onto `pre`, forked from `main` HEAD; core `main` epilogue."""
 
-    FLAVOR = 'pre'
-    BASE_KIND = 'main'
+    FLAVOR      = 'pre'
+    BASE_KIND   = 'main'
 
     @classmethod
     def _epilogue(cls, inp, decided, inputs):
         core = next(i for i in inputs if i.is_core)
         if inp.is_core:
-            edits: list[MainEdit] = []
-            pins = {
+            edits: list[MainEdit]   = []
+            pins                    = {
                 s.name: VersionHelpers.main_forward_window_pin(decided[s.name][0])
                 for s in inputs
                 if not s.is_core and not s.is_downstream and decided[s.name][0] is not None
             }
             if pins:
-                edits.append(MainEdit('rc-window sibling pins on main', forward_pins=pins))
+                edits.append(MainEdit('rc-window sibling pins on main', forward_pins = pins))
             ds_pins = _downstream_test_pins(decided, inputs)
             if ds_pins:
-                edits.append(MainEdit('track downstreams in test group', test_pin=ds_pins))
+                edits.append(MainEdit('track downstreams in test group', test_pin = ds_pins))
             return tuple(edits)
         if inp.is_downstream:
-            edits = []
-            core_v = decided[core.name][0]
-            fin_v = decided[inp.name][0]
-            pins: dict[str, str] = {}
+            edits                   = []
+            core_v                  = decided[core.name][0]
+            fin_v                   = decided[inp.name][0]
+            pins: dict[str, str]    = {}
             if core_v is not None:
                 pins[core.name] = VersionHelpers.main_forward_window_pin(core_v)
             if fin_v is not None:
                 pins[f'{inp.name}-cxx'] = VersionHelpers.exact_pin(fin_v)
             if pins:
-                edits.append(MainEdit('rc-window core + co-release cxx pins on main', forward_pins=pins))
+                edits.append(MainEdit('rc-window core + co-release cxx pins on main', forward_pins = pins))
             # Fin-base-only cut: refresh core's unpublished test-group pin without re-cutting core.
             if not decided[core.name][1] and fin_v is not None:
                 edits.append(
                     MainEdit(
                         f'track {inp.name} in core test group',
-                        test_pin=VersionHelpers.test_group_dep_pin(inp.name, fin_v),
-                        target=core.name,
+                        test_pin    = VersionHelpers.test_group_dep_pin(inp.name, fin_v),
+                        target      = core.name,
                     )
                 )
             return tuple(edits)
@@ -312,17 +312,17 @@ class PrePlan(Plan):
 
     @classmethod
     def _decide(cls, inputs):
-        core = next(i for i in inputs if i.is_core)
-        siblings = [i for i in inputs if not i.is_core and not i.is_downstream]
+        core        = next(i for i in inputs if i.is_core)
+        siblings    = [i for i in inputs if not i.is_core and not i.is_downstream]
         downstreams = [i for i in inputs if i.is_downstream]
-        decided = {i.name: _coordinated_version(i) for i in siblings}
+        decided     = {i.name: _coordinated_version(i) for i in siblings}
         # core re-cuts on its own footprint, an explicit --next-version, OR a pin that lags any
         # *sibling*'s coordinated version.
         pin_lag = any(v is not None and core.current_forward.get(n) != v for n, (v, _) in decided.items())
         if core.footprint_changed or core.version_override or pin_lag:
-            gen = core.generation_tags
-            target = _next_rc_target(core)
-            decided[core.name] = (f'{target}rc{VersionHelpers.next_rc(gen, target)}', True)
+            gen                 = core.generation_tags
+            target              = _next_rc_target(core)
+            decided[core.name]  = (f'{target}rc{VersionHelpers.next_rc(gen, target)}', True)
         else:
             decided[core.name] = _coordinated_version(core)
         # downstreams: own footprint, an explicit --next-version, OR published core pin lag vs this
@@ -330,8 +330,8 @@ class PrePlan(Plan):
         core_v = decided[core.name][0]
         for d in downstreams:
             if d.footprint_changed or d.version_override or (core_v is not None and d.current_forward.get(core.name) != core_v):
-                gen = d.generation_tags
-                target = _next_rc_target(d)
+                gen             = d.generation_tags
+                target          = _next_rc_target(d)
                 decided[d.name] = (f'{target}rc{VersionHelpers.next_rc(gen, target)}', True)
             else:
                 decided[d.name] = _coordinated_version(d)
@@ -346,8 +346,8 @@ class PrePlan(Plan):
 class ProdPlan(Plan):
     """`prod`: stack the final on the latest rc onto `prod`, then re-floor `main` (the epilogue)."""
 
-    FLAVOR = 'prod'
-    BASE_KIND = 'rc'
+    FLAVOR      = 'prod'
+    BASE_KIND   = 'rc'
 
     @classmethod
     def _decide(cls, inputs):
@@ -355,37 +355,37 @@ class ProdPlan(Plan):
 
     @classmethod
     def _epilogue(cls, inp, decided, inputs):
-        core = next(i for i in inputs if i.is_core)
-        core_v = decided[core.name][0]
+        core    = next(i for i in inputs if i.is_core)
+        core_v  = decided[core.name][0]
         if inp.is_core:
-            edits: list[MainEdit] = []
-            dev = {
+            edits: list[MainEdit]   = []
+            dev                     = {
                 i.name: VersionHelpers.post_final_window_pin(decided[i.name][0])
                 for i in inputs
                 if not i.is_core and not i.is_downstream and decided[i.name][1]
             }
             if dev:
-                edits.append(MainEdit('post-final window sibling pins on main', forward_pins=dev))
+                edits.append(MainEdit('post-final window sibling pins on main', forward_pins = dev))
             ds_pins = _downstream_test_pins(decided, inputs)
             if ds_pins:
-                edits.append(MainEdit('track downstreams in test group', test_pin=ds_pins))
+                edits.append(MainEdit('track downstreams in test group', test_pin = ds_pins))
             return tuple(edits)
         if inp.is_downstream:
-            edits = []
-            fin_v = decided[inp.name][0]
-            pins: dict[str, str] = {}
+            edits                   = []
+            fin_v                   = decided[inp.name][0]
+            pins: dict[str, str]    = {}
             if core_v is not None:
                 pins[core.name] = VersionHelpers.post_final_window_pin(core_v)
             if fin_v is not None:
                 pins[f'{inp.name}-cxx'] = VersionHelpers.exact_pin(fin_v)
             if pins:
-                edits.append(MainEdit('post-final core + co-release cxx pins on main', forward_pins=pins))
+                edits.append(MainEdit('post-final core + co-release cxx pins on main', forward_pins = pins))
             if not decided[core.name][1] and fin_v is not None:
                 edits.append(
                     MainEdit(
                         f'track {inp.name} in core test group',
-                        test_pin=VersionHelpers.test_group_dep_pin(inp.name, fin_v),
-                        target=core.name,
+                        test_pin    = VersionHelpers.test_group_dep_pin(inp.name, fin_v),
+                        target      = core.name,
                     )
                 )
             return tuple(edits)

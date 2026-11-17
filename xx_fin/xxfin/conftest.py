@@ -13,7 +13,7 @@ from py10x_kernel import BTraitableProcessor
 from xxfin.pricing_context import PricingContext
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture(autouse = True)
 def reset_pricing_context():
     # ``@cache`` memos (Ccy.USD, CcyCross._resolve, FinCalendar.none, …) are cleared by
     # py10x ``test_isolation`` via ``global_cache._clear_all_caches``. Domain process
@@ -22,13 +22,13 @@ def reset_pricing_context():
     PricingContext.s_current_pc = None
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture(autouse = True)
 def graph_on():
     with GRAPH_ON():
         yield
 
 
-@pytest.fixture(scope='package', autouse=True)
+@pytest.fixture(scope = 'package', autouse = True)
 def test_xxfin_main_store():
     from core_10x.environment_variables import EnvVars
 
@@ -43,8 +43,8 @@ def test_xxfin_main_store():
 
     from xxfin.xxfin_env_vars import XXFinEnvVars
 
-    XXFinEnvVars.default_pricing_context_name = 'Abu Dhabi 20251010'
-    XXFinEnvVars.use_cxxfin = True
+    XXFinEnvVars.default_pricing_context_name   = 'Abu Dhabi 20251010'
+    XXFinEnvVars.use_cxxfin                     = True
 
     # Survive py10x_core test_isolation: re-publish all open stores (main, mkt_data, …),
     # main/vault URIs and the default pricing context after each test clear. Pin only after
@@ -56,6 +56,6 @@ def test_xxfin_main_store():
     # so DateCurve then interpolates over unset (XNone) values.
     pin_current_ts_stores(XXFinEnvVars.var.default_pricing_context_name)
     try:
-        yield TsStore.instance_from_uri(uri=EnvVars.main_ts_store_uri)
+        yield TsStore.instance_from_uri(uri = EnvVars.main_ts_store_uri)
     finally:
         unpin_ts_stores()

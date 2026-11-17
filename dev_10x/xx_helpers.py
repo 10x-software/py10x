@@ -15,13 +15,13 @@ class VersionHelpers:
     # A no-op lower bound (every version satisfies it) whose only job is to name a pre-release in an
     # *inclusive* operator, which flips on uv's per-package pre-release admission
     # (`SpecifierSet.prereleases`) without `--prerelease=allow`.
-    PRERELEASE_ENABLE = '>=0.0.0.dev0'
+    PRERELEASE_ENABLE   = '>=0.0.0.dev0'
 
     # --------------------------------------------------------------------------------------------
     # Pure helpers (no I/O) - exercised directly by the unit tests.
     # --------------------------------------------------------------------------------------------
-    YANKED_SUFFIX = '_yanked'
-    PUBLISH_PRE_PREFIX = 'pre/'
+    YANKED_SUFFIX       = '_yanked'
+    PUBLISH_PRE_PREFIX  = 'pre/'
     PUBLISH_PROD_PREFIX = 'prod/'
 
     @classmethod
@@ -97,7 +97,7 @@ class VersionHelpers:
     @classmethod
     def existing_main_dev_marker_tags(cls, raw_tags: list[str], prefix: str) -> list[str]:
         """All `{prefix}*.dev` main markers currently present (rc-line or post-final)."""
-        return [t for t, v in cls.parse_pkg_tags(raw_tags, prefix, include_dev_markers=True) if cls.is_main_dev_marker(v)]
+        return [t for t, v in cls.parse_pkg_tags(raw_tags, prefix, include_dev_markers = True) if cls.is_main_dev_marker(v)]
 
     @classmethod
     def parse_pkg_tags(
@@ -200,14 +200,14 @@ class VersionHelpers:
         the latest rc while a final-only pin selects the latest final - i.e. exactly what a consumer
         of the about-to-be-published pin would resolve to.
         """
-        by_ver = {v: t for t, v in parsed}
-        eligible = list(SpecifierSet(spec).filter(by_ver))
+        by_ver      = {v: t for t, v in parsed}
+        eligible    = list(SpecifierSet(spec).filter(by_ver))
         return by_ver[max(eligible)] if eligible else None
 
     @staticmethod
     def base_version(v: Version | str) -> str:
         """The `X.Y.Z` release of a version, zero-padded to three components."""
-        v = Version(str(v))
+        v   = Version(str(v))
         rel = [*list(v.release), 0, 0, 0]
         return f'{rel[0]}.{rel[1]}.{rel[2]}'
 
@@ -242,24 +242,24 @@ class VersionHelpers:
     def latest_rc_tag(cls, parsed: list[tuple[str, Version]], target: str) -> str | None:
         """The highest-numbered rc tag for `target`, or None - used to skip minting a duplicate."""
         rcs = [(t, v) for t, v in parsed if cls.base_version(v) == target and v.pre is not None and v.pre[0] == 'rc']
-        return max(rcs, key=lambda tv: tv[1])[0] if rcs else None
+        return max(rcs, key = lambda tv: tv[1])[0] if rcs else None
 
     @classmethod
     def latest_tag(cls, parsed: list[tuple[str, Version]]) -> tuple[str, Version] | None:
         """Highest-version tag (rc or final), or None when the package has never been tagged."""
-        return max(parsed, key=lambda tv: tv[1]) if parsed else None
+        return max(parsed, key = lambda tv: tv[1]) if parsed else None
 
     @staticmethod
     def latest_rc_tag_overall(parsed: list[tuple[str, Version]]) -> str | None:
         """Highest-version rc tag across all targets, or None - the commit `pre` derives to."""
         rcs = [(t, v) for t, v in parsed if v.pre is not None and v.pre[0] == 'rc']
-        return max(rcs, key=lambda tv: tv[1])[0] if rcs else None
+        return max(rcs, key = lambda tv: tv[1])[0] if rcs else None
 
     @classmethod
     def latest_final_tag(cls, parsed: list[tuple[str, Version]]) -> str | None:
         """Highest-version final tag, or None - the commit `prod` derives to."""
         finals = [(t, v) for t, v in parsed if cls.is_final(v)]
-        return max(finals, key=lambda tv: tv[1])[0] if finals else None
+        return max(finals, key = lambda tv: tv[1])[0] if finals else None
 
     @classmethod
     def publish_release_tag(cls, parsed: list[tuple[str, Version]], flavor: str) -> str | None:
@@ -292,7 +292,7 @@ class VersionHelpers:
         floor = max(published)
         return sorted(
             [(t, v) for t, v in parsed if v > floor and v not in published],
-            key=lambda tv: tv[1],
+            key = lambda tv: tv[1],
         )
 
     @classmethod
@@ -396,7 +396,7 @@ class GitHelpers:
     # --------------------------------------------------------------------------------------------
     @staticmethod
     def git(repo: Path, *args: str, check: bool = True) -> str:
-        res = subprocess.run(['git', *args], cwd=repo, text=True, capture_output=True, check=False)
+        res = subprocess.run(['git', *args], cwd = repo, text = True, capture_output = True, check = False)
         if check and res.returncode != 0:
             raise RuntimeError(f'git {" ".join(args)} (in {repo}) failed:\n{res.stderr.strip()}')
         return res.stdout.strip()
@@ -432,8 +432,8 @@ class GitHelpers:
     @classmethod
     def ls_remote_tags(cls, repo: Path, pattern: str) -> set[str]:
         """Tag names on `origin` matching `pattern` (peeled `^{}` refs collapsed)."""
-        out = cls.git(repo, 'ls-remote', '--tags', 'origin', pattern)
-        tags: set[str] = set()
+        out             = cls.git(repo, 'ls-remote', '--tags', 'origin', pattern)
+        tags: set[str]  = set()
         for line in out.splitlines():
             if '\t' in line:
                 tags.add(line.split('\t', 1)[1].removeprefix('refs/tags/').removesuffix('^{}'))
@@ -479,14 +479,14 @@ class GitHelpers:
         # owned by xx-promote). This is safe and desirable for dev markers and matches the
         # "remote is authoritative for these tags" model.
         for glob in tag_globs:
-            local = cls._tags_matching_glob(set(cls.list_tags(repo, glob)), glob)
-            remote = cls.ls_remote_tags(repo, glob)
+            local   = cls._tags_matching_glob(set(cls.list_tags(repo, glob)), glob)
+            remote  = cls.ls_remote_tags(repo, glob)
 
-            only_local = sorted(local - remote)
+            only_local  = sorted(local - remote)
             only_remote = sorted(remote - local)
 
             for t in only_local:
-                cls.git(repo, 'tag', '-d', t, check=False)
+                cls.git(repo, 'tag', '-d', t, check = False)
             for t in only_remote:
                 cls.git(repo, 'fetch', '-q', 'origin', 'tag', t)
 
@@ -533,10 +533,10 @@ class GitHelpers:
         """
         res = subprocess.run(
             ['git', 'diff', '--quiet', tag, rev, '--', *pathspecs],
-            cwd=repo,
-            capture_output=True,
-            text=True,
-            check=False,
+            cwd             = repo,
+            capture_output  = True,
+            text            = True,
+            check           = False,
         )
         if res.returncode == 0:
             return False
@@ -553,10 +553,10 @@ class GitHelpers:
         """
         res = subprocess.run(
             ['git', 'merge-base', '--is-ancestor', ancestor, descendant],
-            cwd=repo,
-            capture_output=True,
-            text=True,
-            check=False,
+            cwd             = repo,
+            capture_output  = True,
+            text            = True,
+            check           = False,
         )
         if res.returncode in (0, 1):
             return res.returncode == 0
@@ -567,10 +567,10 @@ class GitHelpers:
         """Contents of `rel_path` at `ref` (`git show ref:path`), or None when absent at that ref."""
         res = subprocess.run(
             ['git', 'show', f'{ref}:{rel_path}'],
-            cwd=repo,
-            capture_output=True,
-            text=True,
-            check=False,
+            cwd             = repo,
+            capture_output  = True,
+            text            = True,
+            check           = False,
         )
         return res.stdout if res.returncode == 0 else None
 
@@ -595,11 +595,11 @@ class PyProjectHelpers:
     # --------------------------------------------------------------------------------------------
     @staticmethod
     def _load(path: Path):
-        return tomlkit.parse(path.read_text(encoding='utf-8'))
+        return tomlkit.parse(path.read_text(encoding = 'utf-8'))
 
     @staticmethod
     def _dump(path: Path, doc) -> None:
-        path.write_text(tomlkit.dumps(doc), encoding='utf-8', newline='\n')
+        path.write_text(tomlkit.dumps(doc), encoding = 'utf-8', newline = '\n')
 
     @classmethod
     def project_name(cls, path: Path) -> str:
@@ -624,7 +624,7 @@ class PyProjectHelpers:
         planner can decide whether core's current pin lags a sibling's latest tag. Names without an
         `==` specifier (e.g. a `main` dev pin) are omitted.
         """
-        doc = tomlkit.parse(text)
+        doc                 = tomlkit.parse(text)
         out: dict[str, str] = {}
         for entry in doc.get('project', {}).get('dependencies', []):
             req = Requirement(str(entry))
@@ -659,8 +659,8 @@ class PyProjectHelpers:
             return {Requirement(str(e)).name: str(Requirement(str(e)).specifier) for e in doc.get('project', {}).get('dependencies', [])}
 
         def _without_deps(text: str):
-            doc = tomlkit.parse(text)
-            proj = doc.get('project')
+            doc     = tomlkit.parse(text)
+            proj    = doc.get('project')
             if proj is not None and 'dependencies' in proj:
                 del proj['dependencies']
             groups = doc.get('dependency-groups')
@@ -678,11 +678,11 @@ class PyProjectHelpers:
     @classmethod
     def write_forward_pins(cls, path: Path, pins: dict[str, str]) -> dict[str, str]:
         """Apply forward sibling pins to a [project.dependencies] array. Returns {name: old->new}."""
-        doc = cls._load(path)
-        deps = doc['project']['dependencies']
-        before = list(deps)
-        after = cls.forward_pin_edits(before, pins)
-        changes = {Requirement(o).name: f'{o!r} -> {n!r}' for o, n in zip(before, after, strict=False) if o != n}
+        doc     = cls._load(path)
+        deps    = doc['project']['dependencies']
+        before  = list(deps)
+        after   = cls.forward_pin_edits(before, pins)
+        changes = {Requirement(o).name: f'{o!r} -> {n!r}' for o, n in zip(before, after, strict = False) if o != n}
         for i, entry in enumerate(after):
             deps[i] = entry
         cls._dump(path, doc)
@@ -698,13 +698,13 @@ class PyProjectHelpers:
         """
         from packaging.requirements import Requirement
 
-        pin_list = [pins] if isinstance(pins, str) else list(pins)
-        doc = cls._load(path)
-        groups = doc.get('dependency-groups')
+        pin_list    = [pins] if isinstance(pins, str) else list(pins)
+        doc         = cls._load(path)
+        groups      = doc.get('dependency-groups')
         if groups is None:
-            groups = tomlkit.table()
-            doc['dependency-groups'] = groups
-        old = list(groups.get('test', []))
+            groups                      = tomlkit.table()
+            doc['dependency-groups']    = groups
+        old     = list(groups.get('test', []))
         by_name = {Requirement(p).name: p for p in old}
         for p in pin_list:
             by_name[Requirement(p).name] = p
@@ -731,8 +731,8 @@ class InstalledSourceHelpers:
         info: dict[str, str] = {}
         for line in stdout.splitlines():
             if ': ' in line:
-                key, value = line.split(': ', 1)
-                info[key.strip()] = value.strip()
+                key, value          = line.split(': ', 1)
+                info[key.strip()]   = value.strip()
         return info
 
     @staticmethod
@@ -741,9 +741,9 @@ class InstalledSourceHelpers:
         location, name, version = show.get('Location'), show.get('Name'), show.get('Version')
         if not location or not name or not version:
             return ''
-        dist_info = Path(location) / f'{name.replace("-", "_")}-{version}.dist-info'
-        direct_url = dist_info / 'direct_url.json'
-        return direct_url.read_text(encoding='utf-8') if direct_url.is_file() else ''
+        dist_info   = Path(location) / f'{name.replace("-", "_")}-{version}.dist-info'
+        direct_url  = dist_info / 'direct_url.json'
+        return direct_url.read_text(encoding = 'utf-8') if direct_url.is_file() else ''
 
     @staticmethod
     def classify_install(
@@ -771,10 +771,10 @@ class InstalledSourceHelpers:
             return None
         proc = subprocess.run(
             ['uv', 'pip', 'show', '--python', str(py), name],
-            cwd=self.project_root,
-            capture_output=True,
-            text=True,
-            check=False,
+            cwd             = self.project_root,
+            capture_output  = True,
+            text            = True,
+            check           = False,
         )
         if proc.returncode != 0 or 'Package(s) not found' in proc.stdout + proc.stderr:
             return None
@@ -788,8 +788,8 @@ class InstalledSourceHelpers:
         info = self.pip_show(name)
         if info is None:
             return None, None
-        editable = info.get('Editable project location')
-        editable_path = Path(editable) if editable else None
+        editable        = info.get('Editable project location')
+        editable_path   = Path(editable) if editable else None
         return self.classify_install(editable_path, self.dist_info_direct_url(info))
 
     def installed_version(self, name: str) -> str:
@@ -811,8 +811,8 @@ class PyPIHelpers:
         """
         import json
 
-        data = json.loads(json_text)
-        out: set[Version] = set()
+        data                = json.loads(json_text)
+        out: set[Version]   = set()
         for raw in data.get('releases', {}):
             try:
                 out.add(Version(raw))
@@ -831,7 +831,7 @@ class PyPIHelpers:
 
         url = f'https://pypi.org/pypi/{name}/json'
         try:
-            with request.urlopen(url, timeout=timeout) as resp:
+            with request.urlopen(url, timeout = timeout) as resp:
                 return cls.parse_released_versions(resp.read().decode('utf-8'))
         except error.HTTPError as e:
             if e.code == 404:
@@ -853,7 +853,7 @@ class PyPIHelpers:
         import json
         from urllib import request
 
-        with request.urlopen(f'https://pypi.org/pypi/{name}/{version}/json', timeout=timeout) as resp:
+        with request.urlopen(f'https://pypi.org/pypi/{name}/{version}/json', timeout = timeout) as resp:
             if resp.status != 200:
                 raise LookupError(f'{name}=={version}: HTTP {resp.status}')
             data = json.loads(resp.read().decode('utf-8'))
@@ -883,14 +883,14 @@ class PyPIHelpers:
         # checking only the HTML one can pass while pip still gets a JSON copy without the new release.
         simple = request.Request(
             f'https://pypi.org/simple/{simple_name}/',
-            headers={
+            headers = {
                 'Accept': 'application/vnd.pypi.simple.v1+json, application/vnd.pypi.simple.v1+html; q=0.1, text/html; q=0.01',
                 'Cache-Control': 'max-age=0',
             },
         )
         try:
-            with request.urlopen(simple, timeout=timeout) as resp:
-                listing = resp.read().decode('utf-8', errors='replace')
+            with request.urlopen(simple, timeout = timeout) as resp:
+                listing = resp.read().decode('utf-8', errors = 'replace')
                 if resp.headers.get_content_type() == 'application/vnd.pypi.simple.v1+json':
                     listing = '\n'.join(f['filename'] for f in json.loads(listing)['files'])
         except error.HTTPError as e:
@@ -898,8 +898,8 @@ class PyPIHelpers:
                 return False
             raise
         # Filenames use underscores; accept either spelling in the listing.
-        needle = f'{simple_name.replace("-", "_")}-{version}'
-        alt = f'{simple_name}-{version}'
+        needle  = f'{simple_name.replace("-", "_")}-{version}'
+        alt     = f'{simple_name}-{version}'
         return needle in listing or alt in listing
 
     @classmethod
@@ -915,7 +915,7 @@ class PyPIHelpers:
         `PyProjectHelpers.exact_pins_from_text`, which reads the same shape of pin from a local
         pyproject.toml instead of an already-published release's metadata."""
         out: dict[str, str] = {}
-        for req_str in cls.release_requires_dist(name, version, timeout=timeout):
+        for req_str in cls.release_requires_dist(name, version, timeout = timeout):
             try:
                 req = Requirement(req_str.split(';', 1)[0].strip())
             except Exception:  # noqa: BLE001, S112 - a malformed Requires-Dist entry is skipped, not fatal
@@ -954,13 +954,13 @@ class PyPIHelpers:
         start = time.monotonic()
         while True:
             if cls.release_exists(name, version):
-                print(f'{name}=={version} available on PyPI', flush=True)
+                print(f'{name}=={version} available on PyPI', flush = True)
                 return True
             if time.monotonic() >= deadline:
-                print(f'timed out waiting for {name}=={version} on PyPI', file=sys.stderr)
+                print(f'timed out waiting for {name}=={version} on PyPI', file = sys.stderr)
                 return False
             interval = quick_poll if time.monotonic() - start < quick_poll_window else poll
-            print(f'{name}=={version} not yet available; retrying in {interval:g}s...', file=sys.stderr)
+            print(f'{name}=={version} not yet available; retrying in {interval:g}s...', file = sys.stderr)
             time.sleep(interval)
 
 
@@ -996,7 +996,7 @@ class GitHubHelpers:
     def select_run_for_tag(runs: list[dict], tag: str) -> dict | None:
         """The most recent push-triggered run whose ref is `tag` (tags surface as `head_branch`)."""
         matching = [r for r in runs if r.get('head_branch') == tag]
-        return max(matching, key=lambda r: r.get('created_at', '')) if matching else None
+        return max(matching, key = lambda r: r.get('created_at', '')) if matching else None
 
     @staticmethod
     def run_state(run: dict | None) -> str:
@@ -1039,9 +1039,9 @@ class GitHubHelpers:
         try:
             proc = subprocess.run(
                 ['gh', 'api', f'repos/{slug}/actions/runs?event=push&per_page=100', '--jq', '.workflow_runs'],
-                capture_output=True,
-                text=True,
-                check=False,
+                capture_output  = True,
+                text            = True,
+                check           = False,
             )
         except FileNotFoundError as e:
             raise GhUnavailableError('gh (GitHub CLI) is not installed') from e

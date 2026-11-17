@@ -6,7 +6,7 @@ from xxfin.fin_instrument import RT, Ccy, FinBasket, FinInstrument, PricingConte
 
 
 class CcyUnit(FinInstrument):
-    denominated: Ccy    = RT(T.ID)   #-- became non-storable ID
+    denominated: Ccy = RT(T.ID)   #-- became non-storable ID
 
     ## TODO: retired in favor of runtime discovery via GraphDeps/MktDeps (see mkt_deps_design_notes.md) --
     ##       kept commented for possible future use in simulation scenarios. OK to discard instead?

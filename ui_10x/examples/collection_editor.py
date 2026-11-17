@@ -10,8 +10,8 @@ if __name__ == '__main__':
     ux.init()
 
     with INTERACTIVE():
-        coll = Collection(cls = Person)
-        ce = CollectionEditor(coll = coll)
-        w = ce.main_widget()
-        d = UxDialog(w)
+        coll    = Collection(cls = Person)
+        ce      = CollectionEditor(coll = coll)
+        w       = ce.main_widget()
+        d       = UxDialog(w)
         d.exec()

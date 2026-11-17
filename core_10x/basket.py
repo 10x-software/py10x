@@ -74,15 +74,15 @@ class BucketDict(Bucket):
     data: dict[Traitable, float] = T(T.STICKY)
 
     def _insert(self, obj: Traitable, qty: float = 1):
-        data = self.data
-        ex_qty = data.get(obj, 0.)
-        data[obj] = ex_qty + qty
+        data        = self.data
+        ex_qty      = data.get(obj, 0.)
+        data[obj]   = ex_qty + qty
 
     def _insert_bucket(self, bucket: BucketDict):
         data = self.data
         for obj, qty in bucket.data.items():
-            ex_qty = data.get(obj, 0.)
-            data[obj] = ex_qty + qty
+            ex_qty      = data.get(obj, 0.)
+            data[obj]   = ex_qty + qty
 
     def is_member(self, obj: Traitable) -> bool:
         return obj in self.data
@@ -147,12 +147,12 @@ class Bucketizer(Traitable, embeddable = True):
             raise TypeError(f'{label}: {custom_f} is not callable')
 
         if arg_data_type is not None:
-            sig = inspect.signature(custom_f)
-            params = list(sig.parameters.values())
+            sig     = inspect.signature(custom_f)
+            params  = list(sig.parameters.values())
             if len(params) != 1:
                 raise AssertionError(f'{label}: {custom_f} must accept exactly one parameter')
-            p = params[0]
-            dtype = p.annotation
+            p       = params[0]
+            dtype   = p.annotation
             if dtype is not inspect.Signature.empty and dtype is not arg_data_type:
                 raise AssertionError(f'{label}: {custom_f} must accept single {arg_data_type}')
 
@@ -192,10 +192,10 @@ class Bucketizer(Traitable, embeddable = True):
         cls.verify_base_class(base_class)
         cls.verify_custom_f(value_for_range_calc, 'value_for_range_calc')
         return BucketizerByBreakPoints(
-            base_class=base_class,
-            f_bucketizing_value=value_for_range_calc,
-            buckets_spec=breakpoints,
-            include_last=include_last,
+            base_class          = base_class,
+            f_bucketizing_value = value_for_range_calc,
+            buckets_spec        = breakpoints,
+            include_last        = include_last,
         )
 
 
@@ -225,9 +225,9 @@ class Interval:
             self.test_f = lambda v: a <= v < b
 
         if label is None:
-            left_bracket = '(' if a is -XInf else '['
-            right_bracket = ')' if b is XInf or not inclusive else ']'
-            label = f'{left_bracket} {a} : {b} {right_bracket}'
+            left_bracket    = '(' if a is -XInf else '['
+            right_bracket   = ')' if b is XInf or not inclusive else ']'
+            label           = f'{left_bracket} {a} : {b} {right_bracket}'
         self.label = label
 
 class BucketizerByRange(BucketizerByFeature):
@@ -237,7 +237,7 @@ class BucketizerByRange(BucketizerByFeature):
                 |= ( label, low, high )         #-- low <= x < high: 'label'
                 |= ( low, high )                #-- same as ( '[low - high )', low, high )
     """
-    intervals: list[Interval]   = RT()
+    intervals: list[Interval] = RT()
 
     def intervals_get(self) -> list:
         res = []
@@ -254,11 +254,11 @@ class BucketizerByRange(BucketizerByFeature):
                 raise ValueError('Each interval must be either <label, low, high> or <low, high>')
 
             if n == 3:
-                label, low, high = spec
-                interval = Interval(low, high, inclusive = inclusive, label = label)
+                label, low, high    = spec
+                interval            = Interval(low, high, inclusive = inclusive, label = label)
             else:
-                low, high = spec
-                interval = Interval(low, high, inclusive = inclusive)
+                low, high   = spec
+                interval    = Interval(low, high, inclusive = inclusive)
 
             res.append(interval)
 
@@ -283,8 +283,8 @@ class BucketizerByBreakPoints(BucketizerByFeature):
         return self.raw_set_trait_value(trait, include_last)
 
     def intervals_get(self) -> list:
-        points = self.buckets_spec
-        n = len(points)
+        points  = self.buckets_spec
+        n       = len(points)
         if n < 2:
             return []
 
@@ -305,8 +305,8 @@ class BucketizerByBreakPoints(BucketizerByFeature):
             if not rc:
                 raise ValueError(f'Points must be in strict ascending order: ({low}, {point})')
 
-            inclusive = include_last if i == n - 1 else False  # bisect_right gives [low, high) semantics
-            interval = Interval(low, point, inclusive = inclusive)
+            inclusive   = include_last if i == n - 1 else False  # bisect_right gives [low, high) semantics
+            interval    = Interval(low, point, inclusive = inclusive)
             res.append(interval)
 
             low = point
@@ -314,8 +314,8 @@ class BucketizerByBreakPoints(BucketizerByFeature):
         return res
 
     def calc_bucket_tag(self, bucketizing_value) -> str:
-        break_points = self.buckets_spec
-        intervals = self.intervals
+        break_points    = self.buckets_spec
+        intervals       = self.intervals
 
         i = bisect.bisect_right(break_points, bucketizing_value) - 1
         if i < 0:
@@ -372,17 +372,17 @@ class Basket(Traitable, embeddable = True):
             return RC(False, 'bucketizers must be a list of instances of Bucketizer')
 
         if not self.reset_members_on_set_bucketizers:
-            return RC(self.add_bucketizers(bucketizers,replace=True))
+            return RC(self.add_bucketizers(bucketizers,replace = True))
 
         self.invalidate_value('the_bucket')
         self.invalidate_value('all_buckets')
 
         return self.raw_set_trait_value(trait, bucketizers)
 
-    def add_bucketizers(self, bucketizers: list[Bucketizer], replace=False) -> bool:
-        new_buckets = {}
-        new_bucket = None
-        use_the_bucket = (replace or not self.bucketizers) and not bucketizers
+    def add_bucketizers(self, bucketizers: list[Bucketizer], replace = False) -> bool:
+        new_buckets     = {}
+        new_bucket      = None
+        use_the_bucket  = (replace or not self.bucketizers) and not bucketizers
 
         for tag, bucket in self.tags_buckets():
             if replace:
@@ -391,7 +391,7 @@ class Basket(Traitable, embeddable = True):
                 tags = []
                 for bucketizer in bucketizers:
                     b_value = bucketizer.calc_bucketizing_value(member)
-                    b_tag = bucketizer.calc_bucket_tag(b_value)
+                    b_tag   = bucketizer.calc_bucket_tag(b_value)
                     if b_tag is None:
                         break
                     tags.append(b_tag)
@@ -399,8 +399,8 @@ class Basket(Traitable, embeddable = True):
                     if use_the_bucket:
                         new_bucket = new_bucket or self.new_bucket()
                     else:
-                        key = *tag, *tags
-                        new_bucket = new_buckets.get(key)
+                        key         = *tag, *tags
+                        new_bucket  = new_buckets.get(key)
                         if new_bucket is None:
                             new_buckets[key] = new_bucket = self.new_bucket()
                     new_bucket._insert(member, qty)
@@ -445,18 +445,18 @@ class Basket(Traitable, embeddable = True):
             tags = []
             for bucketizer in bucketizers:
                 b_value = bucketizer.calc_bucketizing_value(obj)
-                b_tag = bucketizer.calc_bucket_tag(b_value)
+                b_tag   = bucketizer.calc_bucket_tag(b_value)
                 if b_tag is None:
                     return False
 
                 tags.append(b_tag)
 
-            key = tuple(tags)
-            data = self.all_buckets
-            bucket = data.get(key)
+            key     = tuple(tags)
+            data    = self.all_buckets
+            bucket  = data.get(key)
             if bucket is None:
-                bucket = self.new_bucket()
-                data[key] = bucket
+                bucket      = self.new_bucket()
+                data[key]   = bucket
 
         bucket._insert(obj, qty)
         return True
@@ -468,8 +468,8 @@ class Basket(Traitable, embeddable = True):
         return ( (key, bucket) for key, bucket in self.all_buckets.items() )
 
     def buckets_by_subtags(self, *subtags):
-        n_bucks = len(self.bucketizers)
-        n_subtags = len(subtags)
+        n_bucks     = len(self.bucketizers)
+        n_subtags   = len(subtags)
         if n_subtags > n_bucks:
             raise AssertionError(f"Can't specify more than {n_bucks} subtags")
 
@@ -488,8 +488,8 @@ class Basket(Traitable, embeddable = True):
         return itertools.chain.from_iterable(bucket.members_qtys() for _, bucket in self.tags_buckets())
 
     def __getattr__(self, method_name: str):
-        base_class = self.base_class
-        trait = getattr(base_class, method_name, None)
+        base_class  = self.base_class
+        trait       = getattr(base_class, method_name, None)
         if trait is None:
             raise AttributeError(f"'{type(self).__name__}' basket (base_class={base_class.__name__ if base_class else None}) has no attribute '{method_name}'")
 

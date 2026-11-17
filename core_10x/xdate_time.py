@@ -19,12 +19,12 @@ class XDateTime:
         """
         if v >= MIN_CANONICAL_DATE:
             day = v % 100
-            ym = v // 100
+            ym  = v // 100
 
-            month = ym % 100
-            year = ym // 100
+            month   = ym % 100
+            year    = ym // 100
 
-            return date(year=year, month=month, day=day)
+            return date(year = year, month = month, day = day)
 
         return date.fromordinal(v)
 
@@ -39,13 +39,13 @@ class XDateTime:
     FORMAT_EU   = '%d.%m.%Y'
     # fmt: on
 
-    s_default_format = FORMAT_X10
-    formats = [s_default_format, FORMAT_X10, FORMAT_ISO, FORMAT_US, FORMAT_EU]
+    s_default_format    = FORMAT_X10
+    formats             = [s_default_format, FORMAT_X10, FORMAT_ISO, FORMAT_US, FORMAT_EU]
 
     @classmethod
     def set_default_format(cls, fmt: str):
-        cls.s_default_format = fmt
-        cls.formats[0] = fmt
+        cls.s_default_format    = fmt
+        cls.formats[0]          = fmt
 
     @staticmethod
     def str_to_date(v: str, format: str = '') -> date | None:
@@ -101,11 +101,11 @@ class XDateTime:
     def str_to_datetime(v: str) -> datetime | None:
         parts = v.split(' ')
         try:
-            date_part, time_part = parts
-            d = XDateTime.str_to_date(date_part)
+            date_part, time_part    = parts
+            d                       = XDateTime.str_to_date(date_part)
             if d is not None:
-                num_colons = time_part.count(':')
-                fmt = XDateTime.dt_format[num_colons]
+                num_colons  = time_part.count(':')
+                fmt         = XDateTime.dt_format[num_colons]
                 if time_part.find('.') != -1:
                     fmt = fmt + '.%f'
                     return datetime.strptime(time_part, fmt)
@@ -119,7 +119,7 @@ class XDateTime:
 
     @staticmethod
     def date_to_datetime(d: date) -> datetime:
-        return datetime(year=d.year, month=d.month, day=d.day)
+        return datetime(year = d.year, month = d.month, day = d.day)
 
     # fmt: off
     datetime_converters = {

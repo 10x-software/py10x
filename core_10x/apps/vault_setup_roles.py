@@ -29,10 +29,10 @@ class VaultSetupRolesCli(TraitableCli):
     Do not use ``create_xx_user`` / the stock ``xxUser`` role on the vault.
     """
 
-    uri: str = RT()
-    username: str = RT(T.STICKY)
-    worker: str = RT('')
-    vault_admin: str = RT('')
+    uri: str            = RT()
+    username: str       = RT(T.STICKY)
+    worker: str         = RT('')
+    vault_admin: str    = RT('')
 
     def uri_get(self) -> str:
         return EnvVars.main_vault_uri
@@ -50,7 +50,7 @@ class VaultSetupRolesCli(TraitableCli):
         password = getpass.getpass(f"{self.username}'s password for the vault database: ")
         try:
             vault = TsStore.instance_from_uri(
-                self.uri, username=self.username or None, password=password or None, _cache=False, _create_if_needed=True
+                self.uri, username = self.username or None, password = password or None, _cache = False, _create_if_needed = True
             )
         except Exception as e:  # noqa: BLE001
             return RC(False, f'failed to connect to vault at {self.uri}: {e}')
@@ -63,10 +63,10 @@ class VaultSetupRolesCli(TraitableCli):
 
         rc = VaultRoles.setup(
             vault,
-            worker=self.worker,
-            worker_password=worker_password,
-            vault_admin=self.vault_admin,
-            admin_password=admin_password,
+            worker          = self.worker,
+            worker_password = worker_password,
+            vault_admin     = self.vault_admin,
+            admin_password  = admin_password,
         )
         if rc:
             parts = ['vault worker/admin roles installed']

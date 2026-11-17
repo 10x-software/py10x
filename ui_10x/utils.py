@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 
 class UxAsync(ux.Object):
-    SIGNAL = ux.signal_decl()
+    SIGNAL      = ux.signal_decl()
     s_instances = {}
 
     @classmethod
@@ -28,8 +28,8 @@ class UxAsync(ux.Object):
             if not ux.is_ui_thread():
                 raise RuntimeError(f'You must have called UxAsync.init({bound_method.__name__}) in the UI thread')
 
-            instance = cls()
-            cls.s_instances[bound_method] = instance
+            instance                        = cls()
+            cls.s_instances[bound_method]   = instance
 
             instance.SIGNAL.connect(bound_method)
 
@@ -46,8 +46,8 @@ class UxRadioBox(ux.GroupBox):
     def __init__(self, named_constant_class, title = '', horizontal = False, default_value: NamedConstant = None):
         assert inspect.isclass(named_constant_class) and issubclass(named_constant_class, NamedConstant), 'subclass of NamedConstant is expected'
 
-        self.nm_class = named_constant_class
-        self.values = values = list(named_constant_class.s_dir.values())
+        self.nm_class   = named_constant_class
+        self.values     = values = list(named_constant_class.s_dir.values())
 
         if default_value is None:
             default = 0
@@ -84,21 +84,21 @@ def ux_success(text: str, parent = None, title = '', on_close: Callable[[bool],N
         title = 'Success'
     if not parent:
         parent = None
-    ux.MessageBox.information(parent, title, text, on_close=on_close)
+    ux.MessageBox.information(parent, title, text, on_close = on_close)
 
 def ux_warning(text: str, parent = None, title = '',  on_close: Callable[[bool],None] = None):
     if not title:
         title = 'Warning'
     if not parent:
         parent = None
-    ux.MessageBox.warning(parent, title, text, on_close=on_close)
+    ux.MessageBox.warning(parent, title, text, on_close = on_close)
 
 def ux_answer(question: str, parent = None, title = '', on_close: Callable[[bool],None] = None) -> bool | None:
     if not title:
         title = 'Waiting for your answer...'
     if not parent:
         parent = None
-    sb = ux.MessageBox.question(parent, title, question, on_close=(lambda result: on_close(ux.MessageBox.is_yes_button(result))) if on_close else None)
+    sb = ux.MessageBox.question(parent, title, question, on_close = (lambda result: on_close(ux.MessageBox.is_yes_button(result))) if on_close else None)
     if not on_close:
         print(f'ux_answer: question = {question}, title = {title}, parent = {parent}', sb)
         return ux.MessageBox.is_yes_button(sb)
@@ -112,9 +112,9 @@ def ux_multi_choice_answer(named_constant_class, parent = None, title = '', defa
     if not parent:
         parent = None
 
-    box = UxRadioBox(named_constant_class, default_value = default_value)
+    box             = UxRadioBox(named_constant_class, default_value = default_value)
     accept_callback = (lambda: on_close(box.choice())) if on_close else None
-    d = UxDialog(box, parent = parent, title = title, cancel = '', accept_callback=accept_callback)
+    d               = UxDialog(box, parent = parent, title = title, cancel = '', accept_callback = accept_callback)
     if not on_close:
         d.exec()
         return box.choice()
@@ -130,9 +130,9 @@ def ux_push_button(label: str, callback = None, style_icon = None, flat = False)
 
         assert isinstance(style_icon, int), 'Currently only str or int are supported for style_icon'
 
-        style = ux.Application.style()
-        icon = style.standard_icon(style_icon)
-        button = ux.PushButton(icon, label)
+        style   = ux.Application.style()
+        icon    = style.standard_icon(style_icon)
+        button  = ux.PushButton(icon, label)
     else:
         button = ux.PushButton(label)
 
@@ -151,8 +151,8 @@ class UxDialog(ux.Dialog):
             return None
 
         if isinstance(button_spec, str):
-            label = button_spec
-            icon = ''
+            label   = button_spec
+            icon    = ''
 
         elif isinstance(button_spec, tuple):
             try:
@@ -169,15 +169,15 @@ class UxDialog(ux.Dialog):
     def __init__(
             self,
             w: ux.Widget,
-            parent: ux.Widget   = None,
-            title: str          = None,
-            ok                  = 'Ok',
-            cancel              = 'Cancel',
-            accept_callback     = None,
-            cancel_callback     = None,
-            open_callback       = None,
-            min_width           = 0,
-            min_height          = 0,
+            parent: ux.Widget = None,
+            title: str = None,
+            ok = 'Ok',
+            cancel = 'Cancel',
+            accept_callback = None,
+            cancel_callback = None,
+            open_callback = None,
+            min_width = 0,
+            min_height = 0,
             #window_flags        = None
     ):
         """
@@ -195,9 +195,9 @@ class UxDialog(ux.Dialog):
         #     window_flags = Qt.WindowType.CustomizeWindowHint | Qt.WindowType.Window | Qt.WindowType.WindowTitleHint | Qt.WindowType.WindowCloseButtonHint
 
         ##self.setWindowFlags(window_flags)
-        self.accept_callback = accept_callback
-        self.cancel_callback = cancel_callback if cancel_callback else self.reject
-        self.open_callback = open_callback
+        self.accept_callback    = accept_callback
+        self.cancel_callback    = cancel_callback if cancel_callback else self.reject
+        self.open_callback      = open_callback
 
         if ok:
             ok = self._create_button(True, ok)
@@ -246,9 +246,9 @@ class UxDialog(ux.Dialog):
     def done(self, code):
         # Drop callbacks so nested closures do not keep entities
         # alive after the dialog has finished, even if widget is still around
-        self.accept_callback = None
-        self.cancel_callback = None
-        self.open_callback = None
+        self.accept_callback    = None
+        self.cancel_callback    = None
+        self.open_callback      = None
         super().done(code)
 
     def on_open(self):
@@ -265,7 +265,7 @@ def ux_pick_date(title = 'Pick a Date', show_date: date = None, grid = True, def
         cal.set_selected_date(show_date)
 
     accept_callback = (lambda: on_accept(cal.selected_date())) if on_accept else None
-    dlg = UxDialog(cal, parent = parent, title = title, accept_callback = accept_callback)
+    dlg             = UxDialog(cal, parent = parent, title = title, accept_callback = accept_callback)
     if on_accept:
         dlg.exec()
         return None
@@ -273,10 +273,10 @@ def ux_pick_date(title = 'Pick a Date', show_date: date = None, grid = True, def
 
 class UxStyleSheet:
     def __init__(self, widget):
-        self.widget = widget
-        sh = widget.style_sheet()
-        self.data = self.loads(sh)
-        self.replacement_stack = deque()
+        self.widget             = widget
+        sh                      = widget.style_sheet()
+        self.data               = self.loads(sh)
+        self.replacement_stack  = deque()
 
     def set(self):
         self.widget.set_style_sheet(self.dumps(self.data))
@@ -298,8 +298,8 @@ class UxStyleSheet:
 
     def restore(self):
         if self.replacement_stack:
-            old_data = self.replacement_stack.pop()
-            data = self.data
+            old_data    = self.replacement_stack.pop()
+            data        = self.data
             for name, value in old_data.items():
                 if value is None:
                     data.pop(name, None)
@@ -314,16 +314,16 @@ class UxStyleSheet:
 
     @classmethod
     def loads(cls, sheet: str) -> dict:
-        res = {}
-        pairs = sheet.split(';')
+        res     = {}
+        pairs   = sheet.split(';')
         for pair in pairs:
             pair = pair.strip()
             if pair:
                 name_value = pair.split(':')
                 if len(name_value) == 2:
-                    name = name_value[0].strip()
-                    value = name_value[1].strip()
-                    res[name] = value
+                    name        = name_value[0].strip()
+                    value       = name_value[1].strip()
+                    res[name]   = value
 
         return res
 
@@ -332,15 +332,15 @@ class UxStyleSheet:
         if not named_sheet_attrs:
             return
 
-        sh = widget.style_sheet()
-        data = cls.loads(sh)
+        sh      = widget.style_sheet()
+        data    = cls.loads(sh)
         data.update(named_sheet_attrs)
         widget.set_style_sheet(cls.dumps(data))
 
     @classmethod
     def _color(cls, style_sheet: str, attr_name: str) -> ux.Color:
-        data = cls.loads(style_sheet)
-        str_color = data.get(attr_name)
+        data        = cls.loads(style_sheet)
+        str_color   = data.get(attr_name)
         return ux.Color(str_color) if str_color else None
 
     @classmethod
@@ -356,12 +356,12 @@ class UxStyleSheet:
         return cls.bg_color(style_sheet) if background else cls.fg_color(style_sheet)
 
 
-s_verticalAlignmentMap = { # noqa: N816
+s_verticalAlignmentMap      = { # noqa: N816
     -1:     ux.TEXT_ALIGN.TOP,
     0:      ux.TEXT_ALIGN.V_CENTER,
     1:      ux.TEXT_ALIGN.BOTTOM,
 }
-s_horizontalAlignmentMap = { # noqa: N816
+s_horizontalAlignmentMap    = { # noqa: N816
     -1:     ux.TEXT_ALIGN.LEFT,
     0:      ux.TEXT_ALIGN.CENTER,
     1:      ux.TEXT_ALIGN.RIGHT,
@@ -389,11 +389,11 @@ class UxSearchableList(ux.GroupBox):
         self,
         text_widget: ux.LineEdit = None,
         reset_selection = True,
-        choices: list   = None,
-        select_hook     = None,
-        sort            = False,
-        case_sensitive  = False,
-        title           = ''
+        choices: list = None,
+        select_hook = None,
+        sort = False,
+        case_sensitive = False,
+        title = ''
     ):
         """
         :param text_widget: if an external text_widget given, it is used, otherwise its own is created on top of the list
@@ -405,18 +405,18 @@ class UxSearchableList(ux.GroupBox):
         :param title: an optional title
         """
         super().__init__()
-        self.sort = sort
-        items = {str(c): c for c in (choices or [])}
-        self.initial_choices = dict(sorted(items.items())) if sort else items
-        self.current_choices = list(self.initial_choices)  # labels currently shown
+        self.sort               = sort
+        items                   = {str(c): c for c in (choices or [])}
+        self.initial_choices    = dict(sorted(items.items())) if sort else items
+        self.current_choices    = list(self.initial_choices)  # labels currently shown
         # Bound-method hooks intentionally pin ``__self__``. Call sites such as
         # ``CollectionEditor`` / Rio pages often retain only the widget tree; the
         # hook is then what keeps the controller Traitable alive for selection.
         # (Do not WeakMethod this — selection would silently no-op after GC.)
-        self.hook = select_hook
-        self.reset_selection = reset_selection
-        self.case_sensitive = case_sensitive
-        self.selection = None
+        self.hook               = select_hook
+        self.reset_selection    = reset_selection
+        self.case_sensitive     = case_sensitive
+        self.selection          = None
 
         if title:
             self.set_title(title)
@@ -468,9 +468,9 @@ class UxSearchableList(ux.GroupBox):
         self.w_list.add_items(self.current_choices)
 
     def item_selected(self, item: ux.ListItem):
-        i = item.row()
-        label = self.current_choices[i]
-        choice = self.initial_choices[label]
+        i       = item.row()
+        label   = self.current_choices[i]
+        choice  = self.initial_choices[label]
         self.reset()
 
         items = self.w_list.find_items(label, ux.MatchExactly)
@@ -499,13 +499,13 @@ class UxSearchableList(ux.GroupBox):
         The widget tree often outlives the controller; without this, bound-method
         hooks and Traitable choices keep Traitables alive past test isolation.
         """
-        self.hook = None
-        self.selection = None
+        self.hook       = None
+        self.selection  = None
         self.initial_choices.clear()
         self.current_choices = []
 
 class UxTreeViewer(ux.TreeWidget):
-    __slots__ = ('dir', 'num_cols', 'select_hook')
+    __slots__           = ('dir', 'num_cols', 'select_hook')
     s_label_max_length  = 40
 
     def __init__(self, dir: Directory, select_hook = None, label_max_length = -1, expand = False, **kwargs):
@@ -513,17 +513,17 @@ class UxTreeViewer(ux.TreeWidget):
         if label_max_length < 0:
             label_max_length = self.s_label_max_length
 
-        self.dir = dir
-        self.select_hook = select_hook
+        self.dir            = dir
+        self.select_hook    = select_hook
 
-        dir_value = dir.value
-        dir_name = dir.name
+        dir_value   = dir.value
+        dir_name    = dir.name
         if dir_value and dir_name and dir_name != dir_value:
-            num_cols = 2
-            header_labels = [dir_name, 'Description']
+            num_cols        = 2
+            header_labels   = [dir_name, 'Description']
         else:
-            num_cols = 1
-            header_labels = [dir.show_value()]
+            num_cols        = 1
+            header_labels   = [dir.show_value()]
 
         self.num_cols = num_cols
         self.set_column_count(num_cols)
@@ -552,8 +552,8 @@ class UxTreeViewer(ux.TreeWidget):
 
     @classmethod
     def create_tree(cls, dir: Directory, parent_node, label_max_length: int, num_cols: int):
-        node = cls.TreeItem(parent_node, dir)
-        show_value = dir.show_value()
+        node        = cls.TreeItem(parent_node, dir)
+        show_value  = dir.show_value()
         node.set_text(0, show_value)
         if num_cols == 2:
             label = dir.name
@@ -638,8 +638,8 @@ class UxTreeViewer(ux.TreeWidget):
 @singleton
 class UxClipBoard:
     def __init__(self):
-        self.dir = {}
-        self.entity = None
+        self.dir        = {}
+        self.entity     = None
         self.trait_name = ''
 
     # def copy(self, tag: str, value):

@@ -47,11 +47,11 @@ VAULT_URI = 'duckdb://vaulthost.example.com:27017/_vault_'
 
 @pytest.fixture
 def vault_env(monkeypatch):
-    keyring = {}
-    current_os = ['']
-    text_q = []
-    secret_q = []
-    vault_db = DuckDbStore()
+    keyring     = {}
+    current_os  = ['']
+    text_q      = []
+    secret_q    = []
+    vault_db    = DuckDbStore()
 
     # 1. Keyring (in-memory).
     monkeypatch.setattr(sec_keys_mod.keyring, 'get_password', lambda s, u: keyring.get((s, u)))
@@ -60,7 +60,7 @@ def vault_env(monkeypatch):
 
     # 2. OS user — used by SecKeys (master password / vault keyring lookups)
     #    and as the default for ``VaultUser.user_id``.
-    fake_os = SimpleNamespace(me=SimpleNamespace(name=lambda: current_os[0]))
+    fake_os = SimpleNamespace(me = SimpleNamespace(name = lambda: current_os[0]))
     monkeypatch.setattr(sec_keys_mod, 'OsUser', fake_os)
     monkeypatch.setattr(traitable_mod, 'OsUser', fake_os)
     # ``VaultUser.myname`` is @cache'd at the class level; replace with a
@@ -95,11 +95,11 @@ def vault_env(monkeypatch):
     monkeypatch.setattr(EnvVars, 'main_vault_uri', VAULT_URI)
 
     env = SimpleNamespace(
-        keyring=keyring,
-        text_q=text_q,
-        secret_q=secret_q,
-        vault_db=vault_db,
-        as_os_user=current_os,  # mutate ``[0]`` to switch user
+        keyring     = keyring,
+        text_q      = text_q,
+        secret_q    = secret_q,
+        vault_db    = vault_db,
+        as_os_user  = current_os,  # mutate ``[0]`` to switch user
     )
 
     def switch_os_user(name: str) -> None:
@@ -118,7 +118,7 @@ def vault_env(monkeypatch):
 
     def run_user_init(*, vault_login: str, vault_pwd: str, master_pwd: str, new_machine: bool = False) -> None:
         """Run ``VaultUtils.user_init`` non-interactively (kwargs, not prompts)."""
-        VaultUtils.user_init(new_machine=new_machine, login=vault_login, password=vault_pwd, master_password=master_pwd).throw()
+        VaultUtils.user_init(new_machine = new_machine, login = vault_login, password = vault_pwd, master_password = master_pwd).throw()
         clear_caches_keeping(EnvVars.var.main_vault_uri)
 
     def clear_local_keyring() -> None:
@@ -126,8 +126,8 @@ def vault_env(monkeypatch):
         keyring.clear()
         clear_caches_keeping(EnvVars.var.main_vault_uri)
 
-    env.switch_os_user = switch_os_user
-    env.run_user_init = run_user_init
+    env.switch_os_user      = switch_os_user
+    env.run_user_init       = run_user_init
     env.clear_local_keyring = clear_local_keyring
 
     yield env

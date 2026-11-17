@@ -25,7 +25,7 @@ class Collection(Traitable):
         return self.raw_set_trait_value(t, cls)
 
     def entities_get(self) -> list[Traitable]:
-        return [self.cls(_id=entity_id) for entity_id in self.cls.load_ids()]
+        return [self.cls(_id = entity_id) for entity_id in self.cls.load_ids()]
 
     def refresh(self):
         self.invalidate_value('entities')
@@ -49,19 +49,19 @@ class CollectionEditor(Traitable):
         return self.coll.cls
 
     def stocker_get(self):
-        return EntityStocker(plug=StockerPlug(master=self))
+        return EntityStocker(plug = StockerPlug(master = self))
 
     def main_widget(self) -> ux.Widget:
         sp = ux.Splitter(ux.Horizontal)
 
-        left_w = ux.Widget()
-        left_lay = ux.VBoxLayout()
+        left_w      = ux.Widget()
+        left_lay    = ux.VBoxLayout()
         left_w.set_layout(left_lay)
 
-        left_top_lay = ux.HBoxLayout()
-        line_w = ux.LineEdit()
+        left_top_lay    = ux.HBoxLayout()
+        line_w          = ux.LineEdit()
         line_w.set_minimum_width(100)
-        button_w = ux_push_button('New', callback=self.on_new_entity, style_icon='FileIcon')
+        button_w = ux_push_button('New', callback = self.on_new_entity, style_icon = 'FileIcon')
         left_top_lay.add_widget(line_w)
         left_top_lay.add_widget(button_w)
 
@@ -77,7 +77,7 @@ class CollectionEditor(Traitable):
         )
         # fmt: on
 
-        slw = ux_make_scrollable(list_w, h=ux.SCROLL.OFF)
+        slw = ux_make_scrollable(list_w, h = ux.SCROLL.OFF)
 
         left_lay.add_widget(slw)
 
@@ -105,28 +105,28 @@ class CollectionEditor(Traitable):
 
     def on_entity_selection(self, entity: Traitable):
         if self.num_panes:
-            se = self.stocker
-            ed = se or TraitableEditor.editor(entity)
+            se                  = self.stocker
+            ed                  = se or TraitableEditor.editor(entity)
             self.current_entity = entity
             self.current_editor = ed
-            w = ed.main_widget()
+            w                   = ed.main_widget()
             self.set_pane(0, w)
 
     def on_new_entity(self, flag):
         cls = self.current_class
         if cls:
-            new_entity = cls()
-            ed = TraitableEditor.editor(new_entity)
+            new_entity  = cls()
+            ed          = TraitableEditor.editor(new_entity)
 
             def accept_hook(rc: RC):
                 if not rc:
-                    ux_warning(rc.error(), parent=self.main_w, on_close=lambda ctx: None)
+                    ux_warning(rc.error(), parent = self.main_w, on_close = lambda ctx: None)
                     # -- TODO: should we "merge" values from the existing instance?
 
                 else:
                     self.searchable_list.add_choice(new_entity)
 
-            ed.popup(copy_entity=False, title=f'New Entity of {cls.__name__}', save=True, accept_hook=accept_hook)
+            ed.popup(copy_entity = False, title = f'New Entity of {cls.__name__}', save = True, accept_hook = accept_hook)
 
     def on_deleted_entity(self, deleted_entity: Traitable):
         self.searchable_list.remove_choice(deleted_entity)

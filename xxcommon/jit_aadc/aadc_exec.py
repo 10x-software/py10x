@@ -18,13 +18,13 @@ from xxcommon.jit_aadc.aadc_context import AADCDomainSwap
 from xxcommon.jit_aadc.idate import IDate
 
 
-AADC_TYPE_MAP = {
+AADC_TYPE_MAP       = {
     float:      idouble,
     int:        iint,
     bool:       ibool,
     date:       IDate,
 }
-AADC_ACTIVE_TYPES = frozenset(AADC_TYPE_MAP.values())
+AADC_ACTIVE_TYPES   = frozenset(AADC_TYPE_MAP.values())
 
 class AadcCallableRewriter(CallableRewriter):
     """
@@ -43,34 +43,34 @@ class AadcCallableRewriter(CallableRewriter):
     def visit_If(self, node: ast.If) -> ast.If:
         self.generic_visit(node)
         node.test = ast.Call(
-            func = ast.Name(id = self.IF_WRAPPER_NAME, ctx = ast.Load()),
-            args = [ast.Constant(value = self.location_id(node)), node.test],
-            keywords = [],
+            func        = ast.Name(id = self.IF_WRAPPER_NAME, ctx = ast.Load()),
+            args        = [ast.Constant(value = self.location_id(node)), node.test],
+            keywords    = [],
         )
         return node
 
 
 class AadcKernel:
     def __init__(self, obj: Traitable, trait: Trait):
-        self.obj = obj
-        self.trait = trait
-        self.kernel = None
-        self.deps: GraphDeps = None
-        self.input_handles = {}
-        self.output = None
-        self.eval_result = None   #-- raw evaluate_kernel() return -- set by AadcExec.eval_kernel()
+        self.obj                = obj
+        self.trait              = trait
+        self.kernel             = None
+        self.deps: GraphDeps    = None
+        self.input_handles      = {}
+        self.output             = None
+        self.eval_result        = None   #-- raw evaluate_kernel() return -- set by AadcExec.eval_kernel()
 
     def build(self, deps: GraphDeps):
         self.deps = deps
         with AADCDomainSwap(), record_kernel() as kernel:
-            self.kernel = kernel
-            self.input_handles = input_handles = {}
+            self.kernel         = kernel
+            self.input_handles  = input_handles = {}
             for cls, obj_id, trait, value in deps.deps(objects = False):
                 active_type = AADC_TYPE_MAP.get(trait.data_type)
                 assert active_type, f'Cannot convert to aadc active type: {cls.__name__}.{trait.name} declared {trait.data_type}'
                 iq = active_type(value)
                 deps.perturb(cls, obj_id, trait, iq)
-                h = iq.mark_as_input()
+                h                                   = iq.mark_as_input()
                 input_handles[(cls, obj_id, trait)] = h
 
             #-- if_guard()'s aadc_assert calls fire inline, during this call, as each instrumented
@@ -92,9 +92,9 @@ class AadcKernel:
     def _resolve_inputs(self) -> dict:
         #-- reads each input's current value straight off the graph node deps.perturb() set at build
         # time -- picks up any plain `obj.trait = value` mutation done on that same node since, live.
-        cache = self.deps.gp.cache()
-        read = cache.read_existing_node
-        inputs = {}
+        cache   = self.deps.gp.cache()
+        read    = cache.read_existing_node
+        inputs  = {}
         for (cls, obj_id, trait), handle in self.input_handles.items():
             value = read(cls.s_bclass, obj_id, trait)
             #-- TODO: a special treatment of IDate below is temporary - need a generic aadc API (!)
@@ -141,11 +141,11 @@ class AadcExec:
         inputs_spec: {target_class: (trait_name, ...), ...} -- which classes' instances, and which of their
         traits, count as AADC inputs when discovering bound_trait's dependencies. Any number of entries.
         """
-        self.bound_trait = bound_trait
-        self.inputs_spec = inputs_spec
-        self.graph = graph if graph is not None else GRAPH_ON()
-        self.kernels: dict[frozenset, AadcKernel] = {}
-        self.current_kernel: AadcKernel | None = None
+        self.bound_trait                            = bound_trait
+        self.inputs_spec                            = inputs_spec
+        self.graph                                  = graph if graph is not None else GRAPH_ON()
+        self.kernels: dict[frozenset, AadcKernel]   = {}
+        self.current_kernel: AadcKernel | None      = None
 
     def __enter__(self):
         self.instrumentation_registry().apply()    #-- lazily builds the registry on first use, if it
@@ -195,13 +195,13 @@ class AadcExec:
         with self.graph as graph:
             AadcExec.s_current_log = set()
             obj.get_trait_value(trait)                    #-- 2.1: graph + signature, one call
-            signature = frozenset(AadcExec.s_current_log)
-            AadcExec.s_current_log = None
+            signature               = frozenset(AadcExec.s_current_log)
+            AadcExec.s_current_log  = None
 
             kernel = self.kernels.get(signature)
             if kernel is None:                            #-- 2.2: miss -> build
-                deps = GraphDeps(graph, self.bound_trait, self.inputs_spec)
-                kernel = AadcKernel(obj, trait)
+                deps    = GraphDeps(graph, self.bound_trait, self.inputs_spec)
+                kernel  = AadcKernel(obj, trait)
                 kernel.build(deps)
 
                 warnings = kernel.kernel.passive_warnings()
@@ -213,10 +213,10 @@ class AadcExec:
             self.current_kernel = kernel
 
     def eval_current_kernel(self, with_derivs: bool = False) -> bool:
-        kernel = self.current_kernel
-        inputs = kernel._resolve_inputs()
-        request = list(kernel.input_handles.values()) if with_derivs else []
-        kernel.eval_result = evaluate_kernel(
+        kernel              = self.current_kernel
+        inputs              = kernel._resolve_inputs()
+        request             = list(kernel.input_handles.values()) if with_derivs else []
+        kernel.eval_result  = evaluate_kernel(
             kernel.kernel, {kernel.output: request}, inputs, 1,
             error_mode = ErrorCollectionMode.ERRORS_ONLY,
         )
@@ -259,9 +259,9 @@ class DefLocator(ast.NodeVisitor):
     """
 
     def __init__(self, line: int):
-        self.line = line
-        self.stack: list[str] = []
-        self.found: str = None
+        self.line               = line
+        self.stack: list[str]   = []
+        self.found: str         = None
 
     def _visit_def(self, node):
         self.stack.append(node.name)
@@ -270,8 +270,8 @@ class DefLocator(ast.NodeVisitor):
         self.generic_visit(node)
         self.stack.pop()
 
-    visit_FunctionDef = _visit_def
-    visit_AsyncFunctionDef = _visit_def
+    visit_FunctionDef       = _visit_def
+    visit_AsyncFunctionDef  = _visit_def
 
     def visit_ClassDef(self, node):
         self.stack.append(node.name)
@@ -289,8 +289,8 @@ class DefLocator(ast.NodeVisitor):
 
 
 def raise_uninstrumented_warning(w: dict):
-    file, line, kind_name = w['file'], w['line'], w['kind_name']
-    qualname = DefLocator.find(file, line) or '<unresolved>'
+    file, line, kind_name   = w['file'], w['line'], w['kind_name']
+    qualname                = DefLocator.find(file, line) or '<unresolved>'
     raise RuntimeError(
         f"AADC recording hit an uninstrumented passive warning ({kind_name}) "
         f"at {file}:{line}, in {qualname}.\n"

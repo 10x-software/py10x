@@ -164,7 +164,7 @@ def unpin_ts_stores() -> None:
     if not _pin_stack:
         return
     _pin_stack.pop()
-    reset_traitable_process_state(assert_clean=False)
+    reset_traitable_process_state(assert_clean = False)
     restore_pinned_ts_stores()
 
 
@@ -177,14 +177,14 @@ def restore_pinned_ts_stores() -> None:
     TsStore.s_instances.update(frame_instances)
 
     if main:
-        store, uri = main
-        EnvVars.main_ts_store_uri = uri
-        Traitable.main_store.value[0] = store
+        store, uri                      = main
+        EnvVars.main_ts_store_uri       = uri
+        Traitable.main_store.value[0]   = store
 
     if vault:
-        store, uri = vault
-        EnvVars.main_vault_uri = uri
-        Traitable.vault_store.value[0] = store
+        store, uri                      = vault
+        EnvVars.main_vault_uri          = uri
+        Traitable.vault_store.value[0]  = store
 
     for var in env_vars:
         setattr(var.env_var_class, var.attr_name, var.value)

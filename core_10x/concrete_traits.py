@@ -13,7 +13,7 @@ from core_10x.xdate_time import XDateTime, date, datetime
 from core_10x.xnone import XNone, XNoneType
 
 
-class primitive_trait(Trait, register=False):
+class primitive_trait(Trait, register = False):
     s_ui_hint = Ui.NONE
 
     def default_value(self):
@@ -24,8 +24,8 @@ class primitive_trait(Trait, register=False):
 
     def from_str(self, s: str):
         try:
-            v = ast.literal_eval(s)
-            dt = self.data_type
+            v   = ast.literal_eval(s)
+            dt  = self.data_type
             return v if type(v) is dt else dt(v)
         except Exception:
             return XNone
@@ -46,7 +46,7 @@ class primitive_trait(Trait, register=False):
         return value
 
 
-class bool_trait(primitive_trait, data_type=bool):
+class bool_trait(primitive_trait, data_type = bool):
     s_ui_hint = Ui.check()
 
     # fmt: off
@@ -70,16 +70,16 @@ class bool_trait(primitive_trait, data_type=bool):
         return next((f[0] == s for f in self.FORMATS if s in f), XNone)
 
 
-class int_trait(primitive_trait, data_type=int):
-    s_ui_hint = Ui.line()
+class int_trait(primitive_trait, data_type = int):
+    s_ui_hint   = Ui.line()
 
-    s_fmt = ','
+    s_fmt       = ','
 
 
-class float_trait(primitive_trait, data_type=float):
-    s_ui_hint = Ui.line()
+class float_trait(primitive_trait, data_type = float):
+    s_ui_hint   = Ui.line()
 
-    s_fmt = ',.2f'
+    s_fmt       = ',.2f'
 
     # def from_str(self, s: str) -> RC:
     #    return RC(True, locale.atof(s))
@@ -88,8 +88,8 @@ class float_trait(primitive_trait, data_type=float):
         return data_type is float or data_type is int
 
 
-class str_trait(primitive_trait, data_type=str):
-    s_ui_hint = Ui.line(align_h=-1)
+class str_trait(primitive_trait, data_type = str):
+    s_ui_hint = Ui.line(align_h = -1)
 
     # pattern = ''
     # placeholder = ''
@@ -119,8 +119,8 @@ class str_trait(primitive_trait, data_type=str):
 #     return tdef
 
 
-class datetime_trait(Trait, data_type=datetime):
-    s_ui_hint = Ui.line(align_h=0)
+class datetime_trait(Trait, data_type = datetime):
+    s_ui_hint = Ui.line(align_h = 0)
 
     def check_ts(self, cls, rc: RC) -> bool:
         # Exact kind within the TS mask (rejects both bits, bare TS, or wrong kind).
@@ -160,11 +160,11 @@ class datetime_trait(Trait, data_type=datetime):
         return value
 
     def to_id(self, value) -> str:
-        return XDateTime.datetime_to_str(value, with_ms=True)
+        return XDateTime.datetime_to_str(value, with_ms = True)
 
 
-class date_trait(Trait, data_type=date):
-    s_ui_hint = Ui.line(min_width=10, align_h=0)
+class date_trait(Trait, data_type = date):
+    s_ui_hint           = Ui.line(min_width = 10, align_h = 0)
     s_serialize_to_type = str
 
     def from_str(self, s: str):
@@ -187,20 +187,20 @@ class date_trait(Trait, data_type=date):
     #     return data_type in self.s_acceptable_types
 
     def serialize(self, value: date):
-        return XDateTime.date_to_str(value, format=XDateTime.FORMAT_X10)
+        return XDateTime.date_to_str(value, format = XDateTime.FORMAT_X10)
 
     def deserialize(self, value):
-        return XDateTime.str_to_date(value, format=XDateTime.FORMAT_X10)
+        return XDateTime.str_to_date(value, format = XDateTime.FORMAT_X10)
 
     def to_id(self, value) -> str:
         return XDateTime.date_to_str(value)
 
 
-class bytes_trait(Trait, data_type=bytes):
+class bytes_trait(Trait, data_type = bytes):
     s_ui_hint = Ui.NONE
 
     def to_str(self, value):
-        return value.decode(encoding='utf-8')
+        return value.decode(encoding = 'utf-8')
 
     def to_id(self, value) -> str:
         return self.to_str(value)
@@ -209,7 +209,7 @@ class bytes_trait(Trait, data_type=bytes):
         return value1 == value2
 
     def from_str(self, s: str):
-        return bytes(s, encoding='utf-8')
+        return bytes(s, encoding = 'utf-8')
 
     def from_any_xstr(self, value):
         return XNone  # may not be called!
@@ -226,8 +226,8 @@ class bytes_trait(Trait, data_type=bytes):
         return value
 
 
-class class_trait(Trait, data_type=type):
-    s_ui_hint = Ui.line(align_h=-1)
+class class_trait(Trait, data_type = type):
+    s_ui_hint           = Ui.line(align_h = -1)
     s_serialize_to_type = str
 
     def to_str(self, value):
@@ -255,7 +255,7 @@ class class_trait(Trait, data_type=type):
         return PackageRefactoring.find_class(value)
 
 
-class list_trait(Trait, data_type=list):
+class list_trait(Trait, data_type = list):
     s_ui_hint = Ui.line()
 
     def to_str(self, v) -> str:
@@ -280,7 +280,7 @@ class list_trait(Trait, data_type=list):
         return Nucleus.deserialize_list(value)
 
 
-class set_trait(list_trait, data_type=set):
+class set_trait(list_trait, data_type = set):
     s_serialize_to_type = list
 
     def to_id(self, value) -> str:
@@ -303,8 +303,8 @@ class set_trait(list_trait, data_type=set):
         return Nucleus.deserialize_set(value)
 
 
-class dict_trait(Trait, data_type=dict):
-    s_ui_hint = Ui.line(flags=Ui.SELECT_ONLY)
+class dict_trait(Trait, data_type = dict):
+    s_ui_hint = Ui.line(flags = Ui.SELECT_ONLY)
 
     def use_format_str(self, fmt: str, value) -> str:
         return str(value) if not fmt else fmt.join(f"'{key}' -> '{val}'" for key, val in value.items())
@@ -331,8 +331,8 @@ class dict_trait(Trait, data_type=dict):
         return Nucleus.deserialize_dict(value)
 
 
-class any_trait(Trait, data_type=XNoneType):  # -- any
-    s_ui_hint = Ui.NONE
+class any_trait(Trait, data_type = XNoneType):  # -- any
+    s_ui_hint           = Ui.NONE
     s_serialize_to_type = dict
 
     def to_str(self, v) -> str:
@@ -360,8 +360,8 @@ class any_trait(Trait, data_type=XNoneType):  # -- any
         return value1 is value2
 
 
-class nucleus_trait(Trait, data_type=Nucleus, base_class=True):
-    s_ui_hint = Ui.NONE
+class nucleus_trait(Trait, data_type = Nucleus, base_class = True):
+    s_ui_hint           = Ui.NONE
     s_serialize_to_type = (dict, str)
 
     def to_str(self, v) -> str:
@@ -398,15 +398,15 @@ class nucleus_trait(Trait, data_type=Nucleus, base_class=True):
         return self.data_type.choose_from()
 
 
-class named_constant_trait(nucleus_trait, data_type=NamedConstant, base_class=True):
-    s_ui_hint = Ui.choice(flags=Ui.SELECT_ONLY)
+class named_constant_trait(nucleus_trait, data_type = NamedConstant, base_class = True):
+    s_ui_hint = Ui.choice(flags = Ui.SELECT_ONLY)
 
     def is_acceptable_type(self, data_type: type) -> bool:
         return data_type is self.data_type
 
 
-class named_callable_trait(nucleus_trait, data_type=NamedCallable, base_class=True):
-    s_ui_hint = Ui.choice(flags=Ui.SELECT_ONLY)
+class named_callable_trait(nucleus_trait, data_type = NamedCallable, base_class = True):
+    s_ui_hint = Ui.choice(flags = Ui.SELECT_ONLY)
 
     def is_acceptable_type(self, data_type: type) -> bool:
         return data_type is self.data_type
@@ -431,7 +431,7 @@ class named_callable_trait(nucleus_trait, data_type=NamedCallable, base_class=Tr
             self.set_f_set(self.__class__.default_setter, False)
 
 
-class flags_trait(nucleus_trait, data_type=EnumBits, base_class=True):
+class flags_trait(nucleus_trait, data_type = EnumBits, base_class = True):
     s_ui_hint = Ui.line()
 
     def is_acceptable_type(self, data_type: type) -> bool:

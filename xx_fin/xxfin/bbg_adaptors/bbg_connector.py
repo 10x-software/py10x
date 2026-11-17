@@ -22,5 +22,5 @@ class LiveBbgConnector(MktDataConnector):
     def quote(self, md_date: date, ticker: str) -> float:
         from xbbg import blp
 
-        df = blp.bdh(ticker, 'PX_LAST', start_date=md_date, end_date=md_date)
+        df = blp.bdh(ticker, 'PX_LAST', start_date = md_date, end_date = md_date)
         return float(df.iloc[0, 0]) if not df.empty else float('nan')

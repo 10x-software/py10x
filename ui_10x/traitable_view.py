@@ -53,7 +53,7 @@ class TraitableView:
         ui_hints = {
             name: hint_change.apply(trait.ui_hint) if cls._check(hint_change, trait.name) else None
             for name, hint_change in named_ui_hint_changes.items()
-            if (trait := cls.suitable_record(trait_dir=trait_dir, trait_name=name))
+            if (trait := cls.suitable_record(trait_dir = trait_dir, trait_name = name))
         }
         return TraitableView(traitable_class, ui_hints, _header_data)
 
@@ -66,7 +66,7 @@ class TraitableView:
         ui_hints = {
             trait_name: trait.ui_hint
             for trait_name, trait in traitable_class.s_dir.items()
-            if TraitableView.suitable_record(trait=trait, _skip_reserved=_skip_reserved)
+            if TraitableView.suitable_record(trait = trait, _skip_reserved = _skip_reserved)
         }
 
         for name, hint_change in named_ui_hint_changes.items():
@@ -80,21 +80,21 @@ class TraitableView:
     @staticmethod
     @cache
     def default(traitable_class: type[Traitable], read_only: bool = False) -> TraitableView:
-        return TraitableView.modify(traitable_class).make_read_only(read_only, clone=True)
+        return TraitableView.modify(traitable_class).make_read_only(read_only, clone = True)
 
-    def make_read_only(self, flag: bool, clone=False) -> TraitableView:
+    def make_read_only(self, flag: bool, clone = False) -> TraitableView:
         view = self if not clone else copy.deepcopy(self)
 
-        to_set = Ui.READ_ONLY if flag else 0x0
-        to_reset = 0x0 if flag else Ui.READ_ONLY
+        to_set      = Ui.READ_ONLY if flag else 0x0
+        to_reset    = 0x0 if flag else Ui.READ_ONLY
         for ui_hint in view.ui_hints.values():
             ui_hint.set_reset_flags(to_set, to_reset)
         return view
 
     def __init__(self, traitable_class, ui_hints: dict, header_data: dict):
-        self.cls = traitable_class
-        self.ui_hints = ui_hints
-        self.header = self.create_header(ui_hints, header_data)
+        self.cls        = traitable_class
+        self.ui_hints   = ui_hints
+        self.header     = self.create_header(ui_hints, header_data)
 
     def all_hints(self) -> dict:
         return self.ui_hints
@@ -107,8 +107,8 @@ class TraitableView:
         header = {}
         for subtree_name, subtree in tree.items():
             if isinstance(subtree, str):  # -- must be a trait name
-                label = subtree
-                hint = ui_hints.get(subtree_name)
+                label   = subtree
+                hint    = ui_hints.get(subtree_name)
                 if not hint:  # -- ignore an unknown or unused trait
                     continue
                 if not label:  # -- no label overwrite

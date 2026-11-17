@@ -14,12 +14,12 @@ class Choice:
         and potentially saving such Choice instance?
     """
     def __init__(self, choices = XNone, f_choices = None, f_selection_callback = None, **kwargs):
-        self.choices: dict = XNone
+        self.choices: dict          = XNone
         self.inverted_choices: dict = XNone
-        self.f_choices = None
-        self.f_selection_cb = None
-        self.directory: Directory = None
-        self.kwargs = {}
+        self.f_choices              = None
+        self.f_selection_cb         = None
+        self.directory: Directory   = None
+        self.kwargs                 = {}
 
         self.values_selected = []
 
@@ -33,18 +33,18 @@ class Choice:
         if (choices):
             self.f_choices = None
         else:
-            self.f_choices = f_choices
-            choices = f_choices()       #-- TODO: we may want to wrap it in try - except
+            self.f_choices  = f_choices
+            choices         = f_choices()       #-- TODO: we may want to wrap it in try - except
 
         self.kwargs.update(kwargs)
 
         if isinstance(choices, Directory):
-            self.directory = choices
-            self.choices = choices.choices()
+            self.directory  = choices
+            self.choices    = choices.choices()
 
         elif isinstance(choices, dict):
-            self.directory = None
-            self.choices = choices
+            self.directory  = None
+            self.choices    = choices
 
         else:   #-- must be an iterable then!
             self.directory = None
@@ -93,14 +93,14 @@ class Choice:
     def popup(self, parent: ux.Widget = None, _open = True) -> UxDialog:
         _d = UxDialog(
             self.widget(),
-            parent = parent,
-            title = 'Pick your choice',
-            ok = '', cancel = '',
+            parent  = parent,
+            title   = 'Pick your choice',
+            ok      = '', cancel = '',
             #window_flags = Qt.FramelessWindowHint | Qt.Window | Qt.CustomizeWindowHint
         )
 
-        current_selection_cb = self.f_selection_cb
-        self.f_selection_cb = lambda item_value: self._on_selection_in_dialog(_d, current_selection_cb, item_value)
+        current_selection_cb    = self.f_selection_cb
+        self.f_selection_cb     = lambda item_value: self._on_selection_in_dialog(_d, current_selection_cb, item_value)
 
         if _open:
             _d.show()
@@ -142,29 +142,29 @@ class MultiChoice(Choice):
         w = ux.Splitter(ux.Horizontal)
 
         if isinstance(sw, UxTreeViewer):
-            left = ux.Widget()
-            left_lay = ux.VBoxLayout()
+            left        = ux.Widget()
+            left_lay    = ux.VBoxLayout()
             left.set_layout(left_lay)
 
-            self.rb = rb = UxRadioBox(self.SELECT_MODE, 'Selection Mode', horizontal=True)
+            self.rb = rb = UxRadioBox(self.SELECT_MODE, 'Selection Mode', horizontal = True)
             left_lay.add_widget(rb)
             left_lay.add_widget(sw)
         else:
-            left = sw
+            left    = sw
             self.rb = None
 
         w.add_widget(left)
 
         # Same chrome as UxSearchableList (GroupBox + list), without the search field.
-        right = ux.GroupBox()
-        right_lay = ux.VBoxLayout()
+        right       = ux.GroupBox()
+        right_lay   = ux.VBoxLayout()
         right.set_layout(right_lay)
 
         self.selection_list = selection_list = ux.ListWidget()
-        labels = self.values_selected
+        labels              = self.values_selected
         if not self.directory:
-            map = self.inverted_choices
-            labels = [map.get(v) for v in labels if map.get(v)]
+            map     = self.inverted_choices
+            labels  = [map.get(v) for v in labels if map.get(v)]
 
         selection_list.add_items(labels)
         selection_list.clicked_connect(self.on_selection_list_selection)
@@ -189,7 +189,7 @@ class MultiChoice(Choice):
     def on_value_selected(self, subdir: Directory, item_value, convert_value = False):
         values_selected = self.values_selected
         if item_value not in values_selected:
-            mode = self.select_mode()
+            mode    = self.select_mode()
             handler = self.s_select_table.get(mode)
             if handler(self, subdir, values_selected, item_value):
                 values_selected.append(item_value)

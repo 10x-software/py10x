@@ -39,14 +39,14 @@ class UserInitCli(TraitableCli):
                                   for a wrapper (e.g. xx-functional-account-init) to provision.
     """
 
-    new_user: bool = RT(False)
-    new_machine: bool = RT(False)
-    functional_account: bool = RT(False)
-    output_file: str = RT('')
+    new_user: bool              = RT(False)
+    new_machine: bool           = RT(False)
+    functional_account: bool    = RT(False)
+    output_file: str            = RT('')
 
     def post_verify(self) -> RC:
-        rc = super().post_verify()
-        modes_set = sum([self.new_user, self.new_machine, self.functional_account])
+        rc          = super().post_verify()
+        modes_set   = sum([self.new_user, self.new_machine, self.functional_account])
         if modes_set > 1:
             return rc + RC(False, 'specify only one of --new-user, --new-machine, or --functional-account')
         if self.output_file and not self.functional_account:
@@ -63,7 +63,7 @@ class UserInitCli(TraitableCli):
 
     def run(self) -> RC:
         if not self.functional_account:
-            return VaultUtils.user_init(new_machine=self.new_machine)
+            return VaultUtils.user_init(new_machine = self.new_machine)
 
         # Forces this backend explicitly rather than trusting ambient auto-discovery: whatever
         # keyring happens to be installed on the machine running this (a real OS keychain isn't
@@ -80,13 +80,13 @@ class UserInitCli(TraitableCli):
         master_password = SecKeys.generate_password()
         while not VaultUtils.verify_new_password(master_password, master_password):
             master_password = SecKeys.generate_password()
-        rc = VaultUtils.user_init(master_password=master_password)
+        rc = VaultUtils.user_init(master_password = master_password)
         if not rc:
             return rc
 
-        user_id = VaultUser.myname()
-        vault_uri = EnvVars.main_vault_uri
-        manifest = [
+        user_id     = VaultUser.myname()
+        vault_uri   = EnvVars.main_vault_uri
+        manifest    = [
             {
                 'service': EnvVars.master_password_key,
                 'username': user_id,
@@ -98,7 +98,7 @@ class UserInitCli(TraitableCli):
                 'password': keyring.get_password(vault_uri, user_id),
             },
         ]
-        payload = json.dumps(manifest)
+        payload     = json.dumps(manifest)
         secret_name = FunctionalAccountKeyring.secret_name(user_id)
 
         try:
@@ -107,7 +107,7 @@ class UserInitCli(TraitableCli):
                 f.write(payload)
         except OSError as ex:
             return RC(False, f'--output-file failed: {ex}')
-        print(f'wrote manifest for secret {secret_name!r} to {self.output_file!r}', file=sys.stderr)
+        print(f'wrote manifest for secret {secret_name!r} to {self.output_file!r}', file = sys.stderr)
 
         return RC_TRUE
 

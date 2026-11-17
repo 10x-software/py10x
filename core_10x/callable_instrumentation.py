@@ -28,17 +28,17 @@ class CallableRewriter(ast.NodeTransformer):
     """
 
     def __init__(self):
-        self.filename: str = None
+        self.filename: str                      = None
         self.globals_to_bind: dict[str, object] = {}
 
     def location_id(self, node: ast.stmt | ast.expr) -> str:
         return f'{self.filename}:{node.lineno}'
 
     def instrument(self, function: Callable) -> Callable:
-        self.filename = inspect.getsourcefile(function) or '<unknown>'
-        source_lines, start_lineno = inspect.getsourcelines(function)
-        source = textwrap.dedent(''.join(source_lines))
-        tree = ast.parse(source)
+        self.filename               = inspect.getsourcefile(function) or '<unknown>'
+        source_lines, start_lineno  = inspect.getsourcelines(function)
+        source                      = textwrap.dedent(''.join(source_lines))
+        tree                        = ast.parse(source)
         ast.increment_lineno(tree, start_lineno - 1)
         func_def = tree.body[0]
         if func_def.name != function.__name__:
@@ -89,12 +89,12 @@ class InstrumentationRegistry:
         self.target_base_classes: set[type] = set()   #-- empty: auto-discovery instruments NO class until
         # the caller opts a base class in via set_target_base_classes() -- known_module_names coverage is
         # unaffected either way.
-        self.exclude_classes: set[type]     = set()   #-- target_base_classes entries not instrumented themselves
+        self.exclude_classes: set[type] = set()   #-- target_base_classes entries not instrumented themselves
 
-        self.instrumented_callables: dict[tuple[object, str], tuple[Callable, Callable]] = {}  #-- (owner, attr_name) -> (original, instrumented)
-        self.instrumented_getters: dict[Callable, Callable] = {}    #-- orig_getter -> instrumented_getter
-        self.instrumented_classes: set[type] = set()                #-- guards instrument_class()'s recursion against cycles
-        self.searched_classes: set[type] = set()                    #-- separate cycle guard for _search_for_target_classes()'s
+        self.instrumented_callables: dict[tuple[object, str], tuple[Callable, Callable]]    = {}  #-- (owner, attr_name) -> (original, instrumented)
+        self.instrumented_getters: dict[Callable, Callable]                                 = {}    #-- orig_getter -> instrumented_getter
+        self.instrumented_classes: set[type]                                                = set()                #-- guards instrument_class()'s recursion against cycles
+        self.searched_classes: set[type]                                                    = set()                    #-- separate cycle guard for _search_for_target_classes()'s
 
         self._finder: InstrumentationFinder = None   #-- tracks the exact sys.meta_path entry, if installed
 
@@ -130,7 +130,7 @@ class InstrumentationRegistry:
         if target_base_classes:
             base_classes = self.target_base_classes
             base_classes.clear()
-            modules_before = set(sys.modules.values())
+            modules_before  = set(sys.modules.values())
             modules_touched = set()
             for base_class in target_base_classes:
                 if isinstance(base_class, str):
@@ -204,10 +204,10 @@ class InstrumentationRegistry:
             return
         self.instrumented_classes.add(cls)
 
-        getter_suffix = f'_{TRAIT_METHOD.GET.name.lower()}'
-        getter_suffix_len = len(getter_suffix)
-        is_traitable = issubclass(cls, Traitable)
-        trait_dir = cls.s_dir if is_traitable else None
+        getter_suffix       = f'_{TRAIT_METHOD.GET.name.lower()}'
+        getter_suffix_len   = len(getter_suffix)
+        is_traitable        = issubclass(cls, Traitable)
+        trait_dir           = cls.s_dir if is_traitable else None
         for name, member in list(vars(cls).items()):   #-- snapshot -- see instrument_module()
             if isinstance(member, classmethod) or isinstance(member, staticmethod) or inspect.isfunction(member):
                 if is_traitable and name.endswith(getter_suffix):
@@ -224,8 +224,8 @@ class InstrumentationRegistry:
                 self.instrument_class(member)
 
     def instrument_method(self, target_class, method):
-        func = method.__func__ if isinstance(method, (classmethod, staticmethod)) else method
-        key = (target_class, func.__name__)
+        func    = method.__func__ if isinstance(method, (classmethod, staticmethod)) else method
+        key     = (target_class, func.__name__)
         if key in self.instrumented_callables:
             return
 
@@ -242,20 +242,20 @@ class InstrumentationRegistry:
         if not trait.has_custom_getter():
             return
 
-        instrumented_getters = self.instrumented_getters
-        original_f_get = trait.f_get
-        instrumented_f_get = instrumented_getters.get(original_f_get)
+        instrumented_getters    = self.instrumented_getters
+        original_f_get          = trait.f_get
+        instrumented_f_get      = instrumented_getters.get(original_f_get)
         if not instrumented_f_get:
-            instrumented_f_get = self.instrument_callable(original_f_get)
-            instrumented_getters[original_f_get] = instrumented_f_get
+            instrumented_f_get                      = self.instrument_callable(original_f_get)
+            instrumented_getters[original_f_get]    = instrumented_f_get
 
         trait.set_f_get_instrumented(instrumented_f_get)
 
     def instrument_free_function(self, module, function):
         key = (module, function.__name__)
         if key not in self.instrumented_callables:
-            instrumented_function = self.instrument_callable(function)
-            self.instrumented_callables[key] = (function, instrumented_function)
+            instrumented_function               = self.instrument_callable(function)
+            self.instrumented_callables[key]    = (function, instrumented_function)
 
     def instrument_callable(self, function) -> Callable:
         return self.rewriter.instrument(function)
@@ -275,7 +275,7 @@ class InstrumentationFinder:
     def __init__(self, registry: InstrumentationRegistry):
         self.registry = registry
 
-    def find_spec(self, fullname, path, target=None):
+    def find_spec(self, fullname, path, target = None):
         spec = importlib.machinery.PathFinder.find_spec(fullname, path, target)
         if spec is None or spec.origin is None or not spec.origin.endswith('.py'):
             return None   #-- not a plain Python source module

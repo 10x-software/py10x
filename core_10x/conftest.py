@@ -5,7 +5,7 @@ from core_10x.testlib.fixtures import stub_log_logger
 from core_10x.ts_store import TsStore
 
 
-class TestDuckDbStore(DuckDbStore, resource_name='TEST_DUCK_DB'):
+class TestDuckDbStore(DuckDbStore, resource_name = 'TEST_DUCK_DB'):
     s_supports_add_column_if_not_exists = False
 
     def create_index(self, collection_name, name, trait_name, col_trait_dir, **index_args) -> str:
@@ -14,7 +14,7 @@ class TestDuckDbStore(DuckDbStore, resource_name='TEST_DUCK_DB'):
         return name
 
 
-@pytest.fixture(scope='module', params=[True, False], ids=['hybrid', 'blob-only'])
+@pytest.fixture(scope = 'module', params = [True, False], ids = ['hybrid', 'blob-only'])
 def ts_instance(request):
     assert not TsStore.s_instances
 

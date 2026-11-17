@@ -42,11 +42,11 @@ class UiHint:
         return functools.partial(widget_type_fn, **params)
 
     def __init__(self, label: str = None, flags: int = 0x0, tip: str = None, widget_type: WIDGET_TYPE = None, **params):
-        self.label: str = label
-        self.flags: int = flags
-        self.tip: str = tip
-        self.widget_type = widget_type
-        self.params: dict = params
+        self.label: str     = label
+        self.flags: int     = flags
+        self.tip: str       = tip
+        self.widget_type    = widget_type
+        self.params: dict   = params
 
     def adjust(self, trait):
         if self.label is None:
@@ -78,39 +78,39 @@ class UiHint:
 
     @staticmethod
     def line(label: str = None, flags: int = 0x0, tip: str = None, min_width: int = 1, align_h: int = 1, **kwargs):
-        return Ui(label=label, flags=flags, tip=tip, widget_type=Ui.WIDGET_TYPE.LINE, min_width=min_width, align_h=align_h, **kwargs)
+        return Ui(label = label, flags = flags, tip = tip, widget_type = Ui.WIDGET_TYPE.LINE, min_width = min_width, align_h = align_h, **kwargs)
 
     @staticmethod
     def text(label: str = None, flags: int = 0x0, tip: str = None, min_width: int = 1, **kwargs):
-        return Ui(label=label, flags=flags, tip=tip, widget_type=Ui.WIDGET_TYPE.TEXT, min_width=min_width, **kwargs)
+        return Ui(label = label, flags = flags, tip = tip, widget_type = Ui.WIDGET_TYPE.TEXT, min_width = min_width, **kwargs)
 
     @staticmethod
     def text4list(label: str = None, flags: int = 0x0, tip: str = None, min_width: int = 1, **kwargs):
-        return Ui(label=label, flags=flags, tip=tip, widget_type=Ui.WIDGET_TYPE.TEXT4LIST, min_width=min_width, **kwargs)
+        return Ui(label = label, flags = flags, tip = tip, widget_type = Ui.WIDGET_TYPE.TEXT4LIST, min_width = min_width, **kwargs)
 
     @staticmethod
     def password(label: str = None, flags: int = 0x0, tip: str = None, min_width: int = 10, **kwargs):
-        return Ui(label=label, flags=flags, tip=tip, widget_type=Ui.WIDGET_TYPE.PASSWORD, min_width=min_width, **kwargs)
+        return Ui(label = label, flags = flags, tip = tip, widget_type = Ui.WIDGET_TYPE.PASSWORD, min_width = min_width, **kwargs)
 
     @staticmethod
     def check(label: str = None, flags: int = 0x0, tip: str = None, right_label: bool = False, align_h: int = 1, **kwargs):
-        return Ui(label=label, flags=flags, tip=tip, widget_type=Ui.WIDGET_TYPE.CHECK, right_label=right_label, align_h=align_h, **kwargs)
+        return Ui(label = label, flags = flags, tip = tip, widget_type = Ui.WIDGET_TYPE.CHECK, right_label = right_label, align_h = align_h, **kwargs)
 
     @staticmethod
     def choice(label: str = None, flags: int = 0x0, tip: str = None, align_h: int = 1, **kwargs):
-        return Ui(label=label, flags=flags, tip=tip, widget_type=Ui.WIDGET_TYPE.CHOICE, align_h=align_h, **kwargs)
+        return Ui(label = label, flags = flags, tip = tip, widget_type = Ui.WIDGET_TYPE.CHOICE, align_h = align_h, **kwargs)
 
     @staticmethod
     def pixmap(label: str = None, flags: int = 0x0, tip: str = None, w: int = 10, h: int = 10, **kwargs):
-        return Ui(label=label, flags=flags, tip=tip, widget_type=Ui.WIDGET_TYPE.PIXMAP, w=w, h=h, **kwargs)
+        return Ui(label = label, flags = flags, tip = tip, widget_type = Ui.WIDGET_TYPE.PIXMAP, w = w, h = h, **kwargs)
 
     @staticmethod
     def button(label: str = None, flags: int = 0x0, tip: str = None, min_width: int = 1, **kwargs):
-        return Ui(label=label, flags=flags, tip=tip, widget_type=Ui.WIDGET_TYPE.PUSH, min_width=min_width, **kwargs)
+        return Ui(label = label, flags = flags, tip = tip, widget_type = Ui.WIDGET_TYPE.PUSH, min_width = min_width, **kwargs)
 
     @staticmethod
     def file(label: str = None, flags: int = 0x0, tip: str = None, min_width: int = 1, **kwargs):
-        return Ui(label=label, flags=flags, tip=tip, widget_type=Ui.WIDGET_TYPE.FILE, min_width=min_width, **kwargs)
+        return Ui(label = label, flags = flags, tip = tip, widget_type = Ui.WIDGET_TYPE.FILE, min_width = min_width, **kwargs)
 
 
 class UiHintModification(UiHint):

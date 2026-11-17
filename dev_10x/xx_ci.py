@@ -41,8 +41,8 @@ from dev_10x.xx_helpers import GitHelpers, PyPIHelpers, PyProjectHelpers, Versio
 
 
 def _siblings_doc(base: Path) -> dict:
-    doc = tomlkit.parse((base / 'pyproject.toml').read_text(encoding='utf-8'))
-    siblings = doc.get('tool', {}).get('dev_10x', {}).get('siblings', {})
+    doc         = tomlkit.parse((base / 'pyproject.toml').read_text(encoding = 'utf-8'))
+    siblings    = doc.get('tool', {}).get('dev_10x', {}).get('siblings', {})
     if not siblings:
         raise SystemExit(f'no [tool.dev_10x.siblings] in {base}/pyproject.toml')
     return siblings
@@ -53,9 +53,9 @@ def _sibling(base: Path, name: str) -> tuple[Path, str]:
     siblings = _siblings_doc(base)
     if name not in siblings:
         raise SystemExit(f'{name!r} not in [tool.dev_10x.siblings] of {base}/pyproject.toml')
-    spec = siblings[name]
-    src = (base / spec['path']).resolve()
-    prefix = spec.get('tag_prefix', f'{name}-v')
+    spec    = siblings[name]
+    src     = (base / spec['path']).resolve()
+    prefix  = spec.get('tag_prefix', f'{name}-v')
     return GitHelpers.git_root(src), prefix
 
 
@@ -64,24 +64,24 @@ def wait_pypi_release(base: Path, version: str, *, timeout: float | None = None,
     then poll for each of its exact `==`-pinned first-party siblings (from
     `[tool.dev_10x.siblings]`, resolved via the published release's own `Requires-Dist` - so a
     sibling bump is picked up automatically, never hand-maintained here)."""
-    name = PyProjectHelpers.project_name(base / 'pyproject.toml')
-    siblings = set(_siblings_doc(base))
-    deadline, poll = _pypi_deadline(timeout, poll)
+    name            = PyProjectHelpers.project_name(base / 'pyproject.toml')
+    siblings        = set(_siblings_doc(base))
+    deadline, poll  = _pypi_deadline(timeout, poll)
 
     if not PyPIHelpers.wait_for_release(name, version, deadline, poll):
         return 1
 
     pins = PyPIHelpers.exact_pins(name, version, siblings)
     if not pins:
-        print(f'wait_pypi_release: warning: no == pins for {sorted(siblings)} on {name}=={version}', file=sys.stderr)
+        print(f'wait_pypi_release: warning: no == pins for {sorted(siblings)} on {name}=={version}', file = sys.stderr)
     return _wait_for_pins(pins, deadline, poll)
 
 
 def wait_sibling_releases(base: Path, *, timeout: float | None = None, poll: float | None = None) -> int:
     """Poll until every sibling this checkout `==`-pins is on PyPI. Run on a `pre`/`prod` release
     commit before publishing core, so core never reaches the index ahead of the siblings it pins."""
-    siblings = set(_siblings_doc(base))
-    pins = PyProjectHelpers.exact_pins_from_text((base / 'pyproject.toml').read_text(encoding='utf-8'), siblings)
+    siblings    = set(_siblings_doc(base))
+    pins        = PyProjectHelpers.exact_pins_from_text((base / 'pyproject.toml').read_text(encoding = 'utf-8'), siblings)
     if not pins:
         raise SystemExit(f'no == pins for {sorted(siblings)} in {base}/pyproject.toml - not a release commit?')
     deadline, poll = _pypi_deadline(timeout, poll)
@@ -90,7 +90,7 @@ def wait_sibling_releases(base: Path, *, timeout: float | None = None, poll: flo
 
 def _pypi_deadline(timeout: float | None, poll: float | None) -> tuple[float, float]:
     timeout = float(os.environ.get('PYPI_TIMEOUT_SEC', timeout if timeout is not None else 1800))
-    poll = float(os.environ.get('PYPI_POLL_SEC', poll if poll is not None else 90))
+    poll    = float(os.environ.get('PYPI_POLL_SEC', poll if poll is not None else 90))
     return time.monotonic() + timeout, poll
 
 
@@ -126,10 +126,10 @@ def _project_pin_from_wheel(wheel: Path, name: str) -> str:
 def wait_pypi_release_for_wheel(base: Path, wheel: Path, *, timeout: float | None = None, poll: float | None = None) -> int:
     """Read this repo's own package's exact pin out of `wheel`'s metadata (e.g. a downstream
     fin-base wheel pinning py10x-core), then `wait_pypi_release` for it and its siblings."""
-    name = PyProjectHelpers.project_name(base / 'pyproject.toml')
+    name    = PyProjectHelpers.project_name(base / 'pyproject.toml')
     version = _project_pin_from_wheel(wheel, name)
-    print(f'{wheel.name} pins {name}=={version}', flush=True)
-    return wait_pypi_release(base, version, timeout=timeout, poll=poll)
+    print(f'{wheel.name} pins {name}=={version}', flush = True)
+    return wait_pypi_release(base, version, timeout = timeout, poll = poll)
 
 
 def downstream_build_constraints(base: Path, pyproject: Path, out: Path, *, timeout: float | None = None, poll: float | None = None) -> int:
@@ -137,17 +137,17 @@ def downstream_build_constraints(base: Path, pyproject: Path, out: Path, *, time
     pip constraints, once they are on PyPI. A downstream C++ extension (cxxfin) builds in isolation
     against whatever kernel pip resolves; it must be the coordinated one, as pybind11 types do not
     cross kernels built with different pybind11 internals."""
-    name = PyProjectHelpers.project_name(base / 'pyproject.toml')
-    version = PyProjectHelpers.exact_pins_from_text(pyproject.read_text(encoding='utf-8'), {name}).get(name)
+    name    = PyProjectHelpers.project_name(base / 'pyproject.toml')
+    version = PyProjectHelpers.exact_pins_from_text(pyproject.read_text(encoding = 'utf-8'), {name}).get(name)
     if version is None:
         raise SystemExit(f'no {name}== pin in {pyproject} - not a release commit?')
-    if rc := wait_pypi_release(base, version, timeout=timeout, poll=poll):
+    if rc := wait_pypi_release(base, version, timeout = timeout, poll = poll):
         return rc
     pins = PyPIHelpers.exact_pins(name, version, set(_siblings_doc(base)))
     if not pins:
         raise SystemExit(f'no == sibling pins on {name}=={version}')
-    out.write_text(''.join(f'{n}=={v}\n' for n, v in sorted(pins.items())), encoding='utf-8')
-    print(f'{out}: {", ".join(f"{n}=={v}" for n, v in sorted(pins.items()))}', flush=True)
+    out.write_text(''.join(f'{n}=={v}\n' for n, v in sorted(pins.items())), encoding = 'utf-8')
+    print(f'{out}: {", ".join(f"{n}=={v}" for n, v in sorted(pins.items()))}', flush = True)
     return 0
 
 
@@ -157,10 +157,10 @@ def latest_tag(base: Path, name: str) -> str:
     On an rc-tagged commit the prerelease-admitting dev pin selects the latest rc; on a release branch the
     final-only pin selects the latest final - i.e. exactly what the wheel being built will require.
     """
-    repo, prefix = _sibling(base, name)
-    spec = PyProjectHelpers.dependency_spec(base / 'pyproject.toml', name)
-    parsed = VersionHelpers.parse_pkg_tags(GitHelpers.list_tags(repo, f'{prefix}*'), prefix)
-    tag = VersionHelpers.latest_matching_tag(parsed, spec)
+    repo, prefix    = _sibling(base, name)
+    spec            = PyProjectHelpers.dependency_spec(base / 'pyproject.toml', name)
+    parsed          = VersionHelpers.parse_pkg_tags(GitHelpers.list_tags(repo, f'{prefix}*'), prefix)
+    tag             = VersionHelpers.latest_matching_tag(parsed, spec)
     if tag is None:
         raise SystemExit(f'no {name} tag matches its pinned spec {spec!r}')
     return tag
@@ -168,8 +168,8 @@ def latest_tag(base: Path, name: str) -> str:
 
 def verify_sibling(base: Path, name: str) -> int:
     """Assert the installed sibling matches the tag we resolved: import it + compare versions."""
-    _, prefix = _sibling(base, name)
-    expected = latest_tag(base, name)[len(prefix) :]
+    _, prefix   = _sibling(base, name)
+    expected    = latest_tag(base, name)[len(prefix) :]
     try:
         installed = dist_version(name)
     except PackageNotFoundError as e:
@@ -185,8 +185,8 @@ def main(argv: list[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
     if not argv:
         raise SystemExit(__doc__)
-    cmd = argv[0]
-    base = Path.cwd()
+    cmd     = argv[0]
+    base    = Path.cwd()
     if cmd == 'latest_tag' and len(argv) == 2:
         print(latest_tag(base, argv[1]))
         return 0

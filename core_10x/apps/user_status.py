@@ -21,9 +21,9 @@ def _keyring_setup_hint(vault_uri: str) -> str:
     rc, login, password = SecKeys.retrieve_vault_login_password(vault_uri)
     if rc:
         try:
-            vault = TsStore.instance_from_uri(vault_uri, username=login, password=password, _cache=False)
+            vault = TsStore.instance_from_uri(vault_uri, username = login, password = password, _cache = False)
             with vault:
-                if VaultUser.existing_instance(_throw=False):
+                if VaultUser.existing_instance(_throw = False):
                     return 'run: xx-user-init --new-machine'
         except Exception:  # noqa: S110 - best-effort hint; any failure falls through to the generic message
             pass
@@ -37,22 +37,22 @@ class UserStatusCli(TraitableCli):
       xx-user-status
     """
 
-    vault_uri: str = RT()
-    vault_user_id: str = RT(T.STICKY)
-    resource_accessors: list = RT(T.STICKY)
+    vault_uri: str              = RT()
+    vault_user_id: str          = RT(T.STICKY)
+    resource_accessors: list    = RT(T.STICKY)
 
     def vault_uri_get(self) -> str:
-        return SecKeys.check_vault_uri(main=True)[1]
+        return SecKeys.check_vault_uri(main = True)[1]
 
     def vault_user_id_get(self) -> str:
         with Traitable.vault_store():
-            if me := VaultUser.existing_instance(_throw=False):
+            if me := VaultUser.existing_instance(_throw = False):
                 return me.user_id
         return ''
 
     def resource_accessors_get(self) -> list:
         with Traitable.vault_store():
-            return VaultResourceAccessor.load_many(f(username=VaultUser.myname()))
+            return VaultResourceAccessor.load_many(f(username = VaultUser.myname()))
 
     @exc_to_rc
     def check_os_login(self) -> None:
@@ -61,14 +61,14 @@ class UserStatusCli(TraitableCli):
         print('    Use this exact string for the vault-DB login (--worker).')
         print('    Send it to your DBA / vault admin if they do not already know it')
 
-    @exc_to_rc(show_exception_info=False)
+    @exc_to_rc(show_exception_info = False)
     def check_vault_uri(self) -> None:
-        rc, vault_uri = SecKeys.check_vault_uri(main=True)
+        rc, vault_uri = SecKeys.check_vault_uri(main = True)
         if not rc:
             raise RuntimeError('[1] XX_MAIN_VAULT_URI is not set -- set: export XX_MAIN_VAULT_URI=mongodb://<host>:<port>/<db>')
         print(f'[1] Vault URI = {vault_uri}')
 
-    @exc_to_rc(show_exception_info=False)
+    @exc_to_rc(show_exception_info = False)
     def check_master_password(self) -> None:
         if not SecKeys.retrieve_master_password()[0]:
             raise RuntimeError(
@@ -76,7 +76,7 @@ class UserStatusCli(TraitableCli):
             )
         print('[2] Master password (OS keyring): found')
 
-    @exc_to_rc(show_exception_info=False)
+    @exc_to_rc(show_exception_info = False)
     def check_vault_login(self) -> None:
         rc, login = SecKeys.retrieve_vault_login_password(self.vault_uri)[:2]
         if not rc:
@@ -94,7 +94,7 @@ class UserStatusCli(TraitableCli):
             )
         print(f'[4] Vault connection and user record: user_id = {vault_user_id!r}')
 
-    @exc_to_rc(show_exception_info=False)
+    @exc_to_rc(show_exception_info = False)
     def check_resource_accessors(self) -> None:
         print('[5] Resource accessors')
         if not self.resource_accessors:

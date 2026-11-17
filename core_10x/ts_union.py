@@ -29,8 +29,8 @@ class _OrderKey:
                 return -1  # all match, d is shorter
             if oi is None:
                 return 1  # all match d is longer
-            k, v = i
-            ok, ov = oi
+            k, v    = i
+            ok, ov  = oi
             if k != ok:
                 return -1 if k < ok else 1 if k > ok else 0  # keys do not match
             if isinstance(v, dict) and isinstance(ov, dict):
@@ -40,26 +40,26 @@ class _OrderKey:
         return 0  # equals..
 
     def __init__(self, value, reverse: bool):
-        self.value = value
-        self.reverse = reverse
+        self.value      = value
+        self.reverse    = reverse
 
     def __lt__(self, other):
         assert isinstance(other, _OrderKey), 'can only compare to order key'
-        v = self.value
-        ov = other.value
+        v   = self.value
+        ov  = other.value
         if isinstance(v, dict):
             return self._dict_cmp(v, ov) < 0 if self.reverse else self._dict_cmp(ov, v) > 0
         return ov < v if self.reverse else v < ov
 
     def __eq__(self, other):
         assert isinstance(other, _OrderKey), 'can only compare to order key'
-        v = self.value
-        ov = other.value
+        v   = self.value
+        ov  = other.value
         return not self._dict_cmp(v, ov) if isinstance(v, dict) else v == ov
 
     @classmethod
     def key(cls, item, order):
-        return tuple(cls(value=item.get(k), reverse=v < 0) for k, v in order)
+        return tuple(cls(value = item.get(k), reverse = v < 0) for k, v in order)
 
 
 class TsUnionCollection(TsCollection):
@@ -78,15 +78,15 @@ class TsUnionCollection(TsCollection):
         return self.collections[0].collection_name() if self.collections else ''
 
     def find(self, query: f = None, _at_most: int = 0, _order: dict = None) -> Iterable:
-        order = tuple((_order or {'_id': 1}).items())  # FIX: assumes _id is always there!
-        order_key = _OrderKey.key
-        iterables = (collection.find(query, _at_most=_at_most, _order=_order) for collection in self.collections)
+        order           = tuple((_order or {'_id': 1}).items())  # FIX: assumes _id is always there!
+        order_key       = _OrderKey.key
+        iterables       = (collection.find(query, _at_most = _at_most, _order = _order) for collection in self.collections)
         keyed_iterables = (((order_key(item, order), item) for item in iterable) for iterable in iterables if iterable is not None)
-        results = (item for _, item in heapq.merge(*keyed_iterables, key=operator.itemgetter(0)))
+        results         = (item for _, item in heapq.merge(*keyed_iterables, key = operator.itemgetter(0)))
         return (item for i, item in enumerate(results) if i < _at_most) if _at_most else results
 
     def save_new(self, serialized_traitable: dict, overwrite: bool = False):
-        return self.collections[0].save_new(serialized_traitable, overwrite=overwrite)
+        return self.collections[0].save_new(serialized_traitable, overwrite = overwrite)
 
     def save(self, serialized_traitable):
         # if serialized_traitable was not loaded from the union head, we need to call save_new
@@ -106,11 +106,11 @@ class TsUnionCollection(TsCollection):
 
     def max(self, trait_name: str, filter: f = None) -> dict | None:
         results = (result for result in (collection.max(trait_name, filter) for collection in self.collections) if result is not None)
-        return max(results, key=operator.itemgetter(trait_name), default=None)
+        return max(results, key = operator.itemgetter(trait_name), default = None)
 
     def min(self, trait_name: str, filter: f = None) -> dict | None:
         results = (result for result in (collection.min(trait_name, filter) for collection in self.collections) if result is not None)
-        return min(results, key=operator.itemgetter(trait_name), default=None)
+        return min(results, key = operator.itemgetter(trait_name), default = None)
 
     def id_exists(self, id_value: str) -> bool:
         return any(collection.id_exists(id_value) for collection in self.collections)
@@ -126,7 +126,7 @@ class TsUnionCollection(TsCollection):
         return None
 
 
-class TsUnion(TsStore, resource_name='TS_UNION'):
+class TsUnion(TsStore, resource_name = 'TS_UNION'):
     @classmethod
     def parse_uri(cls, uri: str) -> dict:
         raise NotImplementedError('TsUnion does not support URI parsing')
@@ -152,7 +152,7 @@ class TsUnion(TsStore, resource_name='TS_UNION'):
         return list(set(itertools.chain(*(store.collection_names(regexp) for store in self.stores))))
 
     def collection(self, collection_name: str, trait_dir: dict | None = None, *, create_if_needed: bool = False) -> TsUnionCollection:
-        return TsUnionCollection(*(store.collection(collection_name, trait_dir, create_if_needed=create_if_needed) for store in self.stores))
+        return TsUnionCollection(*(store.collection(collection_name, trait_dir, create_if_needed = create_if_needed) for store in self.stores))
 
     def delete_collection(self, collection_name: str) -> bool:
         return self.stores[0].delete_collection(collection_name) if self.stores else False

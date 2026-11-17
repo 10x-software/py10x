@@ -38,10 +38,10 @@ class CEApp(Traitable):
 
     def current_class_set(self, trait, value) -> RC:
         self.raw_set_value(trait, value)
-        coll = Collection(cls=value)
-        ce = CollectionEditor(coll=coll)
+        coll            = Collection(cls = value)
+        ce              = CollectionEditor(coll = coll)
         self.col_editor = ce
-        w = ce.main_widget()
+        w               = ce.main_widget()
         self.main_w.replace_widget(0, w)
 
         return RC_TRUE
@@ -51,9 +51,9 @@ class CEApp(Traitable):
         if not top_package:
             return XNone
 
-        all_traitables = PyClass.all_classes(self.top_package, exclude_packages=self.exclude_packages, parent_classes=(Traitable,))
-        all_storables = tuple(cls for cls in all_traitables if cls.is_storable() and not issubclass(cls, AnonymousTraitable))
-        dir = Directory(name='Classes')
+        all_traitables  = PyClass.all_classes(self.top_package, exclude_packages = self.exclude_packages, parent_classes = (Traitable,))
+        all_storables   = tuple(cls for cls in all_traitables if cls.is_storable() and not issubclass(cls, AnonymousTraitable))
+        dir             = Directory(name = 'Classes')
         for cls in all_storables:
             path = cls.__module__.split('.')
             dir.insert(PyClass.name(cls), *path)
@@ -61,10 +61,10 @@ class CEApp(Traitable):
         return dir
 
     def my_editor_get(self) -> TraitableEditor:
-        return TraitableEditor(self, _confirm=True)
+        return TraitableEditor(self, _confirm = True)
 
     def main_widget(self) -> ux.Widget:
-        w = ux.Widget()
+        w   = ux.Widget()
         lay = ux.VBoxLayout()
         w.set_layout(lay)
 
@@ -92,7 +92,7 @@ if __name__ == '__main__':
     ux.init()
 
     top_package = input('Top level package:')
-    ce_app = CEApp(top_package=top_package)
+    ce_app      = CEApp(top_package = top_package)
 
     with INTERACTIVE():
         w = ce_app.main_widget()
