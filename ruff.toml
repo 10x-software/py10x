@@ -1,58 +1,20 @@
 src = ["core_10x", "infra_10x", "ui_10x"]
 line-length = 150
-target-version = "py310"
 extend-exclude = ["cxx10x"]
+# apply the excludes below to paths passed explicitly too (IDE plugins, pre-commit)
+force-exclude = true
 
+# Lint only, no formatter: the code is hand-formatted (`kw = value`, hand-aligned `=`, hand-ordered
+# imports, `dict(...)`), which no Black-style formatter can keep. `ruff format` is a no-op here.
 [format]
-quote-style = "single"
-exclude = [
-    "README.md",
-    "GETTING_STARTED.md",
-    "docs/notebooks/*.py",
-    "core_10x/attic/*",
-    "core_10x/jit/*",
-    "core_10x/xnone.py",
-    "core_10x/trait.py",
-    "core_10x/trait_filter.py",
-    "core_10x/selectable_traitable_class.py",
-    "core_10x/callable_instrumentation.py",
-    "core_10x/__init__.py",
-    "core_10x/environment_variables.py",
-    "core_10x/basket.py",
-    "core_10x/logger.py",
-    "core_10x/nucleus.py",
-    "core_10x/named_constant.py",
-    "core_10x/traitable.py",
-    "core_10x/sec_keys.py",
-    "core_10x/vault_utils.py",
-    "core_10x/xinf.py",
-    "core_10x/code_samples/*",
-    "core_10x/manual_tests/*",
-    "core_10x/experimental/*",
-    "infra_10x/mongodb_store.py",
-    "ui_10x/qt6/*",
-    "ui_10x/examples/*",
-    "ui_10x/py_data_browser.py",
-    "ui_10x/choice.py",
-    "ui_10x/utils.py",
-    "ui_10x/traitable_editor.py",
-    "xxcommon/xxcalendar.py",
-    "xxcommon/roman_number.py",
-    "xxcommon/rdate.py",
-    "xxcommon/event_processor.py",
-    "xxcommon/manual_tests/*",
-    "xxcommon/README.md",
-    "xxcommon/*_curve.py",
-    "xxcommon/jit_aadc/*",
-    "xxcommon/unit_tests/test_aadc_exec.py",
-    "xx_fin/xxfin/*",
-]
+exclude = ["*"]
 
 [lint]
 # Rule selection = Ruff 0.16 defaults ∪ extend-select below.
 # Do not replace `select` with full category letters (e.g. "S", "PL") — that enables
 # non-default rules and silently widens CI. Cap the ruff version in pyproject.toml
 # (`ruff>=0.13,<0.17`) so future default-set expansions do not change the gate unnoticed.
+# E221/E251 (spaces around `=`) are preview-only, so hand alignment and `kw = value` are never flagged.
 ignore = [
     "RUF012", # Mutable class attributes should be annotated with `typing.ClassVar`
     "RUF013", # PEP 484 prohibits implicit `Optional`
@@ -60,6 +22,9 @@ ignore = [
     "N801",  # Class name should use CapWords convention
     "E501",  # Line too long
     "F401",  # Unused imports
+    "I001",  # Import sort: import order is hand-managed (I001 is in the default set, so it must be ignored here)
+    "C408",  # Unnecessary `dict()` call: kwargs-style dict(...) is house style
+    "FLY002", # Static join to f-string: a multi-line '\n'.join(...) reads better than one long literal
     # Traitable eval's string annotations against the module dict. Moving names used in
     # trait annotations (e.g. `date`) under TYPE_CHECKING leaves undeclared names that
     # match the bare-identifier forward-ref path and break at runtime — keep TC* off.
@@ -79,13 +44,13 @@ extend-select = [
   #"TID", # tidy imports
   "FA",  # future annotations
   "B",   # flake8-bugbear
-  "I",   # isort
   "PGH", # pygrep-hooks
   "RUF", # Ruff-specific
   "UP",  # pyupgrade
   "N",   # naming
   "F",   # pyflakes
-  "E",   # pycodestyle
+  "E",   # pycodestyle errors
+  "W",   # pycodestyle warnings: tabs, trailing whitespace, newline at end of file
   "C90", # complexity
 ]
 mccabe.max-complexity = 15 # Flag errors (`C901`) whenever the complexity level exceeds this
@@ -104,18 +69,16 @@ exclude = [
     "B905", # zip without strict
     "B011", # assert False
 ]
-"ui_10x/qt6/*" = ["B011","F401","I001","B007","UP035","E713","F541","F841","RUF023","UP006","UP037","UP04","B024","B027","E731","F402","F811","F821","RUF005","UP038","N816"]
-"ui_10x/examples/*" = ["I001"]
+"ui_10x/qt6/*" = [
+    "B011",  # assert False
+    "UP035", # deprecated typing import
+]
 "ui_10x/examples/price_simulator.py" = [
     "E711",   # != None
     "BLE001", # Do not catch blind exception: `Exception`
 ]
 "ui_10x/rio/apps/examples/examples/pages/login_page.py" = [
     "BLE001", # Do not catch blind exception: `Exception`
-]
-# code samples keep hand-ordered imports (also format-excluded)
-"core_10x/code_samples/*" = [
-    "I001", # Import sort
 ]
 # AST NodeVisitor hooks use visit_* CapWords
 "core_10x/manual_tests/*" = [
@@ -129,25 +92,25 @@ exclude = [
 "ui_10x/rio/unit_tests/test_text4list.py" = [
     "F821", # Undefined name
 ]
+# the `fresh` fixture yields test classes; the unpacked locals keep their class names
+"core_10x/testlib/ts_store_transaction_tests.py" = [
+    "N806", # Variable in function should be lowercase
+]
 "xxcommon/jit_aadc/*" = [
-    "I001", # Import sort
     "N802", # Function names should be lowercase
     "N815", # Variable in class scope should not be mixedCase
 ]
 "xxcommon/*rdate.py" = [
     "N802", # Function names should be lowercase
-    "C408", # Unnecessary `dict()` call (rewrite as a literal)
 ]
 "xxcommon/*event_processor.py" = [
     "N802", # Function names should be lowercase
 ]
 "xxcommon/*curve.py" = [
-    "N802", # Function names should be lowercase
     "N806", # Variable names should be lowercase
 ]
 "xxcommon/roman_number.py" = [
     "E741", # Ambiguous variable name
-    "C408", # Unnecessary `dict()` call (rewrite as a literal)
 ]
 "core_10x/xdate_time.py" = [
     "S110",   # `try`-`except`-`pass` detected, consider logging the exception
@@ -168,7 +131,6 @@ exclude = [
 ]
 "core_10x/package_refactoring.py" = [
     "PLW0211", # First argument of a static method should not be named `cls`
-    "BLE001",  # Do not catch blind exception: `Exception`
 ]
 # intentional broad except → RC / UI teardown / best-effort paths
 "core_10x/apps/user_status.py" = ["BLE001"]
@@ -182,7 +144,6 @@ exclude = [
 ]
 "core_10x/traitable.py" = [
     "BLE001", # Do not catch blind exception: `Exception`
-    "C408",   # Unnecessary `dict()` call (rewrite as a literal)
     "SIM102", # nested ifs kept for clarity in traitable hot paths
 ]
 "core_10x/traitable_cli.py" = ["BLE001"]
@@ -194,17 +155,9 @@ exclude = [
 ]
 "infra_10x/mongodb_store.py" = [
     "BLE001", # Do not catch blind exception: `Exception`
-    "C408",   # kwargs-style dict() matches MongoDB command/docs style
 ]
-"infra_10x/mongodb_admin.py" = [
-    "C408",   # kwargs-style dict() matches MongoDB command/docs style
-    "SIM102",
-]
-"infra_10x/mongodb_utils.py" = [
-    "C408",   # kwargs-style dict() matches MongoDB command/docs style
-]
+"infra_10x/mongodb_admin.py" = ["SIM102"]
 "ui_10x/choice.py" = ["BLE001"]
-"ui_10x/entity_stocker.py" = ["BLE001"]
 "ui_10x/py_data_browser.py" = [
     "BLE001", # Do not catch blind exception: `Exception`
     "S110",   # `try`-`except`-`pass` detected, consider logging the exception
@@ -213,10 +166,6 @@ exclude = [
 "ui_10x/utils.py" = ["BLE001"]
 "ui_10x/trait_editor.py" = ["SIM102"]
 "core_10x/testlib/ts_store_isolation.py" = ["S110"]
-# intentional ALL_CAPS context-manager API
-"core_10x/exec_control.py" = [
-    "N802", # Function name should be lowercase
-]
 # avoid drive-by NamedConstant refactor for one-over complexity budget
 "core_10x/named_constant.py" = [
     "C901", # `__init_subclass__` is too complex (17 > 15)
@@ -226,10 +175,8 @@ exclude = [
     "B008", # Do not perform function call `weakref.ref` in argument defaults
 ]
 "xx_fin/*.py" = [
-    "I001", # Import sort
     "N802", # Function name should be lowercase
     "N806", # Variable in function should be lowercase
-    "C408", # Unnecessary `dict()` call (rewrite as a literal)
 ]
 "xx_fin/xxfin/ccy_cross.py" = [
     "BLE001", # Do not catch blind exception: `Exception`
@@ -247,9 +194,6 @@ exclude = [
 ]
 "xx_fin/xxfin/manual_tests/fin_instrument_test.py" = [
     "E701",   # Multiple statements on one line (colon)
-]
-"xx_fin/xxfin/ir_swap_quotable.py" = [
-    "BLE001", # Do not catch blind exception: `Exception`
 ]
 "xx_fin/xxfin/*.py" = [
     "N813", # e.g. camelcase `QuantLib` imported as lowercase `ql`

@@ -50,7 +50,7 @@ for what replaces each old invocation, and for the build modes and other options
 
 ### Code Style
 
-The project uses `ruff` for linting and formatting:
+The project uses `ruff` for linting only:
 
 ```bash
 # Check for issues
@@ -58,10 +58,19 @@ uv run ruff check .
 
 # Auto-fix issues where possible
 uv run ruff check --fix .
-
-# Format code
-uv run ruff format .
 ```
+
+House style keeps `kw = value` spacing, aligned `=` in blocks of assignments and
+trait definitions, hand-ordered imports and `dict(...)`, none of which a Black-style
+formatter can keep. `ruff format` is therefore a no-op (see [`ruff.toml`](ruff.toml)),
+and the `=` layout has its own tool:
+
+```bash
+# Space and align `=` (see dev_10x/xx_style.py for the rules)
+uv run xx-style
+```
+
+Everything else is formatted by hand; don't run another formatter over the tree.
 
 ### Testing
 

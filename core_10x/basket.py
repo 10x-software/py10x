@@ -337,7 +337,7 @@ class FIN_AGGREGATOR(NamedCallable):
     PRICE       = FinInstrument.aggregate_price
     PRICE_CCY   = Portfolio.aggregate_price
     LIFE_CYCLE  = LifeCycler.aggregate_life_cycle
-    LEAVES      = lambda basket:    raise NotSupportedError 
+    LEAVES      = lambda basket:    raise NotSupportedError
 """
 class Basket(Traitable, embeddable = True):
     s_bucket_shape: BUCKET_SHAPE = BUCKET_SHAPE.DICT

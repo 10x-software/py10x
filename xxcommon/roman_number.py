@@ -3,7 +3,7 @@ from core_10x.named_constant import Enum, NamedConstantTable
 
 class R:
     class Symbol(Enum):
-        I = () 
+        I = ()
         V = ()
         X = ()
         L = ()

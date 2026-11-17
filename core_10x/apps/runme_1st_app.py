@@ -14,7 +14,7 @@ Main Traitable Store is not specified, thus you must explicitly instantiate and 
     with TsStore.instance_from_uri('mongodb://public_mongo_host.abc.com/test'):     #-- no authentication
         # your code
         ...
-        
+
     or
 
     #-- Authentication is required
@@ -30,7 +30,7 @@ Main Traitable Store is not specified, thus you must explicitly instantiate and 
     print(
         f"""
 Main Traitable Store is specified (Environment variable {EnvVars.var_name(v_main_uri.attr_name)} = {v_main_uri.value})
-It means that Traitable objects would be sought and saved in the above store.  
+It means that Traitable objects would be sought and saved in the above store.
 """
     )
 

@@ -35,7 +35,7 @@ if __name__ == '__main__':
     from core_10x.manual_tests.traitable_serialization_test import MARRITAL_STATUS, Address, Person
 
     address = Address(street="145 Austin Dr", cszip="Burlington, VT 05401")
-            
+
     woman       = Person(ssn = '008-59-6666', name = 'Alice Smith',     dob = date(1972, 8, 21), _replace = True)
     daughter    = Person(ssn = '008-77-7777', name = 'Ann Smith',       dob = date(1997, 6, 17), _replace = True)
     son         = Person(ssn = '008-99-5555', name = 'Nathan Smith',    dob = date(1999, 9, 23), _replace = True)

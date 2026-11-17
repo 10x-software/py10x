@@ -82,7 +82,9 @@ Before changing anything under `core_10x/traitable.py` or traitable-heavy code, 
 - **How to run tests / lints**
   - Prefer:
     - `uv run pytest` (or narrower paths) for **unit** tests.
-    - `uv run ruff check .` and `uv run ruff format .` for linting/formatting.
+    - `uv run ruff check .` for linting, then `uv run xx-style <changed files>` to space and align `=`
+      (`kw = value`, aligned assignments and trait definitions). There is no other formatter: match the
+      hand formatting of nearby code (e.g. hand-ordered imports); `ruff format` is a no-op.
 
 When adding new functionality, agents should **add or update tests** in the appropriate suite following nearby examples, rather than inventing new test patterns.
 

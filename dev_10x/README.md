@@ -16,10 +16,22 @@ Declared in `[project.scripts]`:
 | `xx-constraints`     | regenerate or verify the committed third-party dependency freeze        |
 | `xx-test-postgres-auth` | start/stop/status a local **password-auth** Postgres on port 5433 (Docker, falling back to Homebrew) |
 | `xx-test-db-clean`   | drop `py10x_test*` databases left by killed test sessions |
+| `xx-style`           | space and align `=` the house way (the only formatter the repo uses)    |
 
 Implementation: `dev_10x/uv_sync.py`, `dev_10x/xx_promote.py`,
 `dev_10x/xx_helpers.py`, `dev_10x/xx_ci.py`, `dev_10x/constraints.py`,
-`dev_10x/postgres_local.py`, `dev_10x/db_clean.py`.
+`dev_10x/postgres_local.py`, `dev_10x/db_clean.py`, `dev_10x/xx_style.py`.
+
+`xx-style` enforces what Black-style formatters can't keep: `kw = value` in calls and
+parameter defaults, and `=` aligned in groups of consecutive assignments (trait definitions
+included) and of one-per-line kwargs in multi-line calls. The rules are in the module docstring.
+It changes nothing but spaces around `=`, and refuses to write a file whose AST would change.
+
+```bash
+uv run xx-style            # restyle the tracked .py files in place
+uv run xx-style --check    # list the files that would change; exit 1 if any
+uv run xx-style --diff     # show the changes, write nothing
+```
 
 `xx-test-postgres-auth` leaves your trust instance on 5432 alone. It manages a second
 cluster (user `postgres` / password `py10x_pg_auth` by default — a throwaway local test

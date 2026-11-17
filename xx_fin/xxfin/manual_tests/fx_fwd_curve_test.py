@@ -94,7 +94,7 @@ if __name__ == '__main__':
             diffs.append(diff := fv-fs )
             print(f'{d} , {fv}, {fs}, {diff}')
             d = step.apply(d, FinCalendar.none(), BIZDAY_ROLL_RULE.NO_ROLL)
-    
+
         '''
 
     TEST_FxForwardCurveSimple_missing_spot = True

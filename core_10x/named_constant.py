@@ -239,7 +239,7 @@ class NamedConstant(Nucleus):
         res = cls._class_header() | {'members': list(cls.s_dir)}
         if labels := {name: c.label for name, c in cls.s_dir.items() if c.label != name}:
             res['labels'] = labels          #-- only the labels that differ from member names
-            
+
         return res
 
 class NamedCallable(NamedConstant):
