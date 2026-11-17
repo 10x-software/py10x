@@ -4,9 +4,9 @@ import rio
 
 
 class RadioButton(rio.Component):
-    label: str = ''
-    value: str = ''
-    checked: bool = False
+    label: str                      = ''
+    value: str                      = ''
+    checked: bool                   = False
     on_select: rio.EventHandler[[]] = None
 
     def icon_name(self) -> str:
@@ -21,11 +21,11 @@ class RadioButton(rio.Component):
     def build(self) -> rio.Component:
         # Whole row must be pressable — label-only clicks were ignored before.
         return rio.PointerEventListener(
-            content=rio.Row(
-                rio.Icon(self.icon_name(), min_width=1.25, min_height=1.25),
+            content     = rio.Row(
+                rio.Icon(self.icon_name(), min_width = 1.25, min_height = 1.25),
                 rio.Text(self.label),
-                spacing=0.5,
-                align_y=0.5,
+                spacing = 0.5,
+                align_y = 0.5,
             ),
-            on_press=self._on_press,
+            on_press    = self._on_press,
         )

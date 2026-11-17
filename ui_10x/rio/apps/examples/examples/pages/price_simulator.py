@@ -5,8 +5,8 @@ from examples import components as comps
 
 
 @rio.page(
-    name='PriceSimulator',
-    url_segment='stocks',
+    name        = 'PriceSimulator',
+    url_segment = 'stocks',
 )
 class PriceSimulatorPage(rio.Component):
     def build(self) -> rio.Component:

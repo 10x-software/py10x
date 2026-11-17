@@ -15,12 +15,12 @@ class RioTreeItem(rio.Component):
     Rio ``SimpleTreeItem`` has no equivalent.
     """
 
-    text: str = ''
-    on_double_press: rio.EventHandler[[]] = None
-    on_press: rio.EventHandler[[]] = None
-    tooltip: str | None = None
-    children: list[rio.Component] = []
-    is_expanded: bool = False
+    text: str                               = ''
+    on_double_press: rio.EventHandler[[]]   = None
+    on_press: rio.EventHandler[[]]          = None
+    tooltip: str | None                     = None
+    children: list[rio.Component]           = []
+    is_expanded: bool                       = False
 
     def build(self):
         # Never mounted — see module docstring on TreeWidget._build_children.

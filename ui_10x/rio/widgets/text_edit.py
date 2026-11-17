@@ -9,7 +9,7 @@ class TextEdit(Widget, i.TextEdit):
     s_component_class = rio.MultiLineTextInput
 
     def _make_kwargs(self, **kwargs):
-        kw = super()._make_kwargs(**kwargs)
+        kw      = super()._make_kwargs(**kwargs)
         handler = self.focus_out_event
         if handler.__func__ != TextEdit.focus_out_event:  # do not set unless implemented
             kw['on_lose_focus'] = self.callback(handler)

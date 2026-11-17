@@ -28,9 +28,9 @@ if TYPE_CHECKING:
 
 @dataclass
 class UserSessionContext:
-    traitable_store: TsStore = None
-    interactive: BTraitableProcessor = None
-    authenticated: bool = False
+    traitable_store: TsStore            = None
+    interactive: BTraitableProcessor    = None
+    authenticated: bool                 = False
 
     def begin_using(self):
         if self.traitable_store:
@@ -68,7 +68,7 @@ def session_context(session: rio.Session):
     else:
         assert CURRENT_SESSION is None, 'Must exit from session context first! Are you using async calls in session context?'
         CURRENT_SESSION = session
-        UI_LOOP = asyncio.get_running_loop()
+        UI_LOOP         = asyncio.get_running_loop()
         try:
             user_session = session[UserSessionContext]
         except Exception:  # noqa:BLE001 - TODO better handling?
@@ -92,7 +92,7 @@ class ConnectionType(NamedConstant):
 
     @staticmethod
     def _dispatch_queued(session: rio.Session, handler: Callable[[...], None], *args) -> None:
-        async def run(s=session, h=handler, a=args):
+        async def run(s = session, h = handler, a = args):
             ConnectionType._dispatch_direct(s, h, *a)
             await s._refresh()
 
@@ -122,7 +122,7 @@ class BoundSignal(i.BoundSignal):
         return True
 
     def emit(self, *args) -> None:
-        def _emit(handlers=self.handlers, a=args):
+        def _emit(handlers = self.handlers, a = args):
             for session_ref, handler, conn in handlers:
                 if session := session_ref():
                     conn.value(session, handler, *a)
@@ -172,19 +172,19 @@ class FontMetrics(i.FontMetrics):
 
 
 class SizePolicy(Enum):
-    MINIMUM_EXPANDING = ()
-    PREFERRED = ()
+    MINIMUM_EXPANDING   = ()
+    PREFERRED           = ()
 
 
 class TEXT_ALIGN(NamedConstant):
-    s_vertical = 0xF << 4
+    s_vertical  = 0xF << 4
 
-    LEFT = 1
-    CENTER = 6
-    RIGHT = 11
-    TOP = LEFT << 4
-    V_CENTER = CENTER << 4
-    BOTTOM = RIGHT << 4
+    LEFT        = 1
+    CENTER      = 6
+    RIGHT       = 11
+    TOP         = LEFT << 4
+    V_CENTER    = CENTER << 4
+    BOTTOM      = RIGHT << 4
 
     @classmethod
     def from_str(cls, s: str) -> TEXT_ALIGN:
@@ -208,23 +208,23 @@ class DynamicComponent(rio.Component):
         with session_context(self.session):
             subcomponent = self.builder.build()
             if not self.builder.component:
-                self.builder.component = self
-                self.builder.subcomponent = subcomponent
+                self.builder.component      = self
+                self.builder.subcomponent   = subcomponent
             else:
                 assert self.builder.component is self, 'DynamicComponent reused!'
             return subcomponent
 
 
 class ComponentBuilder:
-    __slots__ = ('__weakref__', '_kwargs', 'component', 'subcomponent')
+    __slots__                               = ('__weakref__', '_kwargs', 'component', 'subcomponent')
 
-    s_component_class: type[rio.Component] = None
-    s_forced_kwargs = {}
-    s_default_kwargs = {}
-    s_children_attr = 'children'
-    s_single_child = False
-    s_pass_children_in_kwargs = False
-    s_size_adjustments = (
+    s_component_class: type[rio.Component]  = None
+    s_forced_kwargs                         = {}
+    s_default_kwargs                        = {}
+    s_children_attr                         = 'children'
+    s_single_child                          = False
+    s_pass_children_in_kwargs               = False
+    s_size_adjustments                      = (
         'min_width',
         'min_height',
         'max_width',
@@ -237,7 +237,7 @@ class ComponentBuilder:
         'margin_y',
         'margin',
     )
-    s_layout_attrs = ('grow_x', 'grow_y', 'align_x', 'align_y')
+    s_layout_attrs                          = ('grow_x', 'grow_y', 'align_x', 'align_y')
 
     @staticmethod
     def current_session():
@@ -272,10 +272,10 @@ class ComponentBuilder:
 
     def __init__(self, *children, **kwargs):
         assert self.s_component_class, f'{self.__class__.__name__}: has no s_component_class'
-        self._kwargs = self._make_kwargs(**kwargs)
-        self.component = None
-        self.subcomponent = None
-        kw_kids = self._kwargs.get(self.s_children_attr)
+        self._kwargs        = self._make_kwargs(**kwargs)
+        self.component      = None
+        self.subcomponent   = None
+        kw_kids             = self._kwargs.get(self.s_children_attr)
         if self.s_single_child:
             self._set_children(children if children else [kw_kids])
         else:
@@ -308,14 +308,14 @@ class ComponentBuilder:
         if cls.s_component_class:
             if cls.s_pass_children_in_kwargs:
                 # noinspection PyAugmentAssignment
-                kwargs = kwargs | {'children': list(children)}
-                children = ()
+                kwargs      = kwargs | {'children': list(children)}
+                children    = ()
             return cls.s_component_class(*children, **kwargs)
         return None
 
     def build(self) -> rio.Component | None:
         session = self.current_session()
-        kwargs = {k: v for k, v in self._kwargs.items() if k != self.s_children_attr}
+        kwargs  = {k: v for k, v in self._kwargs.items() if k != self.s_children_attr}
         for size_adjustment in self.s_size_adjustments:
             if size_adjustment in kwargs:
                 kwargs[size_adjustment] /= session.pixels_per_font_height
@@ -324,7 +324,7 @@ class ComponentBuilder:
 
     def __call__(self) -> rio.Component:
         kw = {k: self[k] for k in self.s_layout_attrs if k in self}
-        return DynamicComponent(builder=self, **kw) if not self.component else self.component
+        return DynamicComponent(builder = self, **kw) if not self.component else self.component
 
     def __getitem__(self, item):
         if hasattr(self.subcomponent, item):
@@ -335,13 +335,13 @@ class ComponentBuilder:
         return item in self._kwargs
 
     @classmethod
-    def _not_supported(cls, message='not supported', item=None):
+    def _not_supported(cls, message = 'not supported', item = None):
         item = item or inspect.stack()[1].function
         print(f'{cls.__name__}.{item}: - {message}')
 
     def __setitem__(self, item, value):
         if item != self.s_children_attr and not hasattr(self.s_component_class, item):
-            self._not_supported(item=item)
+            self._not_supported(item = item)
             return
 
         if hasattr(self.subcomponent, item):
@@ -360,7 +360,7 @@ class ComponentBuilder:
             value = self[item] = default
         return value
 
-    def get(self, item, default=None):
+    def get(self, item, default = None):
         try:
             return self[item]
         except KeyError:
@@ -418,22 +418,22 @@ class ComponentBuilder:
 
 
 class Widget(ComponentBuilder, i.Widget):
-    __slots__ = ('_layout',)
+    __slots__                   = ('_layout',)
 
-    s_component_class = rio.Container
-    s_stretch_arg = 'grow_x'
-    s_default_layout_factory = lambda: FlowLayout()
-    s_default_kwargs = {'grow_y': False, 'align_y': 0}
-    s_unwrap_single_child = True
+    s_component_class           = rio.Container
+    s_stretch_arg               = 'grow_x'
+    s_default_layout_factory    = lambda: FlowLayout()
+    s_default_kwargs            = {'grow_y': False, 'align_y': 0}
+    s_unwrap_single_child       = True
 
     def __init_subclass__(cls, **kwargs):
-        cls.s_default_layout_factory = None
-        cls.s_default_kwargs = super().s_default_kwargs | cls.s_default_kwargs
+        cls.s_default_layout_factory    = None
+        cls.s_default_kwargs            = super().s_default_kwargs | cls.s_default_kwargs
 
     def __init__(self, *children, **kwargs):
         super().__init__(*children, **kwargs)
-        layout_factory = self.__class__.s_default_layout_factory
-        self._layout = layout_factory() if layout_factory else None
+        layout_factory  = self.__class__.s_default_layout_factory
+        self._layout    = layout_factory() if layout_factory else None
 
     def __getstate__(self):
         assert getattr(self, '__dict__', self) is self, f'widgets should not have __dict__: {self}'
@@ -459,7 +459,7 @@ class Widget(ComponentBuilder, i.Widget):
             if isinstance(v, tuple):
                 if v[0] == '__rebind_traitable__':
                     t_class, t_id, func = v[1:]
-                    v = func.__get__(t_class(t_id))
+                    v                   = func.__get__(t_class(t_id))
                 elif v[0] == '__rebind_self__':
                     v = v[1].__get__(self)
             setattr(self, k, v)
@@ -479,9 +479,9 @@ class Widget(ComponentBuilder, i.Widget):
         if text_align := TEXT_ALIGN.from_str(style.pop('text-align', '')):
             self[text_align.rio_attr()] = text_align.rio_value()
         if hasattr(self.s_component_class, 'text_style'):
-            ss = StyleSheet()
-            rc = ss.set_values(sheet=style)
-            self['text_style'] = ss.text_style or None
+            ss                  = StyleSheet()
+            rc                  = ss.set_values(sheet = style)
+            self['text_style']  = ss.text_style or None
             return rc
         if hasattr(self.s_component_class, 'fill') and (color := style.pop('color', None)):
             self['fill'] = StyleSheet.parse_color(color)
@@ -523,8 +523,8 @@ class Widget(ComponentBuilder, i.Widget):
         from ui_10x.utils import UxStyleSheet  # TODO: circular import
 
         if hasattr(self.s_component_class, 'text_style'):
-            ss = StyleSheet()
-            ss.text_style = self.get('text_style')
+            ss              = StyleSheet()
+            ss.text_style   = self.get('text_style')
             return UxStyleSheet.dumps(ss.sheet)
 
         self._not_supported()
@@ -559,8 +559,8 @@ class Widget(ComponentBuilder, i.Widget):
     def create_component(cls, *children, **kwargs) -> rio.Component | None:
         if cls.s_unwrap_single_child and len(children) == 1 and isinstance(first_child := children[0], rio.Component):
             # Wrapper layout attrs (defaults / key) do not apply to the unwrapped child.
-            noise = {'key', 'grow_x', 'grow_y', 'align_x', 'align_y'}
-            leftover = {k: v for k, v in kwargs.items() if k not in noise}
+            noise       = {'key', 'grow_x', 'grow_y', 'align_x', 'align_y'}
+            leftover    = {k: v for k, v in kwargs.items() if k not in noise}
             if leftover:
                 cls._not_supported(f'ignored kwargs {leftover}')
             return first_child
@@ -568,25 +568,25 @@ class Widget(ComponentBuilder, i.Widget):
 
 
 class Layout(Widget, i.Layout):
-    def add_widget(self, widget: Widget, stretch=None, **kwargs):
+    def add_widget(self, widget: Widget, stretch = None, **kwargs):
         assert not kwargs, f'kwargs not supported: {kwargs}'
         assert widget is not None
         if stretch is not None:
             widget.set_stretch(stretch)
         self.get_children().append(widget)
 
-    def add_layout(self, layout: Layout, stretch=None, **kwargs):
-        self.add_widget(layout, stretch=stretch, **kwargs)
+    def add_layout(self, layout: Layout, stretch = None, **kwargs):
+        self.add_widget(layout, stretch = stretch, **kwargs)
 
     def set_spacing(self, spacing: int):
         assert spacing == 0, 'Only zero is supported'
         self['spacing'] = 0
 
     def set_contents_margins(self, left, top, right, bottom):
-        self['margin_left'] = left
-        self['margin_top'] = top
-        self['margin_right'] = right
-        self['margin_bottom'] = bottom
+        self['margin_left']     = left
+        self['margin_top']      = top
+        self['margin_right']    = right
+        self['margin_bottom']   = bottom
 
 
 class FlowLayout(Layout, i.Layout):

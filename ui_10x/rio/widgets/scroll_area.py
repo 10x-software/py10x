@@ -10,9 +10,9 @@ from ui_10x.rio.component_builder import Widget
 
 
 class SCROLL(Enum):
-    OFF = 'never'
-    ON = 'always'
-    AS_NEEDED = 'auto'
+    OFF         = 'never'
+    ON          = 'always'
+    AS_NEEDED   = 'auto'
 
 
 class ScrollArea(Widget, i.ScrollArea):

@@ -14,9 +14,9 @@ class FindFlags(Enum):
 
 
 class ListItem(Widget, i.ListItem):
-    __slots__ = ('_list_widget',)
-    s_component_class = rio.SimpleListItem
-    args = {'key': lambda kwargs: kwargs['text']}
+    __slots__           = ('_list_widget',)
+    s_component_class   = rio.SimpleListItem
+    args                = {'key': lambda kwargs: kwargs['text']}
 
     def _make_kwargs(self, **kwargs):
         kwargs = super()._make_kwargs(**kwargs)
@@ -39,14 +39,14 @@ class ListItem(Widget, i.ListItem):
 
 
 class ListWidget(Widget, i.ListWidget):
-    __slots__ = ('_on_press',)
-    s_component_class = rio.ListView
-    s_default_kwargs = {'selection_mode': 'single'}
-    s_unwrap_single_child = False
+    __slots__               = ('_on_press',)
+    s_component_class       = rio.ListView
+    s_default_kwargs        = {'selection_mode': 'single'}
+    s_unwrap_single_child   = False
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self['grow_y'] = True
+        self['grow_y']  = True
         self['align_y'] = 0  # keep items at top in tall splitter panes
 
     def add_items(self, items: list[i.ListItem | str]):
@@ -61,15 +61,15 @@ class ListWidget(Widget, i.ListWidget):
             self._on_press(item)
 
     def add_item(self, item: ListItem | str):
-        item = ListItem(text=item) if isinstance(item, str) else item
-        item['on_press'] = partial(self._handle_on_press, item)
-        item._list_widget = self
+        item                = ListItem(text = item) if isinstance(item, str) else item
+        item['on_press']    = partial(self._handle_on_press, item)
+        item._list_widget   = self
         self._kwargs[self.s_children_attr].append(item)
         self.force_update()
 
     def clear(self):
-        self._kwargs['children'] = []
-        self._kwargs['selected_items'] = []
+        self._kwargs['children']        = []
+        self._kwargs['selected_items']  = []
         self.force_update()
 
     def find_items(self, text, flags):
@@ -87,9 +87,9 @@ class ListWidget(Widget, i.ListWidget):
 
     def set_selected(self, item: ListItem, selected: bool):
         # Called from list-item on-click; duplicates some of rio ListView selection.
-        selected_items = self.setdefault('selected_items', [])
-        key = item['key']
-        old_selected = key in selected_items
+        selected_items  = self.setdefault('selected_items', [])
+        key             = item['key']
+        old_selected    = key in selected_items
 
         if not old_selected and selected:
             if self['selection_mode'] == 'single':

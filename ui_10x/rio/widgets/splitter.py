@@ -8,16 +8,16 @@ from ui_10x.rio.component_builder import Widget
 
 
 class Direction(Enum):
-    VERTICAL = 'vertical'
-    HORIZONTAL = 'horizontal'
+    VERTICAL    = 'vertical'
+    HORIZONTAL  = 'horizontal'
 
 
 Horizontal = Direction.HORIZONTAL
 
 
 class Splitter(Widget, i.Splitter):
-    s_component_class = rio_components.Splitter
-    s_pass_children_in_kwargs = True
+    s_component_class           = rio_components.Splitter
+    s_pass_children_in_kwargs   = True
 
     def _make_kwargs(self, **kwargs):
         kwargs = super()._make_kwargs(**kwargs)

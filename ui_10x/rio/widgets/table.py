@@ -21,8 +21,8 @@ if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence
 
 # One cell: (display_text, background_color, foreground_color)
-_Cell = tuple[str, str, str]
-_Row = tuple[_Cell, ...]
+_Cell   = tuple[str, str, str]
+_Row    = tuple[_Cell, ...]
 
 
 class _HorizontalHeader(i.HorizontalHeader):
@@ -62,74 +62,74 @@ def _cell_component(text: str, bg: str, fg: str) -> rio.Component:
     display = text if (text and text.strip()) else '\u00a0'
     content = rio.Text(
         display,
-        justify='center',
-        selectable=False,
-        font_weight='bold',
-        fill=StyleSheet.parse_color(fg),
+        justify     = 'center',
+        selectable  = False,
+        font_weight = 'bold',
+        fill        = StyleSheet.parse_color(fg),
     )
     return rio.Rectangle(
-        content=rio.Container(content, align_x=0.5, align_y=0.5),
-        fill=StyleSheet.parse_color(bg),
-        corner_radius=0.2,
-        min_width=2.2,
-        min_height=2.2,
-        margin=0.1,
-        grow_x=True,
+        content         = rio.Container(content, align_x = 0.5, align_y = 0.5),
+        fill            = StyleSheet.parse_color(bg),
+        corner_radius   = 0.2,
+        min_width       = 2.2,
+        min_height      = 2.2,
+        margin          = 0.1,
+        grow_x          = True,
     )
 
 
 class TraitableTableGrid(rio.Component):
     """Rio state-driven grid. Assign ``rows`` / ``rev`` to refresh in-session."""
 
-    rev: int = 0
-    headers: tuple[str, ...] = ()
-    rows: tuple[_Row, ...] = ()
+    rev: int                    = 0
+    headers: tuple[str, ...]    = ()
+    rows: tuple[_Row, ...]      = ()
 
     def build(self) -> rio.Component:
-        header = [rio.Text(h, font_weight='bold', justify='center', selectable=False) for h in self.headers]
-        body = [[_cell_component(t, bg, fg) for t, bg, fg in row] for row in self.rows]
+        header  = [rio.Text(h, font_weight = 'bold', justify = 'center', selectable = False) for h in self.headers]
+        body    = [[_cell_component(t, bg, fg) for t, bg, fg in row] for row in self.rows]
         if not self.headers:
-            return rio.Text('(no columns)', italic=True)
+            return rio.Text('(no columns)', italic = True)
         return rio.Grid(
             header,
             *body,
-            row_spacing=0.25,
-            column_spacing=0.25,
-            grow_x=True,
-            key=f'grid_{self.rev}',
+            row_spacing     = 0.25,
+            column_spacing  = 0.25,
+            grow_x          = True,
+            key             = f'grid_{self.rev}',
         )
 
 
 class TableView(Widget, i.TableView):
     """Rio stand-in for Qt ``QTableView`` + Traitable Model (Phase 1)."""
 
-    __slots__ = ('_hv', '_rev', 'entities', 'header_labels', 'trait_names', 'view')
+    __slots__               = ('_hv', '_rev', 'entities', 'header_labels', 'trait_names', 'view')
     # Outer shell only; real UI is TraitableTableGrid (see build).
-    s_component_class = rio.Column
-    s_unwrap_single_child = True
-    s_default_kwargs = {'grow_x': True, 'grow_y': True, 'align_y': 0}
+    s_component_class       = rio.Column
+    s_unwrap_single_child   = True
+    s_default_kwargs        = {'grow_x': True, 'grow_y': True, 'align_y': 0}
 
     def __init__(self, entities_or_class, view: TraitableView | None = None):
         assert entities_or_class, 'first arg must not be empty'
 
         if inspect.isclass(entities_or_class):
             assert issubclass(entities_or_class, Traitable), 'first arg is a class, but not a subclass of Traitable'
-            proto = entities_or_class
-            entities: list = []
+            proto           = entities_or_class
+            entities: list  = []
         else:
-            entities = list(entities_or_class) if not isinstance(entities_or_class, list) else entities_or_class
-            proto = entities[0].__class__
+            entities    = list(entities_or_class) if not isinstance(entities_or_class, list) else entities_or_class
+            proto       = entities[0].__class__
 
         if not view:
             view = TraitableView.default(proto)
 
-        columns = _flat_columns(view.header)
-        self.view = view
-        self.entities = entities
-        self.trait_names = [name for name, _ in columns]
-        self.header_labels = [label for _, label in columns]
-        self._hv = _HorizontalHeader()
-        self._rev = 0
+        columns             = _flat_columns(view.header)
+        self.view           = view
+        self.entities       = entities
+        self.trait_names    = [name for name, _ in columns]
+        self.header_labels  = [label for _, label in columns]
+        self._hv            = _HorizontalHeader()
+        self._rev           = 0
         super().__init__()
 
     def horizontalHeader(self) -> _HorizontalHeader:  # noqa: N802 — Qt API
@@ -139,9 +139,9 @@ class TableView(Widget, i.TableView):
         trait = entity.__class__.trait(trait_name)
         if not trait:
             return '', ''
-        value = entity.get_trait_value(trait)
-        text = trait.to_str(value) if value is not None else ''
-        sh = entity.get_style_sheet(trait) or ''
+        value   = entity.get_trait_value(trait)
+        text    = trait.to_str(value) if value is not None else ''
+        sh      = entity.get_style_sheet(trait) or ''
         return text, sh
 
     def _snapshot_rows(self) -> tuple[_Row, ...]:
@@ -149,8 +149,8 @@ class TableView(Widget, i.TableView):
         for entity in self.entities:
             cells: list[_Cell] = []
             for name in self.trait_names:
-                text, sh = self._cell_text_and_style(entity, name)
-                data = _loads_sheet(sh)
+                text, sh    = self._cell_text_and_style(entity, name)
+                data        = _loads_sheet(sh)
                 cells.append(
                     (
                         text,
@@ -164,19 +164,19 @@ class TableView(Widget, i.TableView):
     def _ensure_grid(self) -> TraitableTableGrid:
         grid = self.subcomponent
         if not isinstance(grid, TraitableTableGrid):
-            grid = TraitableTableGrid(
-                rev=self._rev,
-                headers=tuple(self.header_labels),
-                rows=self._snapshot_rows(),
-                key=f'table_grid_{id(self)}',
+            grid                = TraitableTableGrid(
+                rev     = self._rev,
+                headers = tuple(self.header_labels),
+                rows    = self._snapshot_rows(),
+                key     = f'table_grid_{id(self)}',
             )
-            self.subcomponent = grid
+            self.subcomponent   = grid
         return grid
 
     def build(self) -> rio.Component:
-        grid = self._ensure_grid()
-        grid.headers = tuple(self.header_labels)
-        grid.rows = self._snapshot_rows()
+        grid            = self._ensure_grid()
+        grid.headers    = tuple(self.header_labels)
+        grid.rows       = self._snapshot_rows()
         return grid
 
     def render_traitable(self, row: int, entity: Traitable | None):
@@ -187,9 +187,9 @@ class TableView(Widget, i.TableView):
         rows = self._snapshot_rows()
         grid = self.subcomponent
         if isinstance(grid, TraitableTableGrid):
-            grid.headers = tuple(self.header_labels)
-            grid.rows = rows
-            grid.rev = self._rev
+            grid.headers    = tuple(self.header_labels)
+            grid.rows       = rows
+            grid.rev        = self._rev
             return
         self.force_update()
 

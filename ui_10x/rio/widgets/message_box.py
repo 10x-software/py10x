@@ -22,8 +22,8 @@ if TYPE_CHECKING:
 
 
 class Separator(Widget, i.Separator):
-    s_component_class = rio_components.Separator
-    s_forced_kwargs = {}
+    s_component_class   = rio_components.Separator
+    s_forced_kwargs     = {}
 
 
 class MessageBox(i.MessageBox):
@@ -35,23 +35,23 @@ class MessageBox(i.MessageBox):
         style = Application.style()
         if icon == Style.StandardPixmap.SP_MESSAGEBOXQUESTION:
             buttons = [
-                PushButton(style.standard_icon(Style.StandardPixmap.SP_DIALOGYESBUTTON.value), 'Yes', on_press=lambda: dlg.on_accept()),
-                PushButton(style.standard_icon(Style.StandardPixmap.SP_DIALOGNOBUTTON.value), 'No', on_press=lambda: dlg.on_reject()),
+                PushButton(style.standard_icon(Style.StandardPixmap.SP_DIALOGYESBUTTON.value), 'Yes', on_press = lambda: dlg.on_accept()),
+                PushButton(style.standard_icon(Style.StandardPixmap.SP_DIALOGNOBUTTON.value), 'No', on_press = lambda: dlg.on_reject()),
             ]
         else:
-            buttons = [PushButton(style.standard_icon(Style.StandardPixmap.SP_DIALOGOKBUTTON.value), 'Ok', on_press=lambda: dlg.on_accept())]
-        children = (
-            Label(title, align_x=0.5, align_y=0, style='heading1'),
+            buttons = [PushButton(style.standard_icon(Style.StandardPixmap.SP_DIALOGOKBUTTON.value), 'Ok', on_press = lambda: dlg.on_accept())]
+        children    = (
+            Label(title, align_x = 0.5, align_y = 0, style = 'heading1'),
             Separator(),
             HBoxLayout(
-                PushButton(style.standard_icon(icon.value), '', style='plain-text', is_sensitive=False, align_y=0, align_x=0, grow_x=False),
-                Label(message, align_y=0, overflow='wrap', grow_x=True),
+                PushButton(style.standard_icon(icon.value), '', style = 'plain-text', is_sensitive = False, align_y = 0, align_x = 0, grow_x = False),
+                Label(message, align_y = 0, overflow = 'wrap', grow_x = True),
             ),
             Separator(),
             HBoxLayout(*buttons),
         )
-        dlg = Dialog(
-            parent=parent, title=title, children=children, on_accept=lambda: on_close(dlg.accepted), on_reject=lambda: on_close(dlg.accepted)
+        dlg         = Dialog(
+            parent = parent, title = title, children = children, on_accept = lambda: on_close(dlg.accepted), on_reject = lambda: on_close(dlg.accepted)
         )
         dlg.set_layout(VBoxLayout())
         if Widget.current_session():
@@ -60,15 +60,15 @@ class MessageBox(i.MessageBox):
 
     @classmethod
     def question(cls, parent: Widget, title: str, message: str, on_close: Callable[[Any], None]) -> bool:
-        return cls._dialog(parent=parent, title=title, message=message, icon=Style.StandardPixmap.SP_MESSAGEBOXQUESTION, on_close=on_close)
+        return cls._dialog(parent = parent, title = title, message = message, icon = Style.StandardPixmap.SP_MESSAGEBOXQUESTION, on_close = on_close)
 
     @classmethod
     def warning(cls, parent: Widget, title: str, message: str, on_close: Callable[[Any], None]):
-        return cls._dialog(parent=parent, title=title, message=message, icon=Style.StandardPixmap.SP_MESSAGEBOXWARNING, on_close=on_close)
+        return cls._dialog(parent = parent, title = title, message = message, icon = Style.StandardPixmap.SP_MESSAGEBOXWARNING, on_close = on_close)
 
     @classmethod
     def information(cls, parent: Widget, title: str, message: str, on_close: Callable[[Any], None]):
-        return cls._dialog(parent=parent, title=title, message=message, icon=Style.StandardPixmap.SP_MESSAGEBOXINFORMATION, on_close=on_close)
+        return cls._dialog(parent = parent, title = title, message = message, icon = Style.StandardPixmap.SP_MESSAGEBOXINFORMATION, on_close = on_close)
 
     @classmethod
     def is_yes_button(cls, sb) -> bool:

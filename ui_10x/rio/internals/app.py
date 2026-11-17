@@ -40,7 +40,7 @@ class App10x:
             return
         window = webview.windows[0]
         print(f'Current window size: {window.width}x{window.height} pixels')
-        pixels_per_rem = window.evaluate_js("""
+        pixels_per_rem      = window.evaluate_js("""
             let measure = document.createElement('div');
             document.body.appendChild(measure);
             measure.style.height = '1rem';
@@ -48,8 +48,8 @@ class App10x:
             measure.remove();
             pixels_per_rem;
         """)
-        width_in_pixels = window.width if width is None else round(width * pixels_per_rem)
-        height_in_pixels = window.height if height is None else round(height * pixels_per_rem)
+        width_in_pixels     = window.width if width is None else round(width * pixels_per_rem)
+        height_in_pixels    = window.height if height is None else round(height * pixels_per_rem)
         print(f'Resizing window to {width_in_pixels}x{height_in_pixels} pixels ({width}x{height} rem at {pixels_per_rem} pixels/rem)')
         window.resize(width_in_pixels, height_in_pixels)
 
@@ -64,43 +64,43 @@ class App10x:
         debug_mode: bool = False,
         on_server_created: Callable[[uvicorn.Server], None] | None = None,
     ) -> None:
-        host = 'localhost'
-        port = utils.ensure_valid_port(host, None)
-        url = f'http://{host}:{port}'
+        host    = 'localhost'
+        port    = utils.ensure_valid_port(host, None)
+        url     = f'http://{host}:{port}'
 
         server: uvicorn.Server | None = None
 
         icon_path = asyncio.run(self.app._fetch_icon_as_png_path())
 
         self.webview = webview = WebViewProcess(
-            url=url,
-            title=self.app.name,
-            maximized=maximized,
-            fullscreen=fullscreen,
-            icon_path=icon_path,
-            func=partial(self._update_window_size, width, height),
-            on_close=lambda: server and setattr(server, 'should_exit', True),
+            url         = url,
+            title       = self.app.name,
+            maximized   = maximized,
+            fullscreen  = fullscreen,
+            icon_path   = icon_path,
+            func        = partial(self._update_window_size, width, height),
+            on_close    = lambda: server and setattr(server, 'should_exit', True),
         )
 
         def _on_server_created(_server: uvicorn.Server) -> None:
             nonlocal server
             server = _server
 
-            fastapi_server = server.config.app
-            fastapi_server.__class__ = FastapiServer
-            fastapi_server.app10x = self
+            fastapi_server              = server.config.app
+            fastapi_server.__class__    = FastapiServer
+            fastapi_server.app10x       = self
             if on_server_created:
                 on_server_created(server)
 
         try:
             self.app._run_as_web_server(
-                host=host,
-                port=port,
-                quiet=quiet,
-                running_in_window=True,
-                internal_on_app_start=webview.start,
-                internal_on_server_created=_on_server_created,
-                debug_mode=debug_mode,
+                host                        = host,
+                port                        = port,
+                quiet                       = quiet,
+                running_in_window           = True,
+                internal_on_app_start       = webview.start,
+                internal_on_server_created  = _on_server_created,
+                debug_mode                  = debug_mode,
             )
         except Exception as e:  # noqa: BLE001 - TODO better handling?
             print(f'Error running app: {e}')
@@ -114,9 +114,9 @@ class FastapiServer(app_server.FastapiServer):
     app10x: App10x
 
     async def create_session(self, *args, **kwargs) -> rio.Session:
-        session = await super().create_session(*args, **kwargs)
-        session.__class__ = Session
-        session.app10x = self.app10x
+        session             = await super().create_session(*args, **kwargs)
+        session.__class__   = Session
+        session.app10x      = self.app10x
         return session
 
 
@@ -125,9 +125,9 @@ class Session(rio.Session):
 
     async def _close(self, close_remote_session: bool) -> None:
         if not self.running_in_window:
-            await super()._close(close_remote_session=close_remote_session)
+            await super()._close(close_remote_session = close_remote_session)
 
-        await super()._close(close_remote_session=False)
+        await super()._close(close_remote_session = False)
         if close_remote_session:
             self.app10x.webview.close()
 
@@ -153,7 +153,7 @@ class Session(rio.Session):
         multiple: bool = False,
     ) -> utils.FileInfo | list[utils.FileInfo]:
         if not self.running_in_window:
-            return await super().pick_file(file_types=file_types, multiple=multiple)
+            return await super().pick_file(file_types = file_types, multiple = multiple)
 
         # Normalize the file types
         if file_types is not None:
@@ -161,8 +161,8 @@ class Session(rio.Session):
             file_types = list(ordered_set.OrderedSet(utils.normalize_file_extension(file_type) for file_type in file_types))
 
         selected = self.app10x.webview.pick_file(
-            file_types=[f'{extension} (*.{extension})' for extension in file_types],
-            multiple=multiple,
+            file_types  = [f'{extension} (*.{extension})' for extension in file_types],
+            multiple    = multiple,
         )
 
         if not selected:
@@ -179,14 +179,14 @@ class Session(rio.Session):
         directory: pathlib.Path | None = None,
     ) -> None:
         if not self.running_in_window:
-            return await super().save_file(file_contents, file_name, media_type=media_type, directory=directory)
+            return await super().save_file(file_contents, file_name, media_type = media_type, directory = directory)
 
         self.app10x.webview.save_file(
-            file_contents=file_contents,
-            directory='' if directory is None else str(directory),
-            file_name=file_name,
+            file_contents   = file_contents,
+            directory       = '' if directory is None else str(directory),
+            file_name       = file_name,
         )
 
 
-Session._local_methods_ = rio.Session._local_methods_.copy()
-Session._remote_methods_ = rio.Session._remote_methods_.copy()
+Session._local_methods_     = rio.Session._local_methods_.copy()
+Session._remote_methods_    = rio.Session._remote_methods_.copy()

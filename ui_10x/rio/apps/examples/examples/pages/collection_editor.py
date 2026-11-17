@@ -12,10 +12,10 @@ def guard(event: rio.GuardEvent) -> str | None:
 
 
 @rio.page(
-    name='CollectionEditor',
-    url_segment='ce',
-    guard=guard,
+    name        = 'CollectionEditor',
+    url_segment = 'ce',
+    guard       = guard,
 )
 class CollectionEditor(rio.Component):
     def build(self) -> rio.Component:
-        return comps.CollectionEditorComponent(collection_class=Person)
+        return comps.CollectionEditorComponent(collection_class = Person)

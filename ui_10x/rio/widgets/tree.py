@@ -9,16 +9,16 @@ from ui_10x.rio.component_builder import Widget
 
 
 class TreeItem(Widget, i.TreeItem):
-    __slots__ = ('handlers',)
+    __slots__                   = ('handlers',)
     # RioTreeItem is kwargs allowlist only — see rio/components/tree_view.py.
-    s_component_class = rio_components.RioTreeItem
-    s_pass_children_in_kwargs = True
-    s_unwrap_single_child = False
+    s_component_class           = rio_components.RioTreeItem
+    s_pass_children_in_kwargs   = True
+    s_unwrap_single_child       = False
 
     def __init__(self, parent: TreeWidget | TreeItem, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        parent[self.s_children_attr] = parent[self.s_children_attr] + [self]
-        self.handlers = parent.handlers
+        parent[self.s_children_attr]    = parent[self.s_children_attr] + [self]
+        self.handlers                   = parent.handlers
         for name, callback in self.handlers.items():
             self[name.replace('_item_', '_')] = partial(callback, self)
 
@@ -37,34 +37,34 @@ class TreeItem(Widget, i.TreeItem):
 
 
 class TreeWidget(Widget, i.TreeWidget):
-    __slots__ = ('col_count', 'handlers', 'header_labels')
-    s_component_class = rio.TreeView
-    s_pass_children_in_kwargs = False
-    s_unwrap_single_child = False
-    s_default_kwargs = {'selection_mode': 'none'}
+    __slots__                   = ('col_count', 'handlers', 'header_labels')
+    s_component_class           = rio.TreeView
+    s_pass_children_in_kwargs   = False
+    s_unwrap_single_child       = False
+    s_default_kwargs            = {'selection_mode': 'none'}
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.handlers = {}
-        self.col_count = 1
-        self.header_labels: list[str] | None = None
+        self.handlers                           = {}
+        self.col_count                          = 1
+        self.header_labels: list[str] | None    = None
 
     def _to_simple_tree_item(self, item: TreeItem) -> rio.SimpleTreeItem:
         """Emit a SimpleTreeItem in this build (do not reuse cross-build Components)."""
-        text = item.get('text', '') or ''
-        content: rio.Component = rio.Text(text, justify='left', selectable=False)
+        text                    = item.get('text', '') or ''
+        content: rio.Component  = rio.Text(text, justify = 'left', selectable = False)
         if tooltip := item.get('tooltip'):
-            content = rio.Tooltip(anchor=content, tip=tooltip)
+            content = rio.Tooltip(anchor = content, tip = tooltip)
         if on_double := item.get('on_double_press'):
-            content = rio.PointerEventListener(content, on_double_press=on_double)
+            content = rio.PointerEventListener(content, on_double_press = on_double)
 
         kids = [self._to_simple_tree_item(child) for child in item._get_children() if isinstance(child, TreeItem)]
 
         def on_expansion_change(event) -> None:
             item['is_expanded'] = event.is_expanded
 
-        press = item.get('on_press')
-        live: dict = {'item': None}
+        press       = item.get('on_press')
+        live: dict  = {'item': None}
 
         def on_press() -> None:
             # Non-leaf row click opens the node (chevron still toggles). Always run
@@ -77,15 +77,15 @@ class TreeWidget(Widget, i.TreeWidget):
             if press:
                 press()
 
-        built = rio.SimpleTreeItem(
-            content=content,
-            children=kids,
-            is_expanded=bool(item.get('is_expanded', False)),
-            on_press=on_press if press else None,
-            on_expansion_change=on_expansion_change,
-            key=id(item),
+        built           = rio.SimpleTreeItem(
+            content             = content,
+            children            = kids,
+            is_expanded         = bool(item.get('is_expanded', False)),
+            on_press            = on_press if press else None,
+            on_expansion_change = on_expansion_change,
+            key                 = id(item),
         )
-        live['item'] = built
+        live['item']    = built
         return built
 
     def _build_children(self):
@@ -93,19 +93,19 @@ class TreeWidget(Widget, i.TreeWidget):
         return [self._to_simple_tree_item(child) for child in self._get_children() if isinstance(child, TreeItem)]
 
     def build(self) -> rio.Component:
-        tree = super().build()
-        labels = self.header_labels
+        tree    = super().build()
+        labels  = self.header_labels
         if not labels:
             return tree
         # Match Qt QTreeWidget header (e.g. Directory.show_value() → "Animals").
         if len(labels) == 1:
-            header: rio.Component = rio.Text(labels[0], font_weight='bold', justify='left')
+            header: rio.Component = rio.Text(labels[0], font_weight = 'bold', justify = 'left')
         else:
             header = rio.Row(
-                *(rio.Text(label, font_weight='bold', justify='left', grow_x=True) for label in labels),
-                spacing=1,
+                *(rio.Text(label, font_weight = 'bold', justify = 'left', grow_x = True) for label in labels),
+                spacing = 1,
             )
-        return rio.Column(header, tree, spacing=0.3, grow_y=True)
+        return rio.Column(header, tree, spacing = 0.3, grow_y = True)
 
     def set_column_count(self, col_count: int):
         """Store column count (rio.TreeView is single-column; multi-col is a no-op)."""

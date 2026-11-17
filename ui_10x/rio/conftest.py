@@ -10,20 +10,20 @@ def running_with_coverage(config):
     if not config.pluginmanager.getplugin('pytest_cov'):
         return False
 
-    if not config.getoption('--cov', default='COV_CORE_SOURCE' in os.environ):
+    if not config.getoption('--cov', default = 'COV_CORE_SOURCE' in os.environ):
         return False
 
-    return not config.getoption('--no-cov', default=False)
+    return not config.getoption('--no-cov', default = False)
 
 
-@pytest.fixture(scope='session', autouse=True)
+@pytest.fixture(scope = 'session', autouse = True)
 def isolate_rio_icon_cache() -> None:
     # A cache per worker, because rio reads "directory exists" as "set is extracted" while
     # extractall is still writing 6k files into it -- workers sharing one cache race that.
-    manager = rio.utils.ASSET_MANAGER
-    version = manager._versioned_cache_dir.name
-    manager.cache_dir = manager.cache_dir.parent / 'rio-py10x-test' / os.environ.get('PYTEST_XDIST_WORKER', 'main')
-    manager._versioned_cache_dir = manager.cache_dir / version
+    manager                         = rio.utils.ASSET_MANAGER
+    version                         = manager._versioned_cache_dir.name
+    manager.cache_dir               = manager.cache_dir.parent / 'rio-py10x-test' / os.environ.get('PYTEST_XDIST_WORKER', 'main')
+    manager._versioned_cache_dir    = manager.cache_dir / version
 
     # Whole sets, never a list of icon names: the ones that break a build are pulled in by
     # rio's own components (TreeView -> arrow_drop_down), so any list here rots on upgrade.
@@ -31,7 +31,7 @@ def isolate_rio_icon_cache() -> None:
         rio_icon_registry._ensure_icon_set_is_extracted(set_name)
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope = 'session')
 def session_default_async_timeout(pytestconfig) -> float:
     if running_with_coverage(pytestconfig):
         return 180.0
@@ -41,7 +41,7 @@ def session_default_async_timeout(pytestconfig) -> float:
     return 90.0
 
 
-@pytest.fixture(scope='session', autouse=True)
+@pytest.fixture(scope = 'session', autouse = True)
 async def manage_server(request):
 
     if running_with_coverage(request.config):
@@ -58,7 +58,7 @@ async def manage_server(request):
             os.environ['LD_PRELOAD'] = saved
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture(autouse = True)
 def setup_ui_platform(monkeypatch):
     monkeypatch.setenv('UI_PLATFORM', 'Rio')
     yield

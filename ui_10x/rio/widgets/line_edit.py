@@ -6,10 +6,10 @@ from ui_10x.rio.component_builder import MouseEvent, Widget
 
 
 class LineEdit(Widget, i.LineEdit):
-    s_default_kwargs = {'text': ''}
-    s_component_class = rio_components.LineEditComponent
-    s_single_child = True
-    s_children_attr = 'text'
+    s_default_kwargs    = {'text': ''}
+    s_component_class   = rio_components.LineEditComponent
+    s_single_child      = True
+    s_children_attr     = 'text'
 
     def set_text(self, text: str):
         self['text'] = text or ''
@@ -27,7 +27,7 @@ class LineEdit(Widget, i.LineEdit):
         self['on_lose_focus'] = self.callback(lambda ev: bound_method())
 
     def _make_kwargs(self, **kwargs):
-        kw = super()._make_kwargs(**kwargs)
+        kw      = super()._make_kwargs(**kwargs)
         handler = self.mouse_press_event
         if handler.__func__ != LineEdit.mouse_press_event:  # do not set unless re-implemented
             kw['on_pointer_up'] = self.callback(lambda event: handler(MouseEvent(event)))

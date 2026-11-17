@@ -30,7 +30,7 @@ class signal_decl(i.signal_decl):
 
     __slots__ = ('_attr',)
 
-    def __init__(self, arg=object):
+    def __init__(self, arg = object):
         assert arg is object, 'arg must be object'
 
     def __set_name__(self, owner, name):
@@ -41,8 +41,8 @@ class signal_decl(i.signal_decl):
             return self
         decl = vars(instance).get(self._attr)
         if decl is None:
-            decl = BoundSignal()
-            vars(instance)[self._attr] = decl
+            decl                        = BoundSignal()
+            vars(instance)[self._attr]  = decl
         return decl
 
 
@@ -51,18 +51,18 @@ MouseEvent = component_builder.MouseEvent
 
 SCROLL = widgets.SCROLL
 
-Point = component_builder.Point
+Point       = component_builder.Point
 FontMetrics = component_builder.FontMetrics
-SizePolicy = component_builder.SizePolicy
-TEXT_ALIGN = component_builder.TEXT_ALIGN
+SizePolicy  = component_builder.SizePolicy
+TEXT_ALIGN  = component_builder.TEXT_ALIGN
 
-Widget = component_builder.Widget
-Layout = component_builder.Layout
-FlowLayout = component_builder.FlowLayout
+Widget      = component_builder.Widget
+Layout      = component_builder.Layout
+FlowLayout  = component_builder.FlowLayout
 
-LineEdit = widgets.LineEdit
-Label = widgets.Label
-PushButton = widgets.PushButton
+LineEdit    = widgets.LineEdit
+Label       = widgets.Label
+PushButton  = widgets.PushButton
 
 Spacer = widgets.Spacer
 
@@ -79,33 +79,33 @@ ButtonGroup = widgets.ButtonGroup
 
 GroupBox = widgets.GroupBox
 
-TextEdit = widgets.TextEdit
-CheckBox = widgets.CheckBox
-ScrollArea = widgets.ScrollArea
-Separator = widgets.Separator
+TextEdit    = widgets.TextEdit
+CheckBox    = widgets.CheckBox
+ScrollArea  = widgets.ScrollArea
+Separator   = widgets.Separator
 
 
-def separator(horizontal=True) -> Separator:
-    return Separator() if horizontal else Separator(orientation='vertical')
+def separator(horizontal = True) -> Separator:
+    return Separator() if horizontal else Separator(orientation = 'vertical')
 
 
 Direction = widgets.Direction
 
-Vertical = Direction.VERTICAL
-Horizontal = Direction.HORIZONTAL
+Vertical    = Direction.VERTICAL
+Horizontal  = Direction.HORIZONTAL
 
 Splitter = widgets.Splitter
 
 Style = widgets.Style
 
-FindFlags = widgets.FindFlags
-MatchExactly = FindFlags.MATCH_EXACTLY
+FindFlags       = widgets.FindFlags
+MatchExactly    = FindFlags.MATCH_EXACTLY
 
-ListWidget = widgets.ListWidget
-ListItem = widgets.ListItem
+ListWidget  = widgets.ListWidget
+ListItem    = widgets.ListItem
 
-TreeWidget = widgets.TreeWidget
-TreeItem = widgets.TreeItem
+TreeWidget  = widgets.TreeWidget
+TreeItem    = widgets.TreeItem
 
 CalendarWidget = widgets.CalendarWidget
 

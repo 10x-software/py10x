@@ -10,8 +10,8 @@ class GroupBox(rio.Component):
         children: A list of child components to be grouped.
     """
 
-    children: list[rio.Component] = []
-    title: str = ''
+    children: list[rio.Component]   = []
+    title: str                      = ''
 
     def build(self) -> rio.Component:
         """
@@ -19,18 +19,18 @@ class GroupBox(rio.Component):
 
         Avoids negative title margins (those clipped the heading under parent overflow).
         """
-        content = rio.Column(*self.children, margin=0.8)
-        framed = rio.Rectangle(
-            content=content,
-            fill=rio.Color.TRANSPARENT,
-            stroke_width=0.1,
-            stroke_color=rio.Color.GRAY,
-            corner_radius=0.5,
+        content = rio.Column(*self.children, margin = 0.8)
+        framed  = rio.Rectangle(
+            content         = content,
+            fill            = rio.Color.TRANSPARENT,
+            stroke_width    = 0.1,
+            stroke_color    = rio.Color.GRAY,
+            corner_radius   = 0.5,
         )
         if not self.title:
             return framed
         return rio.Column(
-            rio.Text(self.title, margin_left=0.3, margin_bottom=0.2),
+            rio.Text(self.title, margin_left = 0.3, margin_bottom = 0.2),
             framed,
-            spacing=0,
+            spacing = 0,
         )

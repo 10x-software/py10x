@@ -8,14 +8,14 @@ import rio
 
 
 @rio.page(
-    name='Login/Logout',
-    url_segment='',
+    name        = 'Login/Logout',
+    url_segment = '',
 )
 class LoginPage(rio.Component):
-    username: str = ''
-    password: str = ''
+    username: str               = ''
+    password: str               = ''
 
-    error_message: str = ''
+    error_message: str          = ''
 
     _currently_logging_in: bool = False
 
@@ -25,8 +25,8 @@ class LoginPage(rio.Component):
             self.force_refresh()
 
             try:
-                runtime_context = self.session[UserSessionContext]
-                running, with_auth = TsStore.is_running_with_auth_from_uri(XxEnvVars.main_ts_store_uri)
+                runtime_context     = self.session[UserSessionContext]
+                running, with_auth  = TsStore.is_running_with_auth_from_uri(XxEnvVars.main_ts_store_uri)
                 if not running:
                     self.error_message = 'Authentication is not available'
                     return
@@ -38,10 +38,10 @@ class LoginPage(rio.Component):
                     self.password = ''
                 runtime_context.traitable_store = TsStore.instance_from_uri(
                     XxEnvVars.main_ts_store_uri,
-                    username=self.username,
-                    password=self.password,
+                    username    = self.username,
+                    password    = self.password,
                 )
-                runtime_context.authenticated = True
+                runtime_context.authenticated   = True
 
             except Exception as e:
                 self.error_message = f'Login error - try again {e.__class__.__name__}\n'
@@ -57,8 +57,8 @@ class LoginPage(rio.Component):
 
     async def logout(self, _: rio.TextInputConfirmEvent | None = None) -> None:
         try:
-            runtime_context = self.session[UserSessionContext]
-            runtime_context.authenticated = False
+            runtime_context                 = self.session[UserSessionContext]
+            runtime_context.authenticated   = False
             runtime_context.traitable_store = None
         except Exception as e:
             self.error_message = f'Logout error\n {e}'
@@ -71,26 +71,26 @@ class LoginPage(rio.Component):
     def build(self) -> rio.Component:
         rows = (
             [
-                rio.TextInput(text=self.bind().username, label='Username', on_confirm=self.login),
-                rio.TextInput(text=self.bind().password, label='Password', is_secret=True, on_confirm=self.login),
-                rio.Button('Sign In', on_press=self.login, is_loading=self._currently_logging_in),
+                rio.TextInput(text = self.bind().username, label = 'Username', on_confirm = self.login),
+                rio.TextInput(text = self.bind().password, label = 'Password', is_secret = True, on_confirm = self.login),
+                rio.Button('Sign In', on_press = self.login, is_loading = self._currently_logging_in),
             ]
             if not self.session[UserSessionContext].authenticated
             else [
-                rio.Button('Sign Out', on_press=self.logout),
+                rio.Button('Sign Out', on_press = self.logout),
             ]
         )
 
         return rio.Card(
             rio.Column(
-                rio.Text('Sign In/Sign Out', style='heading1', justify='center'),
-                rio.Banner(text=self.error_message, style='danger', margin_top=1),
+                rio.Text('Sign In/Sign Out', style = 'heading1', justify = 'center'),
+                rio.Banner(text = self.error_message, style = 'danger', margin_top = 1),
                 *rows,
-                spacing=1,
-                margin=2,
+                spacing = 1,
+                margin  = 2,
             ),
-            margin_x=0.5,
-            align_y=0.5,
-            align_x=0.5,
-            min_width=24,
+            margin_x    = 0.5,
+            align_y     = 0.5,
+            align_x     = 0.5,
+            min_width   = 24,
         )

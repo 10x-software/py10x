@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 
 
 class Dialog(Widget, i.Dialog):
-    __slots__ = (
+    __slots__               = (
         '_auto_min_width',
         '_dialog',
         '_modal',
@@ -23,41 +23,41 @@ class Dialog(Widget, i.Dialog):
         'on_reject',
         'title',
     )
-    s_component_class = rio.Column
+    s_component_class       = rio.Column
     # Keep the Column wrapper — Widget.s_unwrap_single_child would discard
     # min_width / grow on the dialog and size only to the inner layout.
-    s_unwrap_single_child = False
-    s_forced_kwargs = {'grow_x': False, 'grow_y': False}
+    s_unwrap_single_child   = False
+    s_forced_kwargs         = {'grow_x': False, 'grow_y': False}
     # Dialogs size to their content, over a floor: many trait widgets declare no
     # min_width of their own and collapse into unreadable wrapping without one
     # (e.g. a MultiChoice's list panes, or a text4list box whose own min_width is
     # narrower than its actual content). Nothing caps them — an oversized dialog
     # stays reachable through rio's overlay scroller.
-    s_min_width_rem = 28.0
+    s_min_width_rem         = 28.0
 
     def _make_kwargs(self, **kwargs):
         kwargs = super()._make_kwargs(**kwargs)
         del kwargs['align_y']
         return kwargs
 
-    def __init__(self, parent: Widget | None = None, children=(), title=None, on_accept=None, on_reject=None, **kwargs):
+    def __init__(self, parent: Widget | None = None, children = (), title = None, on_accept = None, on_reject = None, **kwargs):
         assert isinstance(parent, Widget | None)
         super().__init__(*children, **kwargs)
-        self.on_accept = self._wrapper(on_accept, accept=True)
-        self.on_reject = self._wrapper(on_reject)
-        self.accepted = True
-        self.title = title
-        self._dialog = None
-        self._server = None
-        self._parent = parent
-        self._modal = True
+        self.on_accept  = self._wrapper(on_accept, accept = True)
+        self.on_reject  = self._wrapper(on_reject)
+        self.accepted   = True
+        self.title      = title
+        self._dialog    = None
+        self._server    = None
+        self._parent    = parent
+        self._modal     = True
         # True until an explicit set_minimum_width() call (UxDialog may set one).
         self._auto_min_width = 'min_width' not in kwargs
 
     def set_window_title(self, title: str):
         self.title = title
 
-    def _wrapper(self, func, accept=False):
+    def _wrapper(self, func, accept = False):
         func = self.callback(func) if func else None
 
         def wrapper(*args):
@@ -84,8 +84,8 @@ class Dialog(Widget, i.Dialog):
 
     def _on_close(self):
         """Programmatic close (Ok / Cancel buttons)."""
-        dialog = self._rio_dialog()
-        self._dialog = None
+        dialog          = self._rio_dialog()
+        self._dialog    = None
         if dialog is not None and dialog.is_open:
             dialog._root_component.session.create_task(dialog.close())
         elif self._server:
@@ -93,8 +93,8 @@ class Dialog(Widget, i.Dialog):
 
     def _on_user_close(self):
         """Rio dismissed the dialog (Escape or click outside)."""
-        self.accepted = False
-        self._dialog = None
+        self.accepted   = False
+        self._dialog    = None
         # UxDialog stores cancel_callback; default is reject (already closed — skip).
         cancel = getattr(self, 'cancel_callback', None)
         if callable(cancel) and cancel is not self.reject:
@@ -123,8 +123,8 @@ class Dialog(Widget, i.Dialog):
 
         assert not self._parent, 'Parent is not allowed for top level dialog'
 
-        title = self.title or 'Dialog'
-        sessions = set()
+        title       = self.title or 'Dialog'
+        sessions    = set()
 
         def on_session_start(session):
             sessions.add(session)
@@ -135,35 +135,35 @@ class Dialog(Widget, i.Dialog):
         def on_session_close(session):
             for component in session._weak_components_by_id.values():
                 if isinstance(component, DynamicComponent):
-                    component.builder.component = None
-                    component.builder.subcomponent = None
+                    component.builder.component     = None
+                    component.builder.subcomponent  = None
             sessions.remove(session)
             print('on_session_close:', len(sessions))
 
         def build():
             print('build:', len(sessions))
             if len(sessions) == 1:
-                component = DynamicComponent(builder=self)
+                component = DynamicComponent(builder = self)
                 if component.session in sessions:
                     return component
 
             from rio.components.error_placeholder import ErrorPlaceholder
 
-            return ErrorPlaceholder(error_summary='Only one session is allowed for `Dialog.exec`', error_details='')
+            return ErrorPlaceholder(error_summary = 'Only one session is allowed for `Dialog.exec`', error_details = '')
 
-        app = rio.App(
-            name=title,
-            build=build,
-            on_session_start=on_session_start,
-            on_session_close=on_session_close,
-            default_attachments=[UserSessionContext()],
+        app     = rio.App(
+            name                = title,
+            build               = build,
+            on_session_start    = on_session_start,
+            on_session_close    = on_session_close,
+            default_attachments = [UserSessionContext()],
         )
-        debug = True
+        debug   = True
         if debug:
             from rio.debug.monkeypatches import apply_monkeypatches
 
             apply_monkeypatches()
-        App10x(app)._run_in_window(debug_mode=debug, on_server_created=self._on_server_created)
+        App10x(app)._run_in_window(debug_mode = debug, on_server_created = self._on_server_created)
         return self.accepted
 
     def set_minimum_width(self, width: int):
@@ -176,8 +176,8 @@ class Dialog(Widget, i.Dialog):
         """
         if not self._auto_min_width:
             return
-        ppf = float(getattr(session, 'pixels_per_font_height', 0) or 16)
-        self._kwargs['min_width'] = self.s_min_width_rem * ppf
+        ppf                         = float(getattr(session, 'pixels_per_font_height', 0) or 16)
+        self._kwargs['min_width']   = self.s_min_width_rem * ppf
 
     def on_open(self):
         pass
@@ -190,12 +190,12 @@ class Dialog(Widget, i.Dialog):
             session = self.current_session()
             self._apply_min_width_floor(session)
             future = session.show_custom_dialog(
-                build=self,
-                on_close=self._on_user_close,
-                modal=self._modal,
+                build               = self,
+                on_close            = self._on_user_close,
+                modal               = self._modal,
                 # Escape + click-outside dismiss (Rio popup manager).
-                user_closable=True,
-                owning_component=self._parent.component if self._parent else None,
+                user_closable       = True,
+                owning_component    = self._parent.component if self._parent else None,
             )
             session.create_task(future).add_done_callback(self._on_dialog_open)
 

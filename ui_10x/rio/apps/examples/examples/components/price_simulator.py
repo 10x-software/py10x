@@ -16,13 +16,13 @@ class PriceSimulatorComponent(rio.Component):
             dialog = self.session[PriceSimulatorDialog]
         except KeyError:
             with session_context(self.session):
-                mm = MarketMonitor()
-                dialog = PriceSimulatorDialog(
+                mm      = MarketMonitor()
+                dialog  = PriceSimulatorDialog(
                     mm.widget(),
-                    title='Enjoy watching some stocks :-)',
-                    ok='',
-                    cancel='',
-                    open_callback=mm.start,
+                    title           = 'Enjoy watching some stocks :-)',
+                    ok              = '',
+                    cancel          = '',
+                    open_callback   = mm.start,
                 )
                 self.session.attach(dialog)
                 dialog.on_open()

@@ -9,8 +9,8 @@ class BoxLayout(Layout): ...
 
 
 class VBoxLayout(BoxLayout, i.VBoxLayout):
-    s_component_class = rio.Column
-    s_stretch_arg = 'grow_y'
+    s_component_class   = rio.Column
+    s_stretch_arg       = 'grow_y'
 
     def _make_kwargs(self, **kwargs):
         kwargs = super()._make_kwargs(**kwargs)
@@ -19,13 +19,13 @@ class VBoxLayout(BoxLayout, i.VBoxLayout):
 
 
 class HBoxLayout(BoxLayout, i.HBoxLayout):
-    s_component_class = rio.Row
-    s_stretch_arg = 'grow_x'
+    s_component_class   = rio.Row
+    s_stretch_arg       = 'grow_x'
 
 
 class FormLayout(Layout, i.FormLayout):
-    s_component_class = rio.Grid
-    s_children_attr = 'rows'
+    s_component_class   = rio.Grid
+    s_children_attr     = 'rows'
 
     def add_row(self, *args):
         self.add_children(args)

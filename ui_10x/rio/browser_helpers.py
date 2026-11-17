@@ -27,20 +27,20 @@ async def ui_settle() -> None:
     await asyncio.sleep(UI_SETTLE_S)
 
 
-DEFAULT_DOM_TIMEOUT_MS = 10_000
-COLLECTION_EDITOR_TIMEOUT_MS = 30_000
-DEFAULT_POLL_TIMEOUT_S = 10.0
+DEFAULT_DOM_TIMEOUT_MS          = 10_000
+COLLECTION_EDITOR_TIMEOUT_MS    = 30_000
+DEFAULT_POLL_TIMEOUT_S          = 10.0
 
-LABEL_CLIENT_TEXT_JS = 'document.querySelector(".rio-text")?.children[0]?.innerText || ""'
-BUTTON_CLIENT_TEXT_JS = 'document.querySelector(".rio-button .rio-text")?.children[0]?.innerText || ""'
-CHECKBOX_JS = 'document.querySelector("input[type=\'checkbox\']")'
-LINE_EDIT_INPUT_JS = 'document.querySelector(".rio-input-box input")'
-LINE_EDIT_TOOLTIP_TEXT_JS = 'document.querySelector(".rio-tooltip-popup .rio-text")?.children[0]?.innerText || ""'
-CALENDAR_SELECTED_DATE_JS = 'document.querySelector(".rio-calendar-selected-day")?.textContent + " " + document.querySelector(".rio-calendar-year-month-display")?.textContent'
-LIST_ITEMS_COUNT_JS = 'document.querySelectorAll(".rio-selectable-item").length'
-LIST_SELECTED_TEXT_JS = 'document.querySelector(".selected .rio-text")?.children[0]?.innerText || ""'
-GROUP_BOX_COLUMN_TEXT_COUNT_JS = 'document.querySelectorAll(".rio-column .rio-text").length'
-GROUP_BOX_BUTTON_COUNT_JS = 'document.querySelectorAll(".rio-button").length'
+LABEL_CLIENT_TEXT_JS            = 'document.querySelector(".rio-text")?.children[0]?.innerText || ""'
+BUTTON_CLIENT_TEXT_JS           = 'document.querySelector(".rio-button .rio-text")?.children[0]?.innerText || ""'
+CHECKBOX_JS                     = 'document.querySelector("input[type=\'checkbox\']")'
+LINE_EDIT_INPUT_JS              = 'document.querySelector(".rio-input-box input")'
+LINE_EDIT_TOOLTIP_TEXT_JS       = 'document.querySelector(".rio-tooltip-popup .rio-text")?.children[0]?.innerText || ""'
+CALENDAR_SELECTED_DATE_JS       = 'document.querySelector(".rio-calendar-selected-day")?.textContent + " " + document.querySelector(".rio-calendar-year-month-display")?.textContent'
+LIST_ITEMS_COUNT_JS             = 'document.querySelectorAll(".rio-selectable-item").length'
+LIST_SELECTED_TEXT_JS           = 'document.querySelector(".selected .rio-text")?.children[0]?.innerText || ""'
+GROUP_BOX_COLUMN_TEXT_COUNT_JS  = 'document.querySelectorAll(".rio-column .rio-text").length'
+GROUP_BOX_BUTTON_COUNT_JS       = 'document.querySelectorAll(".rio-button").length'
 
 
 def _js_literal(value: Any) -> str:
@@ -61,7 +61,7 @@ async def wait_for_js_value(
     """Wait until a JS expression equals the expected value."""
     await test_client.playwright_page.wait_for_function(
         f'() => ({expression}) === {_js_literal(expected)}',
-        timeout=timeout_ms,
+        timeout = timeout_ms,
     )
 
 
@@ -74,14 +74,14 @@ async def wait_for_js_truthy(
     """Wait until a JS expression evaluates to a truthy value."""
     await test_client.playwright_page.wait_for_function(
         f'() => !!({expression})',
-        timeout=timeout_ms,
+        timeout = timeout_ms,
     )
 
 
 async def wait_for_rio_refresh(test_client, *, timeout_s: float = 2.0) -> None:
     """Wait for the next Rio refresh, but do not block forever if none arrives."""
     with contextlib.suppress(asyncio.TimeoutError):
-        await asyncio.wait_for(test_client.wait_for_refresh(), timeout=timeout_s)
+        await asyncio.wait_for(test_client.wait_for_refresh(), timeout = timeout_s)
 
 
 async def wait_until(
@@ -109,7 +109,7 @@ async def wait_for_label_client_text(
     *,
     timeout_ms: int = DEFAULT_DOM_TIMEOUT_MS,
 ) -> None:
-    await wait_for_js_value(test_client, LABEL_CLIENT_TEXT_JS, text, timeout_ms=timeout_ms)
+    await wait_for_js_value(test_client, LABEL_CLIENT_TEXT_JS, text, timeout_ms = timeout_ms)
 
 
 async def wait_for_button_client_text(
@@ -118,7 +118,7 @@ async def wait_for_button_client_text(
     *,
     timeout_ms: int = DEFAULT_DOM_TIMEOUT_MS,
 ) -> None:
-    await wait_for_js_value(test_client, BUTTON_CLIENT_TEXT_JS, text, timeout_ms=timeout_ms)
+    await wait_for_js_value(test_client, BUTTON_CLIENT_TEXT_JS, text, timeout_ms = timeout_ms)
 
 
 async def wait_for_button_interactive(
@@ -129,7 +129,7 @@ async def wait_for_button_interactive(
 ) -> None:
     """Wait until a Rio button is painted and ready to receive clicks."""
     if text is not None:
-        await wait_for_button_client_text(test_client, text, timeout_ms=timeout_ms)
+        await wait_for_button_client_text(test_client, text, timeout_ms = timeout_ms)
     await test_client.playwright_page.wait_for_function(
         """() => {
             const el = document.querySelector(".rio-button");
@@ -137,7 +137,7 @@ async def wait_for_button_interactive(
             const r = el.getBoundingClientRect();
             return r.width > 0 && r.height > 0;
         }""",
-        timeout=timeout_ms,
+        timeout = timeout_ms,
     )
     await test_client.execute_js('new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))')
 
@@ -165,7 +165,7 @@ async def wait_for_pressable_sensitive(
         test_client,
         f'document.querySelector({selector!r})?.getAttribute("aria-disabled")',
         'false' if sensitive else 'true',
-        timeout_ms=timeout_ms,
+        timeout_ms = timeout_ms,
     )
 
 
@@ -177,9 +177,9 @@ async def wait_for_checkbox_state(
     timeout_ms: int = DEFAULT_DOM_TIMEOUT_MS,
 ) -> None:
     if checked is not None:
-        await wait_for_js_value(test_client, f'{CHECKBOX_JS}.checked', checked, timeout_ms=timeout_ms)
+        await wait_for_js_value(test_client, f'{CHECKBOX_JS}.checked', checked, timeout_ms = timeout_ms)
     if disabled is not None:
-        await wait_for_js_value(test_client, f'{CHECKBOX_JS}.disabled', disabled, timeout_ms=timeout_ms)
+        await wait_for_js_value(test_client, f'{CHECKBOX_JS}.disabled', disabled, timeout_ms = timeout_ms)
 
 
 async def wait_for_line_edit_value(
@@ -188,7 +188,7 @@ async def wait_for_line_edit_value(
     *,
     timeout_ms: int = DEFAULT_DOM_TIMEOUT_MS,
 ) -> None:
-    await wait_for_js_value(test_client, f'{LINE_EDIT_INPUT_JS}.value', value, timeout_ms=timeout_ms)
+    await wait_for_js_value(test_client, f'{LINE_EDIT_INPUT_JS}.value', value, timeout_ms = timeout_ms)
 
 
 async def wait_for_line_edit_disabled(
@@ -197,7 +197,7 @@ async def wait_for_line_edit_disabled(
     *,
     timeout_ms: int = DEFAULT_DOM_TIMEOUT_MS,
 ) -> None:
-    await wait_for_js_value(test_client, f'{LINE_EDIT_INPUT_JS}.disabled', disabled, timeout_ms=timeout_ms)
+    await wait_for_js_value(test_client, f'{LINE_EDIT_INPUT_JS}.disabled', disabled, timeout_ms = timeout_ms)
 
 
 async def wait_for_line_edit_type(
@@ -206,7 +206,7 @@ async def wait_for_line_edit_type(
     *,
     timeout_ms: int = DEFAULT_DOM_TIMEOUT_MS,
 ) -> None:
-    await wait_for_js_value(test_client, f'{LINE_EDIT_INPUT_JS}.type', input_type, timeout_ms=timeout_ms)
+    await wait_for_js_value(test_client, f'{LINE_EDIT_INPUT_JS}.type', input_type, timeout_ms = timeout_ms)
 
 
 async def wait_for_line_edit_tooltip(
@@ -215,7 +215,7 @@ async def wait_for_line_edit_tooltip(
     *,
     timeout_ms: int = DEFAULT_DOM_TIMEOUT_MS,
 ) -> None:
-    await wait_for_js_value(test_client, LINE_EDIT_TOOLTIP_TEXT_JS, text, timeout_ms=timeout_ms)
+    await wait_for_js_value(test_client, LINE_EDIT_TOOLTIP_TEXT_JS, text, timeout_ms = timeout_ms)
 
 
 async def wait_for_calendar_client_date(
@@ -230,7 +230,7 @@ async def wait_for_calendar_client_date(
         selected_date = await test_client.execute_js(CALENDAR_SELECTED_DATE_JS)
         return dateutil.parser.parse(selected_date).date() == expected
 
-    await wait_until(matches, timeout_s=timeout_s, message=f'calendar to show {expected}')
+    await wait_until(matches, timeout_s = timeout_s, message = f'calendar to show {expected}')
 
 
 async def wait_for_list_item_count(
@@ -239,7 +239,7 @@ async def wait_for_list_item_count(
     *,
     timeout_ms: int = DEFAULT_DOM_TIMEOUT_MS,
 ) -> None:
-    await wait_for_js_value(test_client, LIST_ITEMS_COUNT_JS, count, timeout_ms=timeout_ms)
+    await wait_for_js_value(test_client, LIST_ITEMS_COUNT_JS, count, timeout_ms = timeout_ms)
 
 
 async def wait_for_list_selection(
@@ -248,7 +248,7 @@ async def wait_for_list_selection(
     *,
     timeout_ms: int = DEFAULT_DOM_TIMEOUT_MS,
 ) -> None:
-    await wait_for_js_value(test_client, LIST_SELECTED_TEXT_JS, text, timeout_ms=timeout_ms)
+    await wait_for_js_value(test_client, LIST_SELECTED_TEXT_JS, text, timeout_ms = timeout_ms)
 
 
 async def wait_for_group_box_counts(
@@ -258,8 +258,8 @@ async def wait_for_group_box_counts(
     button_count: int,
     timeout_ms: int = DEFAULT_DOM_TIMEOUT_MS,
 ) -> None:
-    await wait_for_js_value(test_client, GROUP_BOX_COLUMN_TEXT_COUNT_JS, text_count, timeout_ms=timeout_ms)
-    await wait_for_js_value(test_client, GROUP_BOX_BUTTON_COUNT_JS, button_count, timeout_ms=timeout_ms)
+    await wait_for_js_value(test_client, GROUP_BOX_COLUMN_TEXT_COUNT_JS, text_count, timeout_ms = timeout_ms)
+    await wait_for_js_value(test_client, GROUP_BOX_BUTTON_COUNT_JS, button_count, timeout_ms = timeout_ms)
 
 
 async def wait_for_group_box_column_text(
@@ -273,7 +273,7 @@ async def wait_for_group_box_column_text(
         test_client,
         f'document.querySelectorAll(".rio-column .rio-text")[{index}]?.innerText || ""',
         text,
-        timeout_ms=timeout_ms,
+        timeout_ms = timeout_ms,
     )
 
 
@@ -293,7 +293,7 @@ async def wait_for_dialog_button(
             }}
             return false;
         }}""",
-        timeout=timeout_ms,
+        timeout = timeout_ms,
     )
 
 
@@ -311,7 +311,7 @@ async def wait_for_selectable_item_text(
             }}
             return false;
         }}""",
-        timeout=timeout_ms,
+        timeout = timeout_ms,
     )
 
 
@@ -334,7 +334,7 @@ async def wait_for_weight_unit_pairs(
             }}
             return pairs >= {min_pairs};
         }}""",
-        timeout=timeout_ms,
+        timeout = timeout_ms,
     )
 
 
@@ -350,7 +350,7 @@ async def wait_for_input_values(
     """Wait until indexed weight/unit inputs exist and hold the expected values."""
     await test_client.playwright_page.wait_for_function(
         f'() => document.querySelectorAll("input").length > {unit_index}',
-        timeout=timeout_ms,
+        timeout = timeout_ms,
     )
     await test_client.playwright_page.wait_for_function(
         f"""() => {{
@@ -358,7 +358,7 @@ async def wait_for_input_values(
             return inputs[{weight_index}]?.value === {weight!r}
                 && inputs[{unit_index}]?.value === {unit!r};
         }}""",
-        timeout=timeout_ms,
+        timeout = timeout_ms,
     )
 
 
@@ -370,7 +370,7 @@ async def press_rio_button(test_client, button) -> None:
     )
 
 
-async def click_client_button(test_client, button=None) -> None:
+async def click_client_button(test_client, button = None) -> None:
     """Simulate a user mouse click at the center of a Rio button.
 
     Uses real mouse coordinates so disabled buttons correctly ignore clicks.

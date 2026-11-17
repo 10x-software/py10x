@@ -8,10 +8,10 @@ from ui_10x.rio.component_builder import Widget
 
 
 class CalendarWidget(Widget, i.CalendarWidget):
-    s_component_class = rio.Calendar
-    s_default_kwargs = {'value': lambda self, kwargs: date.today()}
-    s_children_attr = 'value'
-    s_single_child = True
+    s_component_class   = rio.Calendar
+    s_default_kwargs    = {'value': lambda self, kwargs: date.today()}
+    s_children_attr     = 'value'
+    s_single_child      = True
 
     def set_grid_visible(self, grid_visible: bool):
         pass

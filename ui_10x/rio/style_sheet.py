@@ -14,8 +14,8 @@ class StyleSheet(Traitable):
 
     def sheet_set(self, trait: Trait, value: dict) -> RC:
         # {'color': 'lightgreen', 'background-color': 'white', 'font-family': 'Helvetica', 'font-style': 'normal', 'font-weight': 'normal', 'border-width': '2px', 'border-style': '', 'border-color': 'blue'}
-        style = dict(value)
-        kw = {}
+        style   = dict(value)
+        kw      = {}
         if bg_color := style.pop('color', None):
             kw['fill'] = self.parse_color(bg_color)
 
@@ -38,11 +38,11 @@ class StyleSheet(Traitable):
         return rio.Color.from_hex(colors.to_hex(color))
 
     def sheet_get(self):
-        style = {}
-        ts = self.text_style
+        style   = {}
+        ts      = self.text_style
         if ts:
-            style['font-style'] = 'italic' if ts.italic else 'normal'
-            style['font-weight'] = ts.font_weight or 'normal'
+            style['font-style']     = 'italic' if ts.italic else 'normal'
+            style['font-weight']    = ts.font_weight or 'normal'
             if family := ts.font._google_fonts_name:  # TODO: better?
                 style['font-family'] = family
             style['color'] = f'#{ts.fill.hex}'

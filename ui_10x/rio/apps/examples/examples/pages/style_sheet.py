@@ -10,8 +10,8 @@ import rio
 
 
 @rio.page(
-    name='StyleSheet',
-    url_segment='ss',
+    name        = 'StyleSheet',
+    url_segment = 'ss',
 )
 class StyleSheetPage(rio.Component):
     def build(self) -> rio.Component:
@@ -19,4 +19,4 @@ class StyleSheetPage(rio.Component):
         if not user_ctx.traitable_store:
             user_ctx.traitable_store = TsUnion()
         with session_context(self.session):
-            return UxDialog(TraitableEditor(StyleSheet(), _confirm=True).main_widget())()
+            return UxDialog(TraitableEditor(StyleSheet(), _confirm = True).main_widget())()

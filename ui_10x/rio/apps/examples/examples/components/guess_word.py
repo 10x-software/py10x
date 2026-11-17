@@ -16,13 +16,13 @@ class GuessWordComponent(rio.Component):
             dialog = self.session[GuessWordDialog]
         except KeyError:
             with session_context(self.session):
-                game = Game()
-                dialog = GuessWordDialog(
+                game    = Game()
+                dialog  = GuessWordDialog(
                     game.widget(),
-                    title=f'You have {game.count} attempts to guess a word',
-                    ok='',
-                    cancel='',
-                    open_callback=game.bind,
+                    title           = f'You have {game.count} attempts to guess a word',
+                    ok              = '',
+                    cancel          = '',
+                    open_callback   = game.bind,
                 )
                 self.session.attach(dialog)
                 dialog.on_open()
