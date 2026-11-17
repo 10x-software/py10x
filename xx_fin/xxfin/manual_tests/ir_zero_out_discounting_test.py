@@ -9,14 +9,14 @@ from xxfin.rate_curve import RateCurve
 
 
 def kill_discounting(ccy: Ccy):
-    pc = PricingContext.current()
+    pc  = PricingContext.current()
     zrc = ZeroRateCurve(
         md_date         = pc.md_date,
         provider_name   = pc.mkt_data_provider_name,
         snapshot        = pc.snapshot,
         mkt_name        = ccy.discounting_mkt_name,
     )
-    dc = zrc.payload
+    dc  = zrc.payload
     # dc_copy = RateCurve(dates = dc.dates, values = dc.values, begining_of_time = pc.md_date)
     # dc_copy.update_many(dc.times, (0,) * len(dc.times), reset = True)
     # zrc.payload = dc_copy
@@ -24,14 +24,14 @@ def kill_discounting(ccy: Ccy):
     zrc.payload = dc
 
 def discount_curve_mult_shift(ccy: Ccy, multiplier: float) -> dict:
-    pc = PricingContext.current()
+    pc  = PricingContext.current()
     zrc = ZeroRateCurve(
         md_date         = pc.md_date,
         provider_name   = pc.mkt_data_provider_name,
         snapshot        = pc.snapshot,
         mkt_name        = ccy.discounting_mkt_name,
     )
-    dc = zrc.payload
+    dc  = zrc.payload
     print(f'zrc before shift: {dc.dates_values()}')
     new_values = tuple(r * multiplier for r in dc.values)
     dc.update_many(dc.times, new_values, reset = True)
@@ -43,7 +43,7 @@ def discount_curve_mult_shift(ccy: Ccy, multiplier: float) -> dict:
 if __name__ == '__main__':
     ccy = Ccy.USD()
 
-    d = date(2030, 1, 1)
+    d   = date(2030, 1, 1)
     df0 = FinInstrument(denominated = ccy).discount_factor(d)
 
     with Scenario():

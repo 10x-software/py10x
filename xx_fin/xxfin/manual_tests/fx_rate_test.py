@@ -20,7 +20,7 @@ if __name__ == '__main__':
     TEST_RATE_NON_Q = True
 
 
-    crosses   = [ 'GBP/USD', 'EUR/USD', 'USD/JPY']
+    crosses = [ 'GBP/USD', 'EUR/USD', 'USD/JPY']
     # crosses   = [ 'EUR/USD']
 
     SPOT = True
@@ -32,7 +32,7 @@ if __name__ == '__main__':
 
 
     if TEST_QTD_RATE or TEST_RATE_Q:
-        pc = PricingContext.current()
+        pc          = PricingContext.current()
         provider    = pc.mkt_data_provider_name
         md_date     = pc.md_date
         snapshot    = pc.snapshot
@@ -42,27 +42,27 @@ if __name__ == '__main__':
         quotes = {}
         for cross in crosses:
             print(f'collecting {cross} quotes')
-            mc      = FXMktConventions(cross)
-            spotdate= mc.spot_date(md_date)
-            cal     = mc.calendar
-            roll    = mc.roll_rule
+            mc          = FXMktConventions(cross)
+            spotdate    = mc.spot_date(md_date)
+            cal         = mc.calendar
+            roll        = mc.roll_rule
             # print(f'test {cross} - cal= {cal}, roll = {roll}, spot date = {spot}')
 
             dates  = []
             rates  = []
             rdates = []
             if SPOT:
-                spotrate= FXSpotQuotable(mkt_name = cross, provider_name = provider, md_date = md_date, snapshot=snapshot).quote
+                spotrate = FXSpotQuotable(mkt_name = cross, provider_name = provider, md_date = md_date, snapshot = snapshot).quote
                 dates.append(spotdate)
                 rates.append(spotrate)
                 rdates.append('spot')
 
             if FWDS:
-                rdates  = [RDate(r.strip()) for r in fxmas[cross][FXForwardQuotable].split(',')]
+                rdates = [RDate(r.strip()) for r in fxmas[cross][FXForwardQuotable].split(',')]
                 for rd in rdates:
                     d = rd.apply(spotdate, cal, roll) if rd.symbol() != '1B' else rd.apply(md_date, cal, roll)
                     dates.append(d)
-                    r = FXForwardQuotable(mkt_name = cross, tenor = rd, provider_name = provider, md_date = md_date, snapshot=snapshot).quote
+                    r = FXForwardQuotable(mkt_name = cross, tenor = rd, provider_name = provider, md_date = md_date, snapshot = snapshot).quote
                     rates.append(r)
                     print(f'{cross} - {rd}/{d} - quoted: {r}')
                 if SPOT:
@@ -95,8 +95,8 @@ if __name__ == '__main__':
 
     if TEST_RATE_NON_Q:
         print('\ntesting ==== FxRate(cross).rate() for implied crosses ====\n')
-        d = date(2030,1,1)
-        split = [
+        d       = date(2030,1,1)
+        split   = [
             dict(
                 crs = 'EUR/GBP',
                 top = 'EUR/USD',
@@ -108,7 +108,7 @@ if __name__ == '__main__':
                 crs = 'GBP/CAD',
                 top = 'GBP/USD',
                 btm = 'USD/CAD',
-                t   =  1,
+                t   = 1,
                 b   = -1,
             ),
             dict(
@@ -123,7 +123,7 @@ if __name__ == '__main__':
                 top = 'USD/JPY',
                 btm = 'GBP/USD',
                 t   = -1,
-                b   =  1,
+                b   = 1,
             )
 
         ]
@@ -145,8 +145,8 @@ if __name__ == '__main__':
             assert r == 1.
 
 
-        d = date(2030,1,1)
-        same_ccy = ['USD/USD', 'GBP/GBP']
+        d           = date(2030,1,1)
+        same_ccy    = ['USD/USD', 'GBP/GBP']
         for c in same_ccy:
             r = FxRate(cross_name = c).rate(d)
             print(f'{c} - implied = {r} , calc = 1.')

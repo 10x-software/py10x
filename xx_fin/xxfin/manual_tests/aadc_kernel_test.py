@@ -4,8 +4,8 @@ if __name__ == '__main__':
 
     from xxfin.xxfin_env_vars import XXFinEnvVars
 
-    XXCommonEnvVars.use_cxx_curve = False
-    XXFinEnvVars.use_cxxfin = False
+    XXCommonEnvVars.use_cxx_curve   = False
+    XXFinEnvVars.use_cxxfin         = False
 
     #-- no target_base_classes/known_modules -- this pricing path has no edge (branch) dependencies
     #  on active market quotes, so class-level if-wrapping isn't needed; AADCDomainSwap alone covers
@@ -20,8 +20,8 @@ if __name__ == '__main__':
     from xxfin.ccy_forward import CcyForward
     from xxfin.mkt_quotable import SingleMktQuote
 
-    ccy      = Ccy('GBP')
-    end_date = date(2035, 12, 12)
+    ccy         = Ccy('GBP')
+    end_date    = date(2035, 12, 12)
     inputs_spec = {SingleMktQuote: ('quote',)}
 
     cf = CcyForward(denominated = ccy, end_date = end_date)
@@ -42,8 +42,8 @@ if __name__ == '__main__':
     exec_.eval_current_kernel()   #-- warm up the AADC call path itself, just in case
     with PerfTimer() as t:
         exec_.eval_current_kernel()
-    aadc_elapsed = t.elapsed
-    aadc_price = exec_.result()
+    aadc_elapsed    = t.elapsed
+    aadc_price      = exec_.result()
     print(f'AADC:   {aadc_price:.10f}  match = {abs(aadc_price - py_price) < 1e-8}  ({aadc_elapsed/1e3:.2f} us)')
 
     acceleration = py_elapsed / aadc_elapsed
@@ -63,8 +63,8 @@ if __name__ == '__main__':
     #-- Reprice under a bumped quote, without rebuilding the kernel -- no more market_values
     #  override dict; bump the live Traitable object directly, same node the kernel reads from.
     (some_cls, some_id, some_trait) = next(iter(kernel.input_handles))
-    quote_obj = some_cls(_id = some_id)
-    original_value = getattr(quote_obj, some_trait.name)
+    quote_obj                       = some_cls(_id = some_id)
+    original_value                  = getattr(quote_obj, some_trait.name)
     setattr(quote_obj, some_trait.name, original_value + 0.0001)
 
     exec_.eval_current_kernel()

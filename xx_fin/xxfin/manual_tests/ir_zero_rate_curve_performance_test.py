@@ -8,7 +8,7 @@ if __name__ == '__main__':
     from xxfin.xxfin_env_vars import XXFinEnvVars
 
     md_date = date(2025, 10, 10)    ## not steep
-    sofr = dict(
+    sofr    = dict(
         provider_name   = 'XX_DEV',
         mkt_name        = 'SOFR',
         # md_date         = date(2025, 3, 12),  ## flat
@@ -50,12 +50,12 @@ if __name__ == '__main__':
     zrc = ZeroRateCurve(**sofr)
     mas = zrc.mkt_assembly_object
     calc(zrc)
-    py_dt, py_dates_values = calc(zrc)
-    py_dt2 = using(zrc)
+    py_dt, py_dates_values  = calc(zrc)
+    py_dt2                  = using(zrc)
 
     #-- c++ version
-    XXCommonEnvVars.use_cxx_curve = True
-    XXFinEnvVars.use_cxxfin = True
+    XXCommonEnvVars.use_cxx_curve   = True
+    XXFinEnvVars.use_cxxfin         = True
 
     #-- re-import what's needed!
     import importlib
@@ -86,14 +86,14 @@ if __name__ == '__main__':
 
     zrc_cxx = ZeroRateCurve(**sofr)
     calc(zrc_cxx)
-    cxx_dt, cxx_dates_values = calc(zrc_cxx)
-    cxx_dt2 = using(zrc_cxx)
+    cxx_dt, cxx_dates_values    = calc(zrc_cxx)
+    cxx_dt2                     = using(zrc_cxx)
 
     #assert py_dates_values == cxx_dates_values
     print('==== checking date_values')
     for i in range(len(py_dates_values)):
-        py_d, py_v = py_dates_values[i]
-        cxx_d, cxx_v = cxx_dates_values[i]
+        py_d, py_v      = py_dates_values[i]
+        cxx_d, cxx_v    = cxx_dates_values[i]
         assert py_d == cxx_d, 'dates not match'
         eps = abs(py_v - cxx_v)
         assert eps < 1.e-12, f'{i}: EPS = {eps}'

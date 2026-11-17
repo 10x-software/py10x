@@ -18,8 +18,8 @@ if __name__=='__main__':
     FX_DEPS = False
 
 
-    pc = PricingContext.current()
-    md_basis = pc.md_basis
+    pc          = PricingContext.current()
+    md_basis    = pc.md_basis
 
     usd_cu = CcyUnit.existing_instance(denominated = Ccy('USD'))
     gbp_cu = CcyUnit.existing_instance(denominated = Ccy('GBP'))
@@ -29,14 +29,14 @@ if __name__=='__main__':
     gbp_cf = CcyForward.existing_instance(denominated = Ccy('GBP'), end_date = date(2026,8,4))
     cad_cf = CcyForward.existing_instance(denominated = Ccy('CAD'), end_date = date(2026,8,4))
 
-    d6m_us = RDate('6M').apply(pc.md_date, FinCalendar('US'), BIZDAY_ROLL_RULE.FOLLOWING)
-    d6y_us = RDate('6Y').apply(pc.md_date, FinCalendar('US'), BIZDAY_ROLL_RULE.FOLLOWING)
-    d2y_gb = RDate('1Y').apply(pc.md_date, FinCalendar('GB'), BIZDAY_ROLL_RULE.FOLLOWING)
-    d3y_gb = RDate('3Y').apply(pc.md_date, FinCalendar('GB'), BIZDAY_ROLL_RULE.FOLLOWING)
-    usd_cf_6m = CcyForward.existing_instance(denominated = Ccy('USD'), end_date = d6m_us)
-    usd_cf_6y = CcyForward.existing_instance(denominated = Ccy('USD'), end_date = d6y_us)
-    gbp_cf_2y = CcyForward.existing_instance(denominated = Ccy('GBP'), end_date = d2y_gb)
-    gbp_cf_3y = CcyForward.existing_instance(denominated = Ccy('GBP'), end_date = d3y_gb)
+    d6m_us      = RDate('6M').apply(pc.md_date, FinCalendar('US'), BIZDAY_ROLL_RULE.FOLLOWING)
+    d6y_us      = RDate('6Y').apply(pc.md_date, FinCalendar('US'), BIZDAY_ROLL_RULE.FOLLOWING)
+    d2y_gb      = RDate('1Y').apply(pc.md_date, FinCalendar('GB'), BIZDAY_ROLL_RULE.FOLLOWING)
+    d3y_gb      = RDate('3Y').apply(pc.md_date, FinCalendar('GB'), BIZDAY_ROLL_RULE.FOLLOWING)
+    usd_cf_6m   = CcyForward.existing_instance(denominated = Ccy('USD'), end_date = d6m_us)
+    usd_cf_6y   = CcyForward.existing_instance(denominated = Ccy('USD'), end_date = d6y_us)
+    gbp_cf_2y   = CcyForward.existing_instance(denominated = Ccy('GBP'), end_date = d2y_gb)
+    gbp_cf_3y   = CcyForward.existing_instance(denominated = Ccy('GBP'), end_date = d3y_gb)
 
     gbp_fxc = FXForwardCurveSimple(mkt_name = 'GBP/USD', **md_basis)
     cad_fxc = FXForwardCurveSimple(mkt_name = 'USD/CAD', **md_basis)
@@ -54,14 +54,14 @@ if __name__=='__main__':
         IRCashDepositQuotable.existing_instance(tenor = RDate('9M'),  mkt_name = 'SOFR', **md_basis),
         IRCashDepositQuotable.existing_instance(tenor = RDate('12M'), mkt_name = 'SOFR', **md_basis),
     ]
-    sofr_swaps = [
+    sofr_swaps      = [
         IRSwapQuotable.existing_instance(tenor = RDate('5Y'),   mkt_name = 'SOFR', **md_basis),
         IRSwapQuotable.existing_instance(tenor = RDate('10Y'),  mkt_name = 'SOFR', **md_basis),
         IRSwapQuotable.existing_instance(tenor = RDate('20Y'),  mkt_name = 'SOFR', **md_basis),
         IRSwapQuotable.existing_instance(tenor = RDate('30Y'),  mkt_name = 'SOFR', **md_basis),
     ]
 
-    sonia_cash_depos = [
+    sonia_cash_depos    = [
         IRCashDepositQuotable.existing_instance(tenor = RDate('1B'),  mkt_name = 'SONIA', **md_basis),
         IRCashDepositQuotable.existing_instance(tenor = RDate('1W'),  mkt_name = 'SONIA', **md_basis),
         IRCashDepositQuotable.existing_instance(tenor = RDate('1M'),  mkt_name = 'SONIA', **md_basis),
@@ -70,7 +70,7 @@ if __name__=='__main__':
         IRCashDepositQuotable.existing_instance(tenor = RDate('9M'),  mkt_name = 'SONIA', **md_basis),
         IRCashDepositQuotable.existing_instance(tenor = RDate('12M'), mkt_name = 'SONIA', **md_basis),
     ]
-    sonia_swaps = [
+    sonia_swaps         = [
         IRSwapQuotable.existing_instance(tenor = RDate('5Y'),   mkt_name = 'SONIA', **md_basis),
         IRSwapQuotable.existing_instance(tenor = RDate('10Y'),  mkt_name = 'SONIA', **md_basis),
         IRSwapQuotable.existing_instance(tenor = RDate('20Y'),  mkt_name = 'SONIA', **md_basis),
@@ -88,8 +88,8 @@ if __name__=='__main__':
         print( '>>> DISC MKT DEPS <<<')
 
         for mdc in mkt_ir_deps_cases:
-            secs = mdc[0]
-            cash_depos, swaps = mdc[1]
+            secs                = mdc[0]
+            cash_depos, swaps   = mdc[1]
             for cf in secs:
                 print(f'cf = {cf}')
                 ed = cf.max_date()

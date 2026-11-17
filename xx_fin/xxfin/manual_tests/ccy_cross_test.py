@@ -10,17 +10,17 @@ if __name__ == '__main__':
     from xxfin.ccy_cross import Ccy, CcyCross
 
     fake_ccy_header = dict(
-        bank_calendar           =FinCalendar.existing_instance(name='FD'),
+        bank_calendar = FinCalendar.existing_instance(name = 'FD'),
 
         settle_offset           = RDate('2B'),  ## default
         spot_offset             = RDate('2B'),  ## default
-        roll_rule               =BIZDAY_ROLL_RULE.FOLLOWING,  ## default
+        roll_rule               = BIZDAY_ROLL_RULE.FOLLOWING,  ## default
 
-        is_deliverable          =True,  ## default
-        discounting_mkt_name    ='SOFR',
+        is_deliverable          = True,  ## default
+        discounting_mkt_name    = 'SOFR',
     )
-    ccy_lists = dict(
-        _major_ccys         = (
+    ccy_lists       = dict(
+        _major_ccys = (
             'EUR', 'GBP', 'AUD', 'NZD',
             'USD',   ## we deal with dollar crosses separately, but can leave it here. no harm
             'CAD', 'CHF', 'JPY'
@@ -33,7 +33,7 @@ if __name__ == '__main__':
         _other_EM_good_liq  = ('ZAR', 'TRY', 'PLN', 'HUF', 'CZK', 'MXN', 'BRL', 'CLP', 'COP'),
         _other_EM_less_liq  = ('RUB', 'INR', 'IDR', 'MYR', 'PHP', 'PEN', 'ILS', 'SAR', 'ARS'),    ## SAR, AED are low due to peg; ILS maybe higher
     )
-    ccys = []
+    ccys            = []
     for ccyl in ccy_lists.values():
         ccys += list(ccyl)
 

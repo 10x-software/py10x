@@ -18,18 +18,18 @@ class CcyUnitHolder(Traitable):
 if __name__=='__main__':
     from xxfin.manual_tests.ccy_unit_test import CcyUnitHolder, EndogenousCcyUnit, SubCcyUnit
 
-    u = CcyUnit.existing_instance(denominated=Ccy.existing_instance(name='GBP'))
-    u_ser = u.serialize(False)
+    u       = CcyUnit.existing_instance(denominated = Ccy.existing_instance(name = 'GBP'))
+    u_ser   = u.serialize(False)
     print(u_ser)
     assert u_ser == {'_id': [{'_id': 'GBP'}]} # id is a list of objects, not strings!
 
 
-    assert CcyUnitHolder(ccy_unit=u).serialize_object()['ccy_unit'] ==  u_ser
+    assert CcyUnitHolder(ccy_unit = u).serialize_object()['ccy_unit'] ==  u_ser
 
-    u1 = SubCcyUnit.existing_instance(denominated=Ccy.existing_instance(name='GBP'))
-    assert CcyUnitHolder(ccy_unit=u1).serialize_object()['ccy_unit'] ==  {'_type': '_nx', '_cls': 'xxfin/manual_tests/ccy_unit_test/SubCcyUnit', '_obj': u_ser}
+    u1 = SubCcyUnit.existing_instance(denominated = Ccy.existing_instance(name = 'GBP'))
+    assert CcyUnitHolder(ccy_unit = u1).serialize_object()['ccy_unit'] ==  {'_type': '_nx', '_cls': 'xxfin/manual_tests/ccy_unit_test/SubCcyUnit', '_obj': u_ser}
 
-    h1 = CcyUnitHolder(ccy_unit=EndogenousCcyUnit(denominated=Ccy(name='GBP')))
+    h1 = CcyUnitHolder(ccy_unit = EndogenousCcyUnit(denominated = Ccy(name = 'GBP')))
     try:
         h1.serialize_object()
     except TraitMethodError as e:

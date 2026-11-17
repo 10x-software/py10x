@@ -6,9 +6,9 @@ from core_10x.logger import PerfTimer
 
 
 def test_data(start_date: date, n: int) -> list:
-    res = []
-    dt = 1
-    sdir = DAY_COUNT_CONVENTION.s_dir
+    res     = []
+    dt      = 1
+    sdir    = DAY_COUNT_CONVENTION.s_dir
     for _i in range(n):
         for f in sdir.values():
             d = start_date + timedelta(days = dt)
@@ -33,19 +33,19 @@ def test_perf(start_date: date, n: int):
 
 if __name__ == '__main__':
 
-    d1 = date(2010, 3, 11)
-    d2 = date(2026, 6, 12)
-    n = 1000
+    d1  = date(2010, 3, 11)
+    d2  = date(2026, 6, 12)
+    n   = 1000
 
     from xxfin.py_day_count_convention import DAY_COUNT_CONVENTION
-    res1 = test_data(d1, n)
-    t1 = test_perf(d1, n)
+    res1    = test_data(d1, n)
+    t1      = test_perf(d1, n)
 
     from xxfin.cxx_day_count_convention import DAY_COUNT_CONVENTION  # noqa: F811
-    res2 = test_data(d1, n)
-    t2 = test_perf(d1, n)
+    res2    = test_data(d1, n)
+    t2      = test_perf(d1, n)
 
-    rc = all(r1 == r2 for r1, r2 in zip(res1, res2))
+    rc  = all(r1 == r2 for r1, r2 in zip(res1, res2))
     acc = t1/t2
 
 

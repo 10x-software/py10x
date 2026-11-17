@@ -6,15 +6,15 @@ from core_10x.traitable import Traitable, RT
 from core_10x.logger import PerfTimer
 
 class Calc(Traitable):
-    count: int      = RT(10_000)
+    count: int          = RT(10_000)
 
-    seed: int       = RT()
-    avg: float      = RT(1.)
-    std: float      = RT()
-    max_qty: int    = RT(100)
+    seed: int           = RT()
+    avg: float          = RT(1.)
+    std: float          = RT()
+    max_qty: int        = RT(100)
 
-    price: float    = RT()
-    abracadabra: float = RT()
+    price: float        = RT()
+    abracadabra: float  = RT()
 
     def std_get(self):
         return self.avg / 10.
@@ -55,9 +55,9 @@ if __name__ == '__main__':
 
     dt2 = t.elapsed
 
-    trait_name = 'price'
-    gc = GetterCompiler(traitable_class = Calc, trait_name = trait_name)
-    trait = Calc.trait(trait_name)
+    trait_name  = 'price'
+    gc          = GetterCompiler(traitable_class = Calc, trait_name = trait_name)
+    trait       = Calc.trait(trait_name)
     trait.set_f_get(gc.modified_getter, True)
 
     p = calc.price

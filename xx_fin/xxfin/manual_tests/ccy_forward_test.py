@@ -16,8 +16,8 @@ class CheckCcyUnitForward(Traitable):
     @classmethod
     def save_retrieve(cls, ccy: Ccy, d: date, save: bool) -> float:
         if save:
-            cc = cls(name = ccy.name)
-            cc.fwd = CcyForward(denominated=ccy, end_date = d)
+            cc      = cls(name = ccy.name)
+            cc.fwd  = CcyForward(denominated = ccy, end_date = d)
             cc.save()
             return -1.
         else:
@@ -29,17 +29,17 @@ if __name__ == '__main__':
     from xxfin.manual_tests.ccy_forward_test import CheckCcyUnitForward
     from xxfin.pricing_context import PricingContext
 
-    ccy = Ccy.USD()
-    ccy2 = Ccy.existing_instance(name = 'GBP')
+    ccy     = Ccy.USD()
+    ccy2    = Ccy.existing_instance(name = 'GBP')
 
-    cu = CcyUnit(denominated=ccy)
-    price = cu.price
+    cu      = CcyUnit(denominated = ccy)
+    price   = cu.price
 
     p1 = cu.price_ccy('GBP')
     p2 = cu.price_ccy('EUR')
 
-    cu2 = CcyUnit(denominated=ccy2)
-    price2 = cu2.price
+    cu2     = CcyUnit(denominated = ccy2)
+    price2  = cu2.price
 
     p21 = cu2.price_ccy('GBP')
     p22 = cu2.price_ccy('EUR')
@@ -51,12 +51,12 @@ if __name__ == '__main__':
     graph_on = GRAPH_ON()
     graph_on.begin_using()
 
-    d0 = PricingContext.current().md_date
-    dates = (d0, date(2025, 12, 12), date(2035, 12, 12), date(2125, 12, 12))
+    d0      = PricingContext.current().md_date
+    dates   = (d0, date(2025, 12, 12), date(2035, 12, 12), date(2125, 12, 12))
     for d in dates:
-        cf = CcyForward(denominated=ccy2, end_date = d)
-        cfp = cf.price
-        cfp2 = cf.price_ccy('EUR')
+        cf      = CcyForward(denominated = ccy2, end_date = d)
+        cfp     = cf.price
+        cfp2    = cf.price_ccy('EUR')
         print(f'{d}: {cf} price in {cf.denominated} = {cfp}, price in EUR = {cfp2}')
 
 

@@ -31,9 +31,9 @@ if __name__ == '__main__':
     from datetime import datetime
 
     #seed = int(datetime.utcnow().timestamp())
-    seed = 123
-    calc = Calc(seed = seed)
-    calc.count = 100_000
+    seed        = 123
+    calc        = Calc(seed = seed)
+    calc.count  = 100_000
 
     trait_name = 'abracadabra'
     #trait_name = 'price'

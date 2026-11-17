@@ -13,14 +13,14 @@ if __name__ == '__main__':
 
     num_days_back = 7
 
-    today = date.today()
-    dob = today - timedelta(days = num_days_back)
+    today   = date.today()
+    dob     = today - timedelta(days = num_days_back)
 
-    w = ExternalWorld.current()
-    mb = MonarchButterfly(name = 'John', dob = dob)
+    w   = ExternalWorld.current()
+    mb  = MonarchButterfly(name = 'John', dob = dob)
 
     inputs_spec = {ExternalWorld: ('current_date', 'leaf_mass_available', 'wind_speed')}
-    exec = AadcExec(mb.T.locomotive_speed, inputs_spec)
+    exec        = AadcExec(mb.T.locomotive_speed, inputs_spec)
     with exec:
         def result():
             k = exec.current_kernel

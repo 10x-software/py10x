@@ -5,25 +5,25 @@ if __name__ == '__main__':
     from xxfin.snapshot import SNAPSHOT
 
     sofr = dict(
-        provider_name   ='XX_DEV',
-        mkt_name        ='SOFR',
+        provider_name   = 'XX_DEV',
+        mkt_name        = 'SOFR',
         # md_date         = date(2025, 3, 12),  ## flat
         # md_date         =date(2025, 5, 22),   ## hump
         # md_date         =date(2025, 5, 30),   ## flat (?)
         # md_date         =date(2025, 7, 3),    ## super steep
-        md_date         =date(2025, 10, 10),    ## not steep
-        snapshot        =SNAPSHOT.CLOSE,
+        md_date         = date(2025, 10, 10),    ## not steep
+        snapshot        = SNAPSHOT.CLOSE,
     )
 
     sonia = dict(
-        provider_name   ='XX_DEV',
-        mkt_name        ='SONIA',
+        provider_name   = 'XX_DEV',
+        mkt_name        = 'SONIA',
         # md_date         = date(2025, 3, 12),  ## flat
         # md_date         =date(2025, 5, 30),   ## steep
-        md_date         =date(2025, 5, 22),   ## downward
+        md_date         = date(2025, 5, 22),   ## downward
         # md_date         =date(2025, 7, 3),    ## super steep ; start < 0
         # md_date         =date(2025, 10, 10),    ## not steep; start < 0
-        snapshot        =SNAPSHOT.CLOSE,
+        snapshot        = SNAPSHOT.CLOSE,
     )
 
     zrc = ZeroRateCurve(**sofr)

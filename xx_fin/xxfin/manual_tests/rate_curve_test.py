@@ -11,13 +11,13 @@ if __name__ == '__main__':
     from xxfin.py_rate_curve import RateCurve
 
 
-    TEST_FXD_RATE       = True
-    TEST__TODAY         = True
-    TEST__CONVENTIONS   = True
-    TEST_ACCRUAL        = True
-    TEST_ACCRUAL_FWD    = True
-    TEST_RATE_TO_INTERNAL= True
-    TEST_ANNUITY        = True
+    TEST_FXD_RATE           = True
+    TEST__TODAY             = True
+    TEST__CONVENTIONS       = True
+    TEST_ACCRUAL            = True
+    TEST_ACCRUAL_FWD        = True
+    TEST_RATE_TO_INTERNAL   = True
+    TEST_ANNUITY            = True
 
     eps = 1.e-10
 
@@ -51,10 +51,10 @@ if __name__ == '__main__':
         COMPOUNDING.CONTINUOUS,
     ]
 
-    dd_2028_decdec = [date(2027,12,31), date(2028,12,31)]
-    dd_2028_janjan = [date(2028,1,1),   date(2029,1,1)  ]
-    dd_2028_janfeb = [date(2028,1,31),  date(2028,2,29) ]
-    some_periods = [dd_2028_janjan, dd_2028_janjan, dd_2028_janfeb]
+    dd_2028_decdec  = [date(2027,12,31), date(2028,12,31)]
+    dd_2028_janjan  = [date(2028,1,1),   date(2029,1,1)  ]
+    dd_2028_janfeb  = [date(2028,1,31),  date(2028,2,29) ]
+    some_periods    = [dd_2028_janjan, dd_2028_janjan, dd_2028_janfeb]
 
     some_dates = [
         date(2028, 1, 1),
@@ -69,7 +69,7 @@ if __name__ == '__main__':
         for d1, d2 in some_periods:
             for dc in additive_dcs:
                 for cmp in cmps:
-                    t = dc(d1, d2)
+                    t   = dc(d1, d2)
                     acc = compounding_apply(cmp, COMPOUND_TRANSFORM.RATE_TO_ACCRUAL, t, r)
                     print(f'dates: {d1} - {d2}, dc = {dc}, compund =  {cmp}: dcf = {t}, accrual = {acc}')
                     assert c.fixed_rate_accrual(r, d1, d1, dc, cmp) == 1.
@@ -81,7 +81,7 @@ if __name__ == '__main__':
     # test _today()
     if TEST__TODAY:
         bot = c.beginning_of_time_as_date()
-        d = date(2028,1,1)
+        d   = date(2028,1,1)
         assert c._today(None) == bot
         print(f'None --> bot = {bot}')
         # c.beginning_of_time = None
@@ -117,12 +117,12 @@ if __name__ == '__main__':
             (DAY_COUNT_CONVENTION.ACT365,   COMPOUNDING.SIMPLE,     lambda t, r: (1+r*t)),
             (DAY_COUNT_CONVENTION.US30360,  COMPOUNDING.ANNUAL,     lambda t, r: (1+r)**t),
         ]
-        today = c.beginning_of_time_as_date()
+        today   = c.beginning_of_time_as_date()
         for dc, cmp, fn in dc_cmps:
-            acc = fn(dc(today, d), r)
+            acc             = fn(dc(today, d), r)
             c.dc_convention = dc
             c.compounding   = cmp
-            act_acc = c.accrual(d)
+            act_acc         = c.accrual(d)
             print(f'{d}: {dc}/{cmp} manual accrual = {acc}, calc acc = {act_acc}')
             assert acc == act_acc
 
@@ -130,18 +130,18 @@ if __name__ == '__main__':
         ...
 
     if TEST_RATE_TO_INTERNAL:
-        d1 = date(2028, 1, 1)
-        d2 = date(2029, 1, 1)
-        bot = c.beginning_of_time_as_date()
-        r_init = 0.25
+        d1      = date(2028, 1, 1)
+        d2      = date(2029, 1, 1)
+        bot     = c.beginning_of_time_as_date()
+        r_init  = 0.25
         # dc  = DAY_COUNT_CONVENTION.ACT360
-        dc  = DAY_COUNT_CONVENTION.BB30360
+        dc = DAY_COUNT_CONVENTION.BB30360
         # cmp = COMPOUNDING.CONTINUOUS
         cmp = COMPOUNDING.MONTHLY
         cmp = COMPOUNDING.SIMPLE
         print(f'dc = {dc} / comp = {cmp} --> {c.dc_convention}/{c.compounding}')
-        r = c.rate_convert(r_init, bot, d2, dc, cmp, c.dc_convention, c.compounding)[0]
-        ri = c.rate_to_internal(r_init, d2, dc, cmp, bot)
+        r   = c.rate_convert(r_init, bot, d2, dc, cmp, c.dc_convention, c.compounding)[0]
+        ri  = c.rate_to_internal(r_init, d2, dc, cmp, bot)
         print(f'internal dc/comp = {c.dc_convention}/{c.compounding}')
         print(f'external dc/comp = {dc}/{cmp}')
         print(f'ri = {ri}, r converted = {r}')
@@ -149,28 +149,28 @@ if __name__ == '__main__':
 
     if TEST_ANNUITY:
         save_values = c.values
-        c.values = [0] * len(save_values)
+        c.values    = [0] * len(save_values)
 
         # tenor           = RDate('5Y')
         # period_freq     = RDate('1Q')
-        period_cal      = FinCalendar.none,
-        period_roll_rule= BIZDAY_ROLL_RULE.NO_ROLL
-        pay_delay       = RDate('0C')
-        pay_calendar    = FinCalendar.none
-        pay_roll_rule   = BIZDAY_ROLL_RULE.NO_ROLL
+        period_cal          = FinCalendar.none,
+        period_roll_rule    = BIZDAY_ROLL_RULE.NO_ROLL
+        pay_delay           = RDate('0C')
+        pay_calendar        = FinCalendar.none
+        pay_roll_rule       = BIZDAY_ROLL_RULE.NO_ROLL
 
         for tenor in [ RDate('1Y'), RDate('5Y')]:
             for period_freq in [ RDate('1M'), RDate('1Q'), RDate('1S'), RDate('1Y')]:
                 for dc in all_dcs:
                 # for dc in additive_dcs:
                     for start in some_dates:
-                        ann = c.annuity(dc, start, tenor,
+                        ann         = c.annuity(dc, start, tenor,
                                               period_freq, period_cal, period_roll_rule,
                                               pay_delay, pay_calendar, pay_roll_rule,
                                               ## add the rest of the defaults later
                                               )
-                        end = tenor.apply(start, period_cal, period_roll_rule)
-                        full_dcf = dc(start, end)
+                        end         = tenor.apply(start, period_cal, period_roll_rule)
+                        full_dcf    = dc(start, end)
                         print(f'dc = {dc}, start/end = {start}/{end}, tenor/period freq = {tenor}/{period_freq}, ann = {ann}, full dcf = {full_dcf}')
                         assert  abs(ann - full_dcf) < eps
 
