@@ -9,7 +9,7 @@ class Conventions(TraitableHeir):
 c_dir = dict(Conventions.s_dir)
 
 class XConventions(Conventions):
-    days_to_settle_twice: int = RT()
+    days_to_settle_twice: int   = RT()
 
     def days_to_settle_twice_get(self):
         return 2*self.days_to_settle

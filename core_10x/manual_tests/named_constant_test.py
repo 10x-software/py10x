@@ -118,8 +118,8 @@ class PARAMS(NamedConstant):
 
 FREQ_TABLE = NamedConstantTable(FREQUENCY, PARAMS,
     #           CHAR    FUNC                                MIN_FREQ
-    CALDAY  = ('C',   lambda d, n: d + delta(days = n),   FREQUENCY.CALDAY ),
-    WEEK    = ('W',   lambda d, n: d + delta(weeks = n),  FREQUENCY.CALDAY),
+    CALDAY  =   ('C',   lambda d, n: d + delta(days = n),   FREQUENCY.CALDAY ),
+    WEEK    =   ('W',   lambda d, n: d + delta(weeks = n),  FREQUENCY.CALDAY),
 )
 
 class XFREQUENCY(FREQUENCY):
@@ -128,8 +128,8 @@ class XFREQUENCY(FREQUENCY):
 
 XFREQ_TABLE = FREQ_TABLE.extend(XFREQUENCY,
     #           CHAR    FUNC                                    MIN_FREQ
-    MONTH   = ('M',   lambda d, n: d + delta(months = n),     XFREQUENCY.MONTH),
-    QUARTER = ('Q',   lambda d, n: d + delta(months = n*3),   XFREQUENCY.MONTH),
+    MONTH   =   ('M',   lambda d, n: d + delta(months = n),     XFREQUENCY.MONTH),
+    QUARTER =   ('Q',   lambda d, n: d + delta(months = n*3),   XFREQUENCY.MONTH),
 )
 
 

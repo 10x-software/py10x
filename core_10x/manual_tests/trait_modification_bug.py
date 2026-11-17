@@ -2,17 +2,17 @@ from core_10x.traitable import RT, M, Traitable
 
 
 class A(Traitable):
-    funny_message: str = RT()
+    funny_message: str  = RT()
 
     def funny_message_get(self):
         dt = self.T.funny_message.data_type
         return f'{dt}'
 
 class B(A):
-    funny_message:int = M()
+    funny_message:int   = M()
 
 class C(A):
-    funny_message:float = M()
+    funny_message:float   = M()
 
     def funny_message_get(self):
         dt = self.T.funny_message.data_type

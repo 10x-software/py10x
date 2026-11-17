@@ -28,7 +28,7 @@ class Person(Traitable):
     address: Address                    = T(T.EMBEDDED)
 
 class Dict(Traitable):
-    payload: dict = T()
+    payload: dict                       = T()
 
 
 if __name__ == '__main__':
@@ -41,7 +41,7 @@ if __name__ == '__main__':
     son         = Person(ssn = '008-99-5555', name = 'Nathan Smith',    dob = date(1999, 9, 23), _replace = True)
 
 
-    man = Person(_replace = True,
+    man     = Person(_replace = True,
         ssn             = '009-87-4444',
         name            = 'John Smith',
         gender          = True,

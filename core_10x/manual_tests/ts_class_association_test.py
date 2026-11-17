@@ -3,10 +3,10 @@ from core_10x.traitable import NamedTsStore, T, Traitable, TsClassAssociation, T
 
 
 class Dummy1(Traitable):
-    text: str = T(T.ID)
+    text: str   = T(T.ID)
 
 class Dummy2(Traitable):
-    text: str = T(T.ID)
+    text: str   = T(T.ID)
 
 class Dummy3(Dummy2):
     ...

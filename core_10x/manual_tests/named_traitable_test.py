@@ -5,10 +5,10 @@ from core_10x.traitable import RT, NamedTraitable
 
 
 class Cal(NamedTraitable):
-    holidays: list = RT()
+    holidays: list  = RT()
 
 class Ccy(NamedTraitable):
-    bank_cal: Cal = RT()
+    bank_cal: Cal   = RT()
 
 if __name__ == '__main__':
     with CACHE_ONLY():

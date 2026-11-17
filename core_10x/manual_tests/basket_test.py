@@ -13,7 +13,7 @@ if __name__ == '__main__':
     all_people = Person.load_many()
 
     class AGGREGATOR(NamedCallable):
-        WEIGHT = lambda gen: sum(v*q for v, q in gen)
+        WEIGHT     = lambda gen: sum(v*q for v, q in gen)
 
     b = Basket(base_class = Person, aggregator_class = AGGREGATOR)
 

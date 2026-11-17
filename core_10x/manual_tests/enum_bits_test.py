@@ -7,7 +7,7 @@ class STATE(EnumBits):
     ID          = ()
 
 class XSTATE(STATE):
-    EXPENSIVE = ()
+    EXPENSIVE   = ()
 
 if __name__ == '__main__':
     r = STATE.RUNTIME | STATE.RESERVED | STATE.ID
