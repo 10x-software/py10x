@@ -370,8 +370,9 @@ jobs:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     name: ASan (${{ matrix.os }}, py${{ matrix.python }})
     runs-on: ${{ matrix.os }}
-    # Windows runs the whole core suite under cdb plus the fin-base suite, both ASan-instrumented.
-    timeout-minutes: 120
+    # Windows runs the whole core suite under cdb plus the fin-base suite, both ASan-instrumented:
+    # 90-120+ min on windows-2025 (cdb ~2.5x, Windows ASan ~11x over Release), so 120 cut it off.
+    timeout-minutes: 180
     strategy:
       fail-fast: false
       matrix:
