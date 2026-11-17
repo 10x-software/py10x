@@ -16,8 +16,8 @@ Run on molab (it prompts you to sign in or create a free account):
 
 import marimo
 
-__generated_with = "0.24.0"
-app = marimo.App(width="medium")
+__generated_with    = "0.24.0"
+app                 = marimo.App(width = "medium")
 
 with app.setup:
     import marimo as mo
@@ -27,7 +27,7 @@ with app.setup:
     from core_10x.traitable import RT, T, Traitable
 
 
-@app.cell(hide_code=True)
+@app.cell(hide_code = True)
 def _():
     mo.md(r"""
     # py10x-core — interactive getting started
@@ -48,7 +48,7 @@ def _():
     return
 
 
-@app.cell(hide_code=True)
+@app.cell(hide_code = True)
 def _():
     mo.md(r"""
     ## 1. Runtime traitables — no storage context
@@ -73,17 +73,17 @@ class Calculator(Traitable):
         return self.x * self.y
 
 
-@app.cell(hide_code=True)
+@app.cell(hide_code = True)
 def _():
-    x_slider = mo.ui.slider(0, 20, value=5, label="x", show_value=True)
-    y_slider = mo.ui.slider(0, 20, value=3, label="y", show_value=True)
-    mo.hstack([x_slider, y_slider], justify="start")
+    x_slider = mo.ui.slider(0, 20, value = 5, label = "x", show_value = True)
+    y_slider = mo.ui.slider(0, 20, value = 3, label = "y", show_value = True)
+    mo.hstack([x_slider, y_slider], justify = "start")
     return x_slider, y_slider
 
 
 @app.cell
 def _(x_slider, y_slider):
-    calc = Calculator(x=x_slider.value, y=y_slider.value)
+    calc = Calculator(x = x_slider.value, y = y_slider.value)
     mo.md(
         f"""
     | trait | value |
@@ -99,7 +99,7 @@ def _(x_slider, y_slider):
     return
 
 
-@app.cell(hide_code=True)
+@app.cell(hide_code = True)
 def _():
     mo.md(r"""
     ## 2. Identity and dependency — the README nine-liner
@@ -114,32 +114,32 @@ def _():
 
 @app.class_definition
 class Developer(Traitable):
-    handle: str = T(T.ID)
-    coffee_cups: int = T(default=0)
-    energy: int = RT()
+    handle: str         = T(T.ID)
+    coffee_cups: int    = T(default = 0)
+    energy: int         = RT()
 
     def energy_get(self) -> int:
         return self.coffee_cups * 20
 
 
-@app.cell(hide_code=True)
+@app.cell(hide_code = True)
 def _():
-    handle = mo.ui.text(value="ghost", label="handle (ID trait)")
-    cups = mo.ui.slider(0, 12, value=5, label="coffee_cups", show_value=True)
-    mo.hstack([handle, cups], justify="start")
+    handle  = mo.ui.text(value = "ghost", label = "handle (ID trait)")
+    cups    = mo.ui.slider(0, 12, value = 5, label = "coffee_cups", show_value = True)
+    mo.hstack([handle, cups], justify = "start")
     return cups, handle
 
 
 @app.cell
 def _(cups, handle):
     with CACHE_ONLY(), GRAPH_ON():
-        dev = Developer(handle=handle.value or "ghost")
+        dev             = Developer(handle = handle.value or "ghost")
         dev.coffee_cups = cups.value
-        energy = dev.energy
+        energy          = dev.energy
         # Same identity → shares trait values with `dev`
-        twin = Developer(handle=handle.value or "ghost")
+        twin        = Developer(handle = handle.value or "ghost")
         twin_energy = twin.energy
-        twin_cups = twin.coffee_cups
+        twin_cups   = twin.coffee_cups
 
     mo.md(
         f"""
@@ -160,7 +160,7 @@ def _(cups, handle):
     return
 
 
-@app.cell(hide_code=True)
+@app.cell(hide_code = True)
 def _():
     mo.md(r"""
     ## 3. Stored ID traits need a storage context
@@ -175,8 +175,8 @@ def _():
 @app.class_definition
 class Person(Traitable):
     first_name: str = T(T.ID)
-    last_name: str = T(T.ID)
-    dob: date = T()
+    last_name: str  = T(T.ID)
+    dob: date       = T()
     age: int
     full_name: str
 
@@ -193,22 +193,22 @@ class Person(Traitable):
         return f"{self.first_name} {self.last_name}"
 
 
-@app.cell(hide_code=True)
+@app.cell(hide_code = True)
 def _():
-    first = mo.ui.text(value="Alice", label="first_name")
-    last = mo.ui.text(value="Smith", label="last_name")
-    year = mo.ui.number(1950, 2020, value=1990, label="birth year")
-    mo.hstack([first, last, year], justify="start")
+    first   = mo.ui.text(value = "Alice", label = "first_name")
+    last    = mo.ui.text(value = "Smith", label = "last_name")
+    year    = mo.ui.number(1950, 2020, value = 1990, label = "birth year")
+    mo.hstack([first, last, year], justify = "start")
     return first, last, year
 
 
 @app.cell
 def _(first, last, year):
     with CACHE_ONLY():
-        person = Person(first_name=first.value or "Alice", last_name=last.value or "Smith")
-        person.dob = date(int(year.value), 5, 15)
+        person      = Person(first_name = first.value or "Alice", last_name = last.value or "Smith")
+        person.dob  = date(int(year.value), 5, 15)
         # Resolve again by ID — shares traits with `person`
-        again = Person(first_name=first.value or "Alice", last_name=last.value or "Smith")
+        again = Person(first_name = first.value or "Alice", last_name = last.value or "Smith")
 
     mo.md(
         f"""
@@ -221,7 +221,7 @@ def _(first, last, year):
     return
 
 
-@app.cell(hide_code=True)
+@app.cell(hide_code = True)
 def _():
     mo.md(r"""
     ## Next steps
