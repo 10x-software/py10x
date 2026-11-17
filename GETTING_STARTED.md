@@ -763,7 +763,7 @@ with traitable_store:
     person.dob = date(1990, 5, 15)
     person.save()  # Persists to traitable store backed by Mongo
 ```
-A store context (`with store:`) is low level; applications should connect to stores through [resources](#namedresource-and-class-associations). It is process-wide: every thread sees it while it is active.
+A store context (`with store:`) is low level; applications should connect to stores through [resources](#namedresource-and-class-associations).
 
 By default `save()` also persists **new** storable references (`_rev == 0`) via `BSaveRefs.NEW_ONLY`. For a full graph save use `person.save(save_references=BSaveRefs.ALL)` (or `True`); for the root only, `BSaveRefs.NONE` (or `False`).
 
@@ -1427,7 +1427,7 @@ with CACHE_ONLY():
     assert person.full_name == "Alice Smith"  # Computed and cached in memory
 ```
 
-`CACHE_ONLY` is low level, meant for tests and scripts; applications should connect to stores through [resources](#namedresource-and-class-associations). Unlike the execution-control blocks, which belong to the current thread, it is process-wide: every thread sees it while it is active.
+`CACHE_ONLY` is low level, meant for tests and scripts; applications should connect to stores through [resources](#namedresource-and-class-associations).
 
 ### Scenario — Named Scopes
 
@@ -1510,7 +1510,7 @@ Inside a Scenario only a `ScenarioResult` may be saved. `save()` of any other ob
 
 ### Scopes in Threads, Generators and Async Code
 
-Execution-control blocks (`GRAPH_ON`, `GRAPH_OFF`, `DEBUG_ON`, `CONVERT_VALUES_ON`, `INTERACTIVE`, …) and `Scenario` are scopes on a stack that belongs to the current **thread**. A new thread starts with the default processor, without the scopes of the thread that started it. This includes the `GRAPH_ON()` that `XX_GRAPH_ON` enters on import: it applies to the importing thread only.
+Execution-control blocks (`GRAPH_ON`, `GRAPH_OFF`, `DEBUG_ON`, `CONVERT_VALUES_ON`, `INTERACTIVE`, …) and `Scenario` are scopes on a stack that belongs to the current **thread**. A new thread starts with the default processor, without the scopes of the thread that started it.
 
 **Don't `yield` or `await` inside a scope block.** While a generator or coroutine is suspended, its scope stays on the thread's stack, so whatever runs next on the thread runs inside it: the generator's caller, or another asyncio task. Blocks can then also exit out of order:
 
@@ -1990,8 +1990,6 @@ with MongoStore.instance(hostname='localhost', dbname='myapp'):
     with AsOfContext(before_save):  # all classes; Setting keeps no history, so it reads current data
         assert Setting.existing_instance(name='retries').value == 3
 ```
-
-> **Warning — threads:** while an `AsOfContext` is active, its as-of reads apply to the covered classes in every thread, not only the one that entered it. In a multi-threaded app, don't use those classes in other threads while the context is active: they would read historical data and leave it in the shared cache. See [#181](https://github.com/10x-software/py10x/issues/181).
 
 
 ## Relational Database (RelDb)
@@ -2972,7 +2970,7 @@ The shipping `EnvVars` class declares the following configuration points (all op
 | `XX_MAIN_VAULT_URI` | `main_vault_uri` | `str` | `''` | URI of the vault TsStore (where `VaultUser` and `VaultResourceAccessor` records are kept). |
 | `XX_LOG_TS_STORE_URI` | `log_ts_store_uri` | `str` | `''` | Traitable Store URI for `LOG` persistence (see [LOG — Structured Asynchronous Logging](#log--structured-asynchronous-logging)); when unset, log messages go to stdout only and are not persisted. |
 | `XX_FUNCTIONAL_ACCOUNT_PREFIX` | `functional_account_prefix` | `str` | `'xx'` | Prefix identifying functional accounts in usernames. |
-| `XX_GRAPH_ON` | `graph_on` | `bool` | `False` | When `True`, `core_10x` enters `GRAPH_ON()` on import, in the importing thread only — see [GRAPH_ON](#graph_on---dependency-tracking-and-caching). |
+| `XX_GRAPH_ON` | `graph_on` | `bool` | `False` | When `True`, `core_10x` enters `GRAPH_ON()` on import — see [GRAPH_ON](#graph_on---dependency-tracking-and-caching). |
 | `XX_USE_TS_STORE_TRANSACTIONS` | `use_ts_store_transactions` | `bool` | `False` | Wrap multi-save operations in TsStore transactions — applies to history-keeping saves, multi-object `save()` cascades (`BSaveRefs.NEW_ONLY` / `BSaveRefs.ALL`), and [`SaveIfChanged`](#saveifchanged--auto-save-modified-traitables). Requires a transaction-capable backend (e.g. MongoDB replica set or PostgreSQL). |
 | `XX_DATE_FORMAT` | `date_format` | `str` | `XDateTime.FORMAT_ISO` | Default date format; applied to `XDateTime.set_default_format` on first access via the `date_format_apply` hook. |
 
