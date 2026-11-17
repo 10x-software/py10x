@@ -60,22 +60,22 @@ class MonarchButterfly(NamedTraitable):
 
     def locomotive_speed_get(self) -> float:
         #-- Locomotion speed, in cm/s
-        ew = ExternalWorld.current()
-        age_days = (ew.current_date - self.dob).days
+        ew          = ExternalWorld.current()
+        age_days    = (ew.current_date - self.dob).days
         if age_days < self.s_age_at_metamorphosis_days:
             return self._caterpillar_speed(ew)
         return self._butterfly_speed(ew)
 
     def _caterpillar_speed(self, ew: ExternalWorld) -> float:
         #-- energy-limited crawl: more leaf nearby -> faster, saturating; wind is not a factor
-        leaf_g = ew.leaf_mass_available
-        max_crawl_speed_cmps = 0.5
-        half_saturation_g = 10.
+        leaf_g                  = ew.leaf_mass_available
+        max_crawl_speed_cmps    = 0.5
+        half_saturation_g       = 10.
         return max_crawl_speed_cmps * leaf_g / (leaf_g + half_saturation_g)
 
     def _butterfly_speed(self, ew: ExternalWorld) -> float:
         #-- wind-dominated flight: still-air airspeed plus the wind's contribution; leaf mass is no longer relevant as
         #-- adults don't eat leaves
-        still_air_speed_cmps = 150.
-        wind_contribution_cmps = ew.wind_speed * 100.
+        still_air_speed_cmps    = 150.
+        wind_contribution_cmps  = ew.wind_speed * 100.
         return max(0., still_air_speed_cmps + wind_contribution_cmps)

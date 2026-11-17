@@ -34,8 +34,8 @@ It means that Traitable objects would be sought and saved in the above store.
 """
     )
 
-    main_spec = TsStore.spec_from_uri(v_main_uri.value)
-    is_running, with_auth = main_spec.resource_class.is_running_with_auth(main_spec.hostname())
+    main_spec               = TsStore.spec_from_uri(v_main_uri.value)
+    is_running, with_auth   = main_spec.resource_class.is_running_with_auth(main_spec.hostname())
     if not is_running:
         print(f'Main Traitable Store {v_main_uri.value} is not running')
         return
@@ -57,8 +57,8 @@ In order to use the Vault "automagically", you need to run "add_vault utiliry" e
         )
         return
 
-    main_store = main_spec.resource_class.instance(**main_spec.kwargs)
-    v_class_assoc = EnvVars.var.use_ts_store_per_class
+    main_store      = main_spec.resource_class.instance(**main_spec.kwargs)
+    v_class_assoc   = EnvVars.var.use_ts_store_per_class
     if v_class_assoc:
         print(
             f"""

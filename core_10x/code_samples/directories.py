@@ -177,5 +177,5 @@ STANDARD_PIXMAPS = Directory.define(
 if __name__ == '__main__':
     h1 = FISH.choices()
 
-    f = ANIMALS.flatten()
-    h2 = ANIMALS.choices()
+    f   = ANIMALS.flatten()
+    h2  = ANIMALS.choices()

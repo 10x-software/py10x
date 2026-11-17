@@ -34,15 +34,15 @@ from core_10x.trait_definition import RT
 from core_10x.traitable import VaultUser
 from core_10x.traitable_cli import TraitableCli
 
-_IMAGE_REPO = 'ghcr.io/10x-software/py10x-core'
-_CONTAINER_MOUNT_DIR = '/var/run/xx-provisioning-output'
-_LOOPBACK_HOSTS = {'localhost', '127.0.0.1', '::1'}
+_IMAGE_REPO             = 'ghcr.io/10x-software/py10x-core'
+_CONTAINER_MOUNT_DIR    = '/var/run/xx-provisioning-output'
+_LOOPBACK_HOSTS         = {'localhost', '127.0.0.1', '::1'}
 # Owner read while this process opens the pipe, then owner write and no read bit.
 # The container uid is not the owner until entrypoint.sh chowns, so the directory
 # must be traversable by other. 0711 does not grant read or write of the pipe.
-_FIFO_OWNER_READ = 0o400
-_FIFO_OWNER_WRITE = 0o200
-_PROVISIONING_DIR_MODE = 0o711
+_FIFO_OWNER_READ        = 0o400
+_FIFO_OWNER_WRITE       = 0o200
+_PROVISIONING_DIR_MODE  = 0o711
 
 
 def _drain_provisioning_fifo(fd: int, writer_finished: threading.Event, holder: dict) -> None:
@@ -98,10 +98,10 @@ class FunctionalAccountInitCli(TraitableCli):
     survives shlex.split unaffected.
     """
 
-    functional_account_id: str = RT('')
-    image_tag: str = RT('')
-    command: str = RT('')
-    extra_docker_args: str = RT('')
+    functional_account_id: str  = RT('')
+    image_tag: str              = RT('')
+    command: str                = RT('')
+    extra_docker_args: str      = RT('')
 
     def post_verify(self) -> RC:
         rc = super().post_verify()
@@ -122,8 +122,8 @@ class FunctionalAccountInitCli(TraitableCli):
             return RC_TRUE, f'{_IMAGE_REPO}:{self.image_tag}'
 
         version = importlib.metadata.version('py10x-core')
-        image = f'{_IMAGE_REPO}:{version}'
-        probe = subprocess.run(['docker', 'manifest', 'inspect', image], capture_output=True, check=False)
+        image   = f'{_IMAGE_REPO}:{version}'
+        probe   = subprocess.run(['docker', 'manifest', 'inspect', image], capture_output = True, check = False)
         if probe.returncode == 0:
             return RC_TRUE, image
         return (
@@ -163,7 +163,7 @@ class FunctionalAccountInitCli(TraitableCli):
             return rc
 
         secret_name = FunctionalAccountKeyring.secret_name(self.functional_account_id)
-        tmp_dir = tempfile.mkdtemp()
+        tmp_dir     = tempfile.mkdtemp()
         os.chmod(tmp_dir, 0o700)
         fifo_name = self.functional_account_id.replace('/', '_').replace('\0', '_') + '.fifo'
         fifo_path = os.path.join(tmp_dir, fifo_name)
@@ -171,10 +171,10 @@ class FunctionalAccountInitCli(TraitableCli):
         os.chmod(fifo_path, _FIFO_OWNER_READ)  # mkfifo applies umask
         container_fifo_path = f'{_CONTAINER_MOUNT_DIR}/{fifo_name}'
 
-        holder: dict = {}
-        read_fd: int | None = None
-        reader_thread: threading.Thread | None = None
-        writer_finished = threading.Event()
+        holder: dict                            = {}
+        read_fd: int | None                     = None
+        reader_thread: threading.Thread | None  = None
+        writer_finished                         = threading.Event()
         try:
             # Permission is checked at open. Hold the read fd, then drop the read bit
             # so a later open — including one by uid 10001 after the entrypoint chowns —
@@ -183,10 +183,10 @@ class FunctionalAccountInitCli(TraitableCli):
             os.chmod(fifo_path, _FIFO_OWNER_WRITE)
             os.chmod(tmp_dir, _PROVISIONING_DIR_MODE)
             reader_thread = threading.Thread(
-                target=_drain_provisioning_fifo,
-                args=(read_fd, writer_finished, holder),
-                daemon=True,
-                name='xx-functional-account-fifo',
+                target  = _drain_provisioning_fifo,
+                args    = (read_fd, writer_finished, holder),
+                daemon  = True,
+                name    = 'xx-functional-account-fifo',
             )
             reader_thread.start()
 
@@ -208,9 +208,9 @@ class FunctionalAccountInitCli(TraitableCli):
             ]
             # No stdio overrides: inherits this process's own terminal, so the container's
             # getpass prompts are masked exactly as if a human ran `docker run -it` directly.
-            result = subprocess.run(docker_argv, check=False)
+            result = subprocess.run(docker_argv, check = False)
             writer_finished.set()
-            reader_thread.join(timeout=10)
+            reader_thread.join(timeout = 10)
             if result.returncode != 0:
                 return RC(False, f'docker run failed with exit code {result.returncode}')
             if reader_thread.is_alive():
@@ -221,18 +221,18 @@ class FunctionalAccountInitCli(TraitableCli):
                 return RC(False, 'container exited successfully but never wrote the manifest')
             payload = holder['payload']
 
-            argv = shlex.split(self.command.format(secret_name=shlex.quote(secret_name)))
+            argv = shlex.split(self.command.format(secret_name = shlex.quote(secret_name)))
             try:
-                subprocess.run(argv, input=payload, text=True, check=True)
+                subprocess.run(argv, input = payload, text = True, check = True)
             except (OSError, subprocess.CalledProcessError) as ex:
                 return RC(False, f'--command failed: {ex}')
-            print(f'seeded secret {secret_name!r} via: {self.command}', file=sys.stderr)
+            print(f'seeded secret {secret_name!r} via: {self.command}', file = sys.stderr)
 
             return RC_TRUE
         finally:
             writer_finished.set()
             if reader_thread is not None and reader_thread.is_alive():
-                reader_thread.join(timeout=10)
+                reader_thread.join(timeout = 10)
             if read_fd is not None:
                 os.close(read_fd)
             try:

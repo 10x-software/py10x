@@ -3,9 +3,9 @@ import functools
 
 class T:
     def __init__(self, name, get, *args):
-        self.name = name
-        self.get = get
-        self.args = args
+        self.name   = name
+        self.get    = get
+        self.args   = args
 
     def __get__(self, instance, owner):
         if not self.args:

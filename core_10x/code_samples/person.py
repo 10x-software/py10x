@@ -5,10 +5,10 @@ from core_10x.traitable import RC, RC_TRUE, RT, T, Traitable, Ui
 
 
 class WEIGHT_QU(NamedConstant):
-    LB =    ('lb',  1.)
-    KG =    ('kg',  2.205)
-    G =     ('g',   0.002205)
-    CT =    ('ct',  0.0004409)
+    LB  = ('lb',  1.)
+    KG  = ('kg',  2.205)
+    G   = ('g',   0.002205)
+    CT  = ('ct',  0.0004409)
 
 def verify_alpha(t, value: str) -> RC:
     if value.isalpha():
@@ -56,7 +56,7 @@ class Person(Traitable):
             return RC(False, f'"{value}" - must be "first_name last_name"')
 
         self.first_name = parts[0]
-        self.last_name = parts[1]
+        self.last_name  = parts[1]
         return RC_TRUE
 
     def age_get(self) -> int:
@@ -65,9 +65,9 @@ class Person(Traitable):
         if not dob:
             return 0
 
-        today = date.today()
-        years = today.year - dob.year
-        dm = today.month - dob.month
+        today   = date.today()
+        years   = today.year - dob.year
+        dm      = today.month - dob.month
         if dm < 0:
             return years - 1
 
