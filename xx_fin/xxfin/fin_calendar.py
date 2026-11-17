@@ -9,7 +9,7 @@ from xxcommon.xxcalendar import Calendar
 
 
 # note: keys are bloomberg codes
-class KNOWN_CALENDARS(NamedConstant, data_type=Callable):
+class KNOWN_CALENDARS(NamedConstant, data_type = Callable):
     # fmt: off
     US      = lambda: ql.UnitedStates(ql.UnitedStates.SOFR)
     FD      = lambda: ql.UnitedStates(ql.UnitedStates.FederalReserve)
@@ -26,8 +26,8 @@ class FinCalendar(Calendar):
     ql_calendar_name: KNOWN_CALENDARS = T()
 
     ql_calendar: ql.Calendar
-    start_date: date = date(1970, 1, 1)
-    end_date: date = date(2070, 1, 1)
+    start_date: date    = date(1970, 1, 1)
+    end_date: date      = date(2070, 1, 1)
 
     @classmethod
     @cache
@@ -48,8 +48,8 @@ class FinCalendar(Calendar):
             return super().non_working_days_get()
 
         def _gen():
-            d = ql.Date.from_date(self.start_date)
-            ed = ql.Date.from_date(self.end_date)
+            d   = ql.Date.from_date(self.start_date)
+            ed  = ql.Date.from_date(self.end_date)
             while d <= ed:
                 if not cal.isBusinessDay(d):
                     yield d.to_date()

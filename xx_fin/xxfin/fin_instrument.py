@@ -46,11 +46,11 @@ class FinBasket(Basket):
 
 
 class FinInstrument(Traitable):
-    denominated: Ccy    = T()
-    price: float        = RT()
+    denominated: Ccy            = T()
+    price: float                = RT()
 
-    disc_curve: ZeroRateCurve = RT()
-    leaves: FinBasket   = RT()
+    disc_curve: ZeroRateCurve   = RT()
+    leaves: FinBasket           = RT()
 
     ## TODO: retired in favor of runtime discovery via GraphDeps/MktDeps (see mkt_deps_design_notes.md) --
     ##       kept commented for possible future use in simulation scenarios that need dependency shape
@@ -95,10 +95,10 @@ class FinInstrument(Traitable):
         return { ccy.name: ccy for ccy in Ccy.load_many() }
 
     def price_ccy(self, ccy: Ccy) -> float:
-        pc = PricingContext.current()
-        cross = CcyCross(quote_ccy = ccy, base_ccy = self.denominated)
-        fx_rate_object = FxRate(cross_name = cross.cross)
-        fx_rate = fx_rate_object.rate(pc.pricing_date)
+        pc              = PricingContext.current()
+        cross           = CcyCross(quote_ccy = ccy, base_ccy = self.denominated)
+        fx_rate_object  = FxRate(cross_name = cross.cross)
+        fx_rate         = fx_rate_object.rate(pc.pricing_date)
         return self.price * fx_rate
 
     def disc_curve_get(self) -> ZeroRateCurve:
@@ -122,9 +122,9 @@ class FinInstrument(Traitable):
             return 1.
 
         ## denom (USD) -> rate (SOFR) -> Disc Curve -> disc_fact(pay_date)
-        zrc = self.disc_curve
-        rate_curve = zrc.payload
-        today = pc.md_date
+        zrc         = self.disc_curve
+        rate_curve  = zrc.payload
+        today       = pc.md_date
         if pd == today:
             return rate_curve.discount_factor(d, today)
 

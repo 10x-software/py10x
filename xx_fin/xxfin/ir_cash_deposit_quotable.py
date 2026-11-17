@@ -11,9 +11,9 @@ from xxfin.mkt_quotable import SingleMktQuote
 
 
 class IRCashDepositQuotable(SingleMktQuote):
-    mkt_conventions: IRRateMktConventions = M()
+    mkt_conventions: IRRateMktConventions   = M()
 
-    tenor: RDate        = T(T.ID | T.NOT_EMPTY)     // 'e.g., 1W, 3M'
+    tenor: RDate                            = T(T.ID | T.NOT_EMPTY)     // 'e.g., 1W, 3M'
 
     def start_date_get(self) -> date:
         #-- the O/N ('1B') deposit actually starts today, not at spot -- previously this trait

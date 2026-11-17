@@ -5,7 +5,7 @@ from xxfin.ir_cash_deposit_quotable import IRCashDepositQuotable
 
 
 class IRCashDepositQuotableBbgAdaptor(BbgAdaptorIR):
-    BBG_INDEX = {
+    BBG_INDEX   = {
         'SOFR': 'SOFRRATE Index',
         'SONIA': 'SONIO/N Index',
         'ESTR': 'ESTRON Index',
@@ -13,12 +13,12 @@ class IRCashDepositQuotableBbgAdaptor(BbgAdaptorIR):
         'TONA': 'MUTKCALM Index',
         'CORRA': 'CAONREPO Index',
     }
-    BBG_CUT = {'SARON': 'L'}
+    BBG_CUT     = {'SARON': 'L'}
 
     @classmethod
     def ticker(cls, quotable: IRCashDepositQuotable) -> str:
-        tenor = quotable.tenor
-        mkt_name = quotable.mkt_name
+        tenor       = quotable.tenor
+        mkt_name    = quotable.mkt_name
         if tenor.freq == TENOR_FREQUENCY.BIZDAY:
             assert tenor.count == 1
             return cls.BBG_INDEX[mkt_name]

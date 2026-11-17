@@ -9,12 +9,12 @@ from xxfin.mkt_quotable import MktQuotable
 
 
 class MktQuotablesScope(Bundle):
-    s_data_per_market: dict = None
+    s_data_per_market: dict         = None
 
-    concrete_class: type    = T(T.ID)
-    mkt_name: str           = T(T.ID)
+    concrete_class: type            = T(T.ID)
+    mkt_name: str                   = T(T.ID)
 
-    quotable_stubs_by_class: dict = T(T.NOT_EMPTY)
+    quotable_stubs_by_class: dict   = T(T.NOT_EMPTY)
 
     def concrete_class_get(self):
         return self.__class__
@@ -37,8 +37,8 @@ class MktQuotablesScope(Bundle):
         for mkt_name, data_per_quotable_class in data_per_mkt.items():
             scope = cls.existing_instance(mkt_name = mkt_name, _throw = False)
             if not scope:
-                scope = cls(mkt_name = mkt_name)
-                stubs_by_class = {
+                scope           = cls(mkt_name = mkt_name)
+                stubs_by_class  = {
                     #quotable_class: scope.create_quotable_stubs(quotable_class, data_definition)
                     quotable_class: data_definition
                     for quotable_class, data_definition in data_per_quotable_class.items()

@@ -62,8 +62,8 @@ class RateCurve(DateCurve):
         return self.accrual(d2, today) / self.accrual(d1, today)
 
     def rate_fwd(self, d1: date, d2: date, dc_conv: DAY_COUNT_CONVENTION = None, compounding: COMPOUNDING = None, today: date = None) -> float:
-        dc_conv, compounding = self._conventions(dc_conv, compounding)
-        today = self._today(today)
+        dc_conv, compounding    = self._conventions(dc_conv, compounding)
+        today                   = self._today(today)
 
         a = self.accrual_fwd(d1, d2, today)
         t = abs(dc_conv(d1, d2))    ## accrual orders dates
@@ -72,16 +72,16 @@ class RateCurve(DateCurve):
         return r
 
     def rate(self, d: date, dc_conv: DAY_COUNT_CONVENTION = None, compounding: COMPOUNDING = None, today: date = None) -> float:
-        dc_conv, compounding = self._conventions(dc_conv, compounding)
-        today = self._today(today)
-        a = self.accrual(d, today)
-        t = dc_conv(today, d)
+        dc_conv, compounding    = self._conventions(dc_conv, compounding)
+        today                   = self._today(today)
+        a                       = self.accrual(d, today)
+        t                       = dc_conv(today, d)
         return compounding_apply(compounding, COMPOUND_TRANSFORM.ACCRUAL_TO_RATE, t, a)
 
     def rate_from_accrual(self, d: date, a: float, dc_conv: DAY_COUNT_CONVENTION = None, compounding: COMPOUNDING = None, today: date = None) -> float:
-        dc_conv, compounding = self._conventions(dc_conv, compounding)
-        today = self._today(today)
-        t = dc_conv(today, d)
+        dc_conv, compounding    = self._conventions(dc_conv, compounding)
+        today                   = self._today(today)
+        t                       = dc_conv(today, d)
         return compounding_apply(compounding, COMPOUND_TRANSFORM.ACCRUAL_TO_RATE, t, a)
 
     def rate_to_internal(self, rate: float, d:date, dc_conv: DAY_COUNT_CONVENTION, comp: COMPOUNDING, today: date = None) -> float:
@@ -116,7 +116,7 @@ class RateCurve(DateCurve):
         and the next period start) are discounted once
         """
         dates = list(dict.fromkeys(d for dates in date_lists for d in dates))
-        return dict(zip(dates, self.discount_factors(dates, today), strict=True))
+        return dict(zip(dates, self.discount_factors(dates, today), strict = True))
 
     def annuity_for_dc_fractions(self, dc_fractions: list[float], pay_dates: list[date], today: date = None, dfs: dict = None) -> float:
         """
@@ -124,11 +124,11 @@ class RateCurve(DateCurve):
         """
         if dfs is None:
             dfs = self.discount_factors_by_date(pay_dates, today = today)
-        return sum(dc_frac * dfs[pay] for dc_frac, pay in zip(dc_fractions, pay_dates, strict=True))
+        return sum(dc_frac * dfs[pay] for dc_frac, pay in zip(dc_fractions, pay_dates, strict = True))
 
     def annuity_for_period_dates(self, dc_conv: DAY_COUNT_CONVENTION, start_dates: list[date], end_dates: list[date], pay_dates: list[date], today: date = None, dfs: dict = None) -> float:
         assert len(start_dates) == len(end_dates) == len(pay_dates), f'start, end, pay date lists must have the same length: starts/ends/pays: {len(start_dates), len(end_dates), len(pay_dates)}'
-        dc_fractions = [dc_conv(start, end) for start, end in zip(start_dates, end_dates, strict=True)]
+        dc_fractions = [dc_conv(start, end) for start, end in zip(start_dates, end_dates, strict = True)]
         return self.annuity_for_dc_fractions(dc_fractions, pay_dates, today, dfs)
 
     def swap_float_leg_for_period_dates(self, start_dates: list[date], end_dates: list[date], pay_dates: list[date], today: date = None, dfs: dict = None) -> float:
@@ -148,7 +148,7 @@ class RateCurve(DateCurve):
             #-- no pay delay: the sum telescopes to df_start_0 - df_end_last
             return dfs[start_dates[0]] - dfs[end_dates[-1]]
 
-        return sum((dfs[start] / dfs[end] - 1.) * dfs[pay] for start, end, pay in zip(start_dates, end_dates, pay_dates, strict=True))
+        return sum((dfs[start] / dfs[end] - 1.) * dfs[pay] for start, end, pay in zip(start_dates, end_dates, pay_dates, strict = True))
 
     def period_dates(
         self,
@@ -156,8 +156,8 @@ class RateCurve(DateCurve):
         pay_delay: RDate, pay_calendar: FinCalendar, pay_roll_rule: BIZDAY_ROLL_RULE,
         date_propagation: PROPAGATE_DATES = PROPAGATE_DATES.BACKWARD, allow_stub: bool = True
     ) -> tuple:
-        start_dates, end_dates, _ = period_freq.period_dates_for_tenor(start_date, tenor, period_calendar, period_roll_rule, date_propagation, allow_stub)
-        pay_dates = [pay_delay.apply(ed, pay_calendar, pay_roll_rule) for ed in end_dates]
+        start_dates, end_dates, _   = period_freq.period_dates_for_tenor(start_date, tenor, period_calendar, period_roll_rule, date_propagation, allow_stub)
+        pay_dates                   = [pay_delay.apply(ed, pay_calendar, pay_roll_rule) for ed in end_dates]
 
         return start_dates, end_dates, pay_dates
 
@@ -251,17 +251,17 @@ class RateCurve(DateCurve):
         date_propagation: PROPAGATE_DATES = PROPAGATE_DATES.BACKWARD, allow_stub: bool = True, today: date = None
     ) -> float:
 
-        fixed_starts, fixed_ends, fixed_pays = self.period_dates(
+        fixed_starts, fixed_ends, fixed_pays    = self.period_dates(
             spot_date, tenor, fixed_freq, swap_calendar, swap_roll_rule,
             pay_delay, pay_calendar, pay_roll_rule,
             date_propagation, allow_stub,
         )
-        float_starts, float_ends, float_pays = self.period_dates(
+        float_starts, float_ends, float_pays    = self.period_dates(
             spot_date, tenor, swap_freq, swap_calendar, swap_roll_rule,
             pay_delay, pay_calendar, pay_roll_rule,
             date_propagation, allow_stub,
         )
-        fixed_dc_fractions = [fixed_dc_convention(start, end) for start, end in zip(fixed_starts, fixed_ends, strict=True)]
+        fixed_dc_fractions                      = [fixed_dc_convention(start, end) for start, end in zip(fixed_starts, fixed_ends, strict = True)]
 
         return self.swap_rate_for_period_dates(fixed_dc_fractions, fixed_pays, float_starts, float_ends, float_pays, today)
 
@@ -306,7 +306,7 @@ class AccrualRatioCurve(DateCurve):
     scale: float            = RT()
 
     def value(self, d: date) -> float:
-        over_accrual = self.over_curve.accrual(d)
-        under_accrual = self.under_curve.accrual(d)
+        over_accrual    = self.over_curve.accrual(d)
+        under_accrual   = self.under_curve.accrual(d)
 
         return over_accrual / under_accrual * self.scale

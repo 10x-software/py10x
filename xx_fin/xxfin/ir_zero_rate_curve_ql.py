@@ -22,32 +22,32 @@ class ZeroRateCurveQL(ZeroRateCurve):
     RelinkableYieldTermStructureHandle linked back to the curve being built here.
     """
     def payload_get(self) -> RateCurve:
-        today = self.md_date
-        mc = self.mkt_conventions
+        today   = self.md_date
+        mc      = self.mkt_conventions
         #-- evaluationDate is process-global. Restore it if the bootstrap raises so a later
         #   helper in this process does not build off this as-of date.
-        settings = ql.Settings.instance()
+        settings        = ql.Settings.instance()
         saved_eval_date = settings.evaluationDate
         try:
-            ql_today = QL.to_date(today)
+            ql_today                = QL.to_date(today)
             settings.evaluationDate = ql_today
 
-            deposit_quotables = self.quotables_by_class.get(IRCashDepositQuotable, {})
-            helpers = [QL.deposit_helper(q, mc, today) for q in deposit_quotables.values()]
+            deposit_quotables   = self.quotables_by_class.get(IRCashDepositQuotable, {})
+            helpers             = [QL.deposit_helper(q, mc, today) for q in deposit_quotables.values()]
 
             swap_quotables = self.quotables_by_class.get(IRSwapQuotable, {})
             forecast_curve = None
             if swap_quotables:
-                forecast_curve = ql.RelinkableYieldTermStructureHandle()
-                index = QL.overnight_index(mc, forecast_curve)
+                forecast_curve  = ql.RelinkableYieldTermStructureHandle()
+                index           = QL.overnight_index(mc, forecast_curve)
                 helpers += [QL.swap_helper(q, mc, index) for q in swap_quotables.values()]
 
             res = RateCurve(beginning_of_time = today, quoting_dc_convention = mc.dc_convention, quoting_compounding = mc.compounding)
 
             #-- RateCurve's own internal storage convention (dc_convention/compounding), read directly
             #   off the object being built rather than duplicated as a separate constant
-            day_counter = QL.day_counter(res.dc_convention)
-            compounding, frequency = QL.compounding(res.compounding)
+            day_counter             = QL.day_counter(res.dc_convention)
+            compounding, frequency  = QL.compounding(res.compounding)
 
             ql_curve = ql.PiecewiseLinearZero(ql_today, helpers, day_counter)
             if forecast_curve is not None:

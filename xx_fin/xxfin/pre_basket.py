@@ -71,7 +71,7 @@ class PreBasket(Traitable):
         return self.multadd(1.0, other)
 
     def __sub__(self, other) -> PreBasket:
-        minus_me = self * (-1)
+        minus_me            = self * (-1)
         minus_me_plus_other = minus_me + other
         return minus_me_plus_other * (-1)       ## to cover the case of other = dict use basket - other = ((basket*(-1) + other)*(-1)
 

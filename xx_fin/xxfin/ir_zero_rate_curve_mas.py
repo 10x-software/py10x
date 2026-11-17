@@ -5,28 +5,28 @@ from xxfin.mkt_quotables_scope import TenorBasedQuotablesScope
 
 class IRZeroRateCurveMas(TenorBasedQuotablesScope):
     s_data_per_market = dict(
-        SOFR = {
+        SOFR    = {
             IRCashDepositQuotable:  '1B, 1W, 1M, 3M, 6M, 9M, 12M',
             # IRCashDepositQuotable: '1B, 1W, 1M, 3M, 6M, 9M',  # -- root solver has a problem with 12M :-)
             IRSwapQuotable: '5Y, 10Y, 20Y, 30Y'
         },
-        SONIA = {
+        SONIA   = {
             IRCashDepositQuotable: '1B, 1W, 1M, 3M, 6M, 9M, 12M',
             IRSwapQuotable: '5Y, 10Y, 20Y, 30Y'
         },
-        TONA = {
+        TONA    = {
             IRCashDepositQuotable:  '1B, 1W, 1M, 3M, 6M, 9M, 12M',
             IRSwapQuotable:         '5Y, 10Y, 15Y, 20Y, 30Y'
         },
-        CORRA = {
+        CORRA   = {
             IRCashDepositQuotable:  '1B, 1W, 1M, 3M, 6M, 9M, 12M',
             IRSwapQuotable:         '5Y, 10Y, 20Y, 30Y'
         },
-        SARON = {
+        SARON   = {
             IRCashDepositQuotable:  '1B, 1W, 1M, 3M, 6M, 12M',
             IRSwapQuotable:         '5Y, 10Y, 20Y, 30Y'
         },
-        ESTR = {
+        ESTR    = {
             IRCashDepositQuotable:  '1B, 1W, 1M, 3M, 6M, 12M',
             IRSwapQuotable:         '5Y, 10Y, 20Y, 30Y'
         },

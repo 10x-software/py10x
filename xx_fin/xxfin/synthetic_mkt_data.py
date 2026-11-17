@@ -22,8 +22,8 @@ class MktAssembly(Traitable):
     data: dict      = T()
 
     def data_get(self) -> dict:
-        cls = self.__class__
-        data = cls.s_mas_data_per_market.get(self.mkt_name)
+        cls     = self.__class__
+        data    = cls.s_mas_data_per_market.get(self.mkt_name)
         assert data is not None, f'{cls}: No Market Assembly data found for {self.mkt_name}'
         return data
 
@@ -66,17 +66,17 @@ class TenorBasedSyntheticCurve(SyntheticMktData, mas_class = XNone):
     def quotables_by_class_get(self):   raise NotImplementedError
 
     def dates_quotables_map_get(self) -> tuple:
-        dates = []
-        aligned_quotables = []
-        res = (dates, aligned_quotables)
+        dates               = []
+        aligned_quotables   = []
+        res                 = (dates, aligned_quotables)
 
-        sortable_quotables = [ (d, quotable) for quotables_by_date in self.quotables_by_class.values() for d, quotable in quotables_by_date.items() ]
-        sorted_quotables = sorted(sortable_quotables, key = lambda q: q[0])
-        cur_quotables_by_class = {}
+        sortable_quotables      = [ (d, quotable) for quotables_by_date in self.quotables_by_class.values() for d, quotable in quotables_by_date.items() ]
+        sorted_quotables        = sorted(sortable_quotables, key = lambda q: q[0])
+        cur_quotables_by_class  = {}
         for (d, quotable) in sorted_quotables:
-            quotables_by_class = dict(cur_quotables_by_class)
-            cur_class = quotable.__class__
-            ex_quotables = list(quotables_by_class.setdefault(cur_class, []))
+            quotables_by_class  = dict(cur_quotables_by_class)
+            cur_class           = quotable.__class__
+            ex_quotables        = list(quotables_by_class.setdefault(cur_class, []))
             ### ex_quotables = quotables_by_class.setdefault(cur_class, [])
             ex_quotables.append(quotable)
             quotables_by_class[cur_class] = ex_quotables
@@ -88,8 +88,8 @@ class TenorBasedSyntheticCurve(SyntheticMktData, mas_class = XNone):
         return res
 
     def quotables_prior_to(self, max_date: date) -> dict:
-        dates, quotables_by_class = self.dates_quotables_map
-        i = bisect.bisect_left(dates, max_date)
+        dates, quotables_by_class   = self.dates_quotables_map
+        i                           = bisect.bisect_left(dates, max_date)
         if i == len(dates):
             i -= 1
 

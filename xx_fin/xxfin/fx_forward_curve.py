@@ -33,24 +33,24 @@ class FXForwardCurveSimple(TenorBasedSyntheticCurve, mas_class = FxForwardCurveM
         roll_rule       = mc.roll_rule
         spot_date       = mc.spot_date(today)
 
-        mkt_basis = self.md_basis
-        mao = self.mkt_assembly_object
+        mkt_basis   = self.md_basis
+        mao         = self.mkt_assembly_object
 
         spot_data_definition = mao.quotable_stubs_by_class.get(FXSpotQuotable)
         if spot_data_definition is None:
             raise AssertionError(f'Spot FX rate quote must be present to build an FX forward curve for {self.mkt_name}')
 
-        quotables = {}
-        spot_quotable = FXSpotQuotable.existing_instance(**mkt_basis)
-        quotables[FXSpotQuotable] = {spot_date: spot_quotable}
+        quotables                   = {}
+        spot_quotable               = FXSpotQuotable.existing_instance(**mkt_basis)
+        quotables[FXSpotQuotable]   = {spot_date: spot_quotable}
 
-        fwd_data_definition = mao.quotable_stubs_by_class.get(FXForwardQuotable)
-        forwards = {}
-        quotables[FXForwardQuotable] = forwards
+        fwd_data_definition             = mao.quotable_stubs_by_class.get(FXForwardQuotable)
+        forwards                        = {}
+        quotables[FXForwardQuotable]    = forwards
         for stub in mao.create_quotable_stubs(FXForwardQuotable, fwd_data_definition, today):
-            tenor = stub['tenor']  ## stub does have tenor; trying to create FXForwardQuotable too early isn't good
-            start_date = today if tenor.symbol() == '1B' else spot_date
-            d = tenor.apply(start_date, cal, roll_rule)
+            tenor       = stub['tenor']  ## stub does have tenor; trying to create FXForwardQuotable too early isn't good
+            start_date  = today if tenor.symbol() == '1B' else spot_date
+            d           = tenor.apply(start_date, cal, roll_rule)
             if d == spot_date:
                 raise AssertionError(f'{self.mkt_name} >>> {tenor.symbol()} <<< forward specification conflicts with spot rate')   ## TODO: may check before raising if the conflicting rate value is diff from the spot rate
             quotable = FXForwardQuotable.existing_instance(**stub, **mkt_basis)
@@ -133,16 +133,16 @@ class FXFundedDiscRateCurve(SyntheticMktDataWithoutMas):
             md_date         = today,
             snapshot        = snapshot
         )
-        fx_fwd_curve = fx_fwd_curve_object.payload      #-- it will either get it, if already built, or build right here
+        fx_fwd_curve        = fx_fwd_curve_object.payload      #-- it will either get it, if already built, or build right here
 
         #-- 2) Funding Zero Rate Curve
-        funding_curve_object = ZeroRateCurve.selected_class()(
+        funding_curve_object    = ZeroRateCurve.selected_class()(
             mkt_name        = self.mkt_conventions.funding_rate_mkt_name,
             provider_name   = provider_name,
             md_date         = today,
             snapshot        = snapshot
         )
-        funding_curve = funding_curve_object.payload  #-- it will either get it, if already built, or build right here
+        funding_curve           = funding_curve_object.payload  #-- it will either get it, if already built, or build right here
 
         if _DBG:    # pragma: no cover
             print( self.mkt_conventions.cross)
@@ -184,18 +184,18 @@ class FXForwardCurve(SyntheticMktDataWithoutMas):
             md_date         = self.md_date,
             snapshot        = self.snapshot,
         )
-        _ = zrc.payload
+        _   = zrc.payload
         return zrc
 
     def ccy_disc_curve_get(self) -> FXFundedDiscRateCurve:
         res = FXFundedDiscRateCurve(
-            provider_name   = self.provider_name,
-            md_date         = self.md_date,
-            snapshot        = self.snapshot,
-            mkt_name        = self.mkt_name,
-            funding_rate_mkt_name = self.mkt_conventions.funding_rate_mkt_name
+            provider_name           = self.provider_name,
+            md_date                 = self.md_date,
+            snapshot                = self.snapshot,
+            mkt_name                = self.mkt_name,
+            funding_rate_mkt_name   = self.mkt_conventions.funding_rate_mkt_name
         )
-        _ = res.payload
+        _   = res.payload
         return res
 
     def payload_get(self) -> AccrualRatioCurve:

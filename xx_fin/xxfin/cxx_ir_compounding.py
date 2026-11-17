@@ -3,10 +3,10 @@ from cxxfin import BCompounding, BCompoundTransform
 from cxxfin import compounding_apply as _cxx_compounding_apply
 
 
-class COMPOUNDING(NamedConstant, BCompounding, symbols_from=BCompounding):
+class COMPOUNDING(NamedConstant, BCompounding, symbols_from = BCompounding):
     pass
 
-class COMPOUND_TRANSFORM(NamedConstant, BCompoundTransform, symbols_from=BCompoundTransform):
+class COMPOUND_TRANSFORM(NamedConstant, BCompoundTransform, symbols_from = BCompoundTransform):
     pass
 
 def compounding_apply(comp: COMPOUNDING, transform: COMPOUND_TRANSFORM, t: float, v: float) -> float:

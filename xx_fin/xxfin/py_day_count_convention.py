@@ -11,9 +11,9 @@ def act365(d1: date, d2: date) -> float:
     return (d2 - d1).days / 365.0
 
 def actact(d1: date, d2: date) -> float:
-    from_year = d1.year
-    from_year_num_days = (date(from_year + 1, 1, 1) - date(from_year, 1, 1)).days
-    to_year = d2.year
+    from_year           = d1.year
+    from_year_num_days  = (date(from_year + 1, 1, 1) - date(from_year, 1, 1)).days
+    to_year             = d2.year
     if from_year == to_year:
         return (d2 - d1).days / from_year_num_days
 
@@ -24,8 +24,8 @@ def actact(d1: date, d2: date) -> float:
     return (frac1 - frac2) + (to_year - from_year)
 
 def bb30360(d1: date, d2: date) -> float:
-    from_day = d1.day
-    to_day = d2.day
+    from_day    = d1.day
+    to_day      = d2.day
 
     if from_day == 31:
         from_day = 30
@@ -35,8 +35,8 @@ def bb30360(d1: date, d2: date) -> float:
     return (d2.year - d1.year) + (d2.month - d1.month) / 12 + (to_day - from_day) / 360
 
 def us30360(d1: date, d2: date) -> float:
-    from_day = d1.day
-    to_day = d2.day
+    from_day    = d1.day
+    to_day      = d2.day
 
 
     from_month_last_day = d1.replace(day = calendar.monthrange(d1.year, d1.month)[1])
@@ -53,8 +53,8 @@ def eb30360(d1: date, d2: date) -> float:
     Eurobond basis, a.k.a. 30E/360 in Bloomberg (cbonds.com/glossary/30e-360)
     Most of European IBORs are probably 'eb30360'
     """
-    from_day = d1.day
-    to_day = d2.day
+    from_day    = d1.day
+    to_day      = d2.day
 
     if from_day == 31:
         from_day = 30

@@ -11,21 +11,21 @@ from xxfin.rate_curve import RateCurve
 SwapsDatesAndFracs = namedtuple('swap_dates_and_dc_fractions', 'start_dates, end_dates, pay_dates, dc_fractions')
 
 class IRSwapQuotable(IRCashDepositQuotable):
-    mkt_conventions: IRRateMktConventions = M()
+    mkt_conventions: IRRateMktConventions   = M()
 
     ## TODO: move to QuoteTemplate
     #-- floating leg
-    start_dates: list   = RT()
-    end_dates: list     = RT()
-    pay_dates: list     = RT()
+    start_dates: list                       = RT()
+    end_dates: list                         = RT()
+    pay_dates: list                         = RT()
 
-    incremental_dc_fractions: list = RT()
+    incremental_dc_fractions: list          = RT()
 
     #-- fixed leg
-    fixed_start_dates: list     = RT()
-    fixed_end_dates: list       = RT()
-    fixed_pay_dates: list       = RT()
-    fixed_dc_fractions: list    = RT()
+    fixed_start_dates: list                 = RT()
+    fixed_end_dates: list                   = RT()
+    fixed_pay_dates: list                   = RT()
+    fixed_dc_fractions: list                = RT()
 
     #-- a way to have all the swaplet dates/daycount_fracs together
     def periods(self) -> list:
@@ -69,7 +69,7 @@ class IRSwapQuotable(IRCashDepositQuotable):
         return self._leg_start_dates(self.end_dates)
 
     def incremental_dc_fractions_get(self) -> list:
-        end_dates = self.end_dates
+        end_dates   = self.end_dates
         start_dates = self.start_dates
         if not start_dates or not end_dates:
             return []
@@ -89,7 +89,7 @@ class IRSwapQuotable(IRCashDepositQuotable):
 
     def fixed_dc_fractions_get(self) -> list:
         dc_method = self.mkt_conventions.fixed_leg_swap_dc_convention
-        return [dc_method(sd, ed) for sd, ed in zip(self.fixed_start_dates, self.fixed_end_dates, strict=True)]
+        return [dc_method(sd, ed) for sd, ed in zip(self.fixed_start_dates, self.fixed_end_dates, strict = True)]
 
     def annuity_calc(self, rate_curve: RateCurve, periods: int = None) -> float:
         """

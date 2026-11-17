@@ -31,10 +31,10 @@ class FXMktConventions(SpotMktConventions):
 
     ## return normal_cross
     def cross_get(self) -> CcyCross:
-        cross = CcyCross(cross = self.mkt_name)
-        bccy = cross.base_ccy.name
-        qccy = cross.quote_ccy.name
-        fccy = self.funding_ccy.name
+        cross   = CcyCross(cross = self.mkt_name)
+        bccy    = cross.base_ccy.name
+        qccy    = cross.quote_ccy.name
+        fccy    = self.funding_ccy.name
         assert fccy in {bccy, qccy}, f'May not have a {fccy}-funded discount curve for the cross {cross}'
         return cross
 

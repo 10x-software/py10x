@@ -15,7 +15,7 @@ class QL:
     Adapter converting native 10x/xxfin conventions into their QuantLib equivalents.
     """
 
-    s_day_counter = {
+    s_day_counter               = {
         DAY_COUNT_CONVENTION.ACT360:    ql.Actual360,
         DAY_COUNT_CONVENTION.ACT365:    ql.Actual365Fixed,
         DAY_COUNT_CONVENTION.ACTACT:    lambda: ql.ActualActual(ql.ActualActual.ISDA),
@@ -24,7 +24,7 @@ class QL:
         DAY_COUNT_CONVENTION.EB30360:   lambda: ql.Thirty360(ql.Thirty360.European),
     }
 
-    s_business_day_convention = {
+    s_business_day_convention   = {
         BIZDAY_ROLL_RULE.FOLLOWING:     ql.Following,
         BIZDAY_ROLL_RULE.PRECEDING:     ql.Preceding,
         BIZDAY_ROLL_RULE.MOD_FOLLOWING: ql.ModifiedFollowing,
@@ -38,7 +38,7 @@ class QL:
     #   BIZDAY -> ql.Days is exact for any count, not only 1. ql.Period(n, ql.Days) advances
     #   n business days (weekends and holidays are skipped) -- the same advance deposit_helper
     #   relies on -- so an overnight '1B' and a longer 'nB' are both business-day tenors.
-    s_time_unit = {
+    s_time_unit                 = {
         TENOR_FREQUENCY.BIZDAY:     (ql.Days,   1),
         TENOR_FREQUENCY.WEEK:       (ql.Weeks,  1),
         TENOR_FREQUENCY.MONTH:      (ql.Months, 1),
@@ -49,7 +49,7 @@ class QL:
 
     #-- (ql compounding, ql frequency) -- frequency is meaningless for SIMPLE/CONTINUOUS but ql's
     #   InterestRate/zeroRate() APIs require one to be passed regardless
-    s_compounding = {
+    s_compounding               = {
         COMPOUNDING.SIMPLE:         (ql.Simple,     ql.NoFrequency),
         COMPOUNDING.CONTINUOUS:     (ql.Continuous, ql.NoFrequency),
         COMPOUNDING.ANNUAL:         (ql.Compounded, ql.Annual),
@@ -59,7 +59,7 @@ class QL:
         COMPOUNDING.WEEKLY:         (ql.Compounded, ql.Weekly),
     }
 
-    s_frequency = {
+    s_frequency                 = {
         TENOR_FREQUENCY.WEEK:       ql.Weekly,
         TENOR_FREQUENCY.MONTH:      ql.Monthly,
         TENOR_FREQUENCY.QUARTER:    ql.Quarterly,
@@ -69,7 +69,7 @@ class QL:
 
     #-- named ql.Currency subclasses only cover the currencies real xxfin OIS markets quote in
     #   today (SOFR/USD, SONIA/GBP, CORRA/CAD); extend as new markets need it
-    s_currency = {
+    s_currency                  = {
         'USD':  ql.USDCurrency,
         'GBP':  ql.GBPCurrency,
         'CAD':  ql.CADCurrency,
@@ -184,17 +184,17 @@ class QL:
             cls.period(quotable.tenor),
             quotable.quote,
             index,
-            paymentLag           = mc.settle_offset.count,
-            paymentConvention    = cls.business_day_convention(mc.roll_rule_to_settle),
-            paymentFrequency     = payment_frequency,
-            paymentCalendar      = mc.settlement_calendar.ql_calendar,
-            averagingMethod      = ql.RateAveraging.Compound,
-            fixedPaymentFrequency = payment_frequency,
-            fixedCalendar        = mc.calendar.ql_calendar,
-            convention           = cls.business_day_convention(mc.roll_rule),
+            paymentLag              = mc.settle_offset.count,
+            paymentConvention       = cls.business_day_convention(mc.roll_rule_to_settle),
+            paymentFrequency        = payment_frequency,
+            paymentCalendar         = mc.settlement_calendar.ql_calendar,
+            averagingMethod         = ql.RateAveraging.Compound,
+            fixedPaymentFrequency   = payment_frequency,
+            fixedCalendar           = mc.calendar.ql_calendar,
+            convention              = cls.business_day_convention(mc.roll_rule),
             #-- native swap schedules are generated backward, with no end-of-month pin.
             #   An omitted endOfMonth turns on at month-end starts.
-            rule                 = ql.DateGeneration.Backward,
-            endOfMonth           = False,
+            rule                    = ql.DateGeneration.Backward,
+            endOfMonth              = False,
         )
 

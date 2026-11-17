@@ -98,14 +98,14 @@ def cxx_or_py_day_count_convention(use_cxx):
     yield
 
 
-@pytest.fixture(params=[False, True], ids=['py', 'cxx'])
+@pytest.fixture(params = [False, True], ids = ['py', 'cxx'])
 def use_cxx(request):
     from xxcommon.xxcommon_env_vars import XXCommonEnvVars
 
     from xxfin.xxfin_env_vars import XXFinEnvVars
 
-    saved_flags = (XXCommonEnvVars.use_cxx_curve, XXFinEnvVars.use_cxxfin)
-    saved_namespaces = [(module, dict(module.__dict__)) for module in _SWAPPED_MODULES]
+    saved_flags         = (XXCommonEnvVars.use_cxx_curve, XXFinEnvVars.use_cxxfin)
+    saved_namespaces    = [(module, dict(module.__dict__)) for module in _SWAPPED_MODULES]
 
     use_cxx = XXCommonEnvVars.use_cxx_curve = XXFinEnvVars.use_cxxfin = request.param
     try:

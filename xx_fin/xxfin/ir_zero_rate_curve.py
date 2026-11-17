@@ -27,18 +27,18 @@ class ZeroRateCurve(TenorBasedSyntheticCurve, SelectableTraitableClass, mas_clas
         #   (its start already accounts for the '1B' start-today override) or a swap's last pay date
         result = {}
         for quotable_class, data_definition in mao.quotable_stubs_by_class.items():
-            quotable_by_date = {}
-            result[quotable_class] = quotable_by_date
+            quotable_by_date        = {}
+            result[quotable_class]  = quotable_by_date
             for stub in mao.create_quotable_stubs(quotable_class, data_definition, today):
-                quotable = quotable_class.existing_instance(**stub, **mkt_basis)
+                quotable                            = quotable_class.existing_instance(**stub, **mkt_basis)
                 quotable_by_date[quotable.pay_date] = quotable
 
         return result
 
     def payload_get(self) -> RateCurve:
-        today = self.md_date
-        mc = self.mkt_conventions
-        res = RateCurve(beginning_of_time = today, quoting_dc_convention = mc.dc_convention, quoting_compounding = mc.compounding)
+        today   = self.md_date
+        mc      = self.mkt_conventions
+        res     = RateCurve(beginning_of_time = today, quoting_dc_convention = mc.dc_convention, quoting_compounding = mc.compounding)
 
         self.process_cash_deposits(res)
         self.process_swaps(        res)
@@ -73,12 +73,12 @@ class ZeroRateCurve(TenorBasedSyntheticCurve, SelectableTraitableClass, mas_clas
             solve_cash_deposit(zrc, quotable.start_date, end_date, quotable.quote, mc, today)
 
             if _DBG:    # pragma: no cover
-                dc_convention = mc.dc_convention
-                compounding   = mc.compounding
-                start_date = quotable.start_date
-                quote_acc  = zrc.fixed_rate_accrual(quotable.quote, start_date, end_date, dc_convention, compounding)
-                zrc_acc    = zrc.accrual_fwd(start_date, end_date, today)
-                float_rate = zrc.rate_fwd(start_date, end_date, dc_convention, compounding, today)
+                dc_convention   = mc.dc_convention
+                compounding     = mc.compounding
+                start_date      = quotable.start_date
+                quote_acc       = zrc.fixed_rate_accrual(quotable.quote, start_date, end_date, dc_convention, compounding)
+                zrc_acc         = zrc.accrual_fwd(start_date, end_date, today)
+                float_rate      = zrc.rate_fwd(start_date, end_date, dc_convention, compounding, today)
                 print(f'quote acc = {quote_acc:.18f};       float acc  = {zrc_acc:.18f};    diff acc   = {zrc_acc - quote_acc}')
                 print(f'quote df  = {1./quote_acc:.18f};    float df   = {1./zrc_acc:.18f}; diff df    = {1./zrc_acc - 1./quote_acc}')
                 print(f'quote     = {quotable.quote:.18f};  float rate = {float_rate:.18f}; diff rates = {float_rate - quotable.quote}\n')
@@ -100,7 +100,7 @@ class ZeroRateCurve(TenorBasedSyntheticCurve, SelectableTraitableClass, mas_clas
         spot_date = mc.spot_date(today)
 
         if _DBG:    # pragma: no cover
-            fixed_freq: RDate   = RDate(freq=mc.fixed_leg_swap_tenor_frequency, count=1)
+            fixed_freq: RDate   = RDate(freq = mc.fixed_leg_swap_tenor_frequency, count = 1)
             fixed_dc_convention = mc.fixed_leg_swap_dc_convention
             pay_calendar        = mc.settlement_calendar
             pay_roll_rule       = mc.roll_rule_to_settle

@@ -19,7 +19,7 @@ class FutureMonth:
         if n not in (3, 5):
             raise AssertionError(f'Future {contract} should be of format <contract month symbol><year> with 2- or 4-digit year')
 
-        ctr_letter = contract[0].upper()
+        ctr_letter  = contract[0].upper()
         month_index = cls.SYMBOLS.find(ctr_letter)
         if month_index == -1:
             raise AssertionError(f'Contract month {ctr_letter} of {contract} must be one of the standard future contract months: {cls.SYMBOLS}')

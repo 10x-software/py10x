@@ -35,9 +35,9 @@ def solve_cash_deposit(zrc, start_date, end_date, quote, mc, today):
     if start_date == today:
         acc_start = 1.0
     else:
-        t_today_start  = int_dc(today, start_date)
+        t_today_start           = int_dc(today, start_date)
         last_fixed_ord, r_fixed = _last_fixed_knot(zrc, today)
-        start_ord      = start_date.toordinal()
+        start_ord               = start_date.toordinal()
 
         if start_ord > last_fixed_ord:
             #-- start_date isn't known yet: it interpolates (via the curve's own linear
@@ -77,14 +77,14 @@ def solve_swap(zrc, quotable, mc, today):
         #-- no pay delay: telescoped float leg df(spot) - df(last_pay), as one period: (df(spot) / df(last_pay) - 1) * df(last_pay)
         float_starts, float_ends, float_pays = [quotable.start_date], [last_pay], [last_pay]
 
-    last_pay_ord   = last_pay.toordinal()
+    last_pay_ord            = last_pay.toordinal()
     last_fixed_ord, r_fixed = _last_fixed_knot(zrc, today)
 
     def depends_on_x(d: date) -> bool:
         return d.toordinal() > last_fixed_ord or d == last_pay
 
     #-- nodes: dates whose discount factors are needed by the terms that depend on x
-    node_by_date = {}
+    node_by_date                        = {}
     node_t_todays, node_fracs, node_dfs = [], [], []
 
     def node(d: date) -> int:
@@ -92,8 +92,8 @@ def solve_swap(zrc, quotable, mc, today):
         if j is not None:
             return j
 
-        j = node_by_date[d] = len(node_fracs)
-        d_ord = d.toordinal()
+        j       = node_by_date[d] = len(node_fracs)
+        d_ord   = d.toordinal()
         if d == last_pay:
             frac = 1.
         elif d_ord > last_fixed_ord:
@@ -110,18 +110,18 @@ def solve_swap(zrc, quotable, mc, today):
         node_dfs.append(zrc.discount_factor(d, today) if frac < 0. else 0.)
         return j
 
-    annuity_const = 0.0
+    annuity_const                   = 0.0
     fixed_dc_fracs, fixed_pay_nodes = [], []
-    for dc_frac, pay in zip(fixed_dc_fractions, fixed_pays, strict=True):
+    for dc_frac, pay in zip(fixed_dc_fractions, fixed_pays, strict = True):
         if depends_on_x(pay):
             fixed_dc_fracs.append(dc_frac)
             fixed_pay_nodes.append(node(pay))
         else:
             annuity_const += dc_frac * zrc.discount_factor(pay, today)
 
-    float_const = 0.0
+    float_const                                         = 0.0
     float_start_nodes, float_end_nodes, float_pay_nodes = [], [], []
-    for start, end, pay in zip(float_starts, float_ends, float_pays, strict=True):
+    for start, end, pay in zip(float_starts, float_ends, float_pays, strict = True):
         if depends_on_x(start) or depends_on_x(end) or depends_on_x(pay):
             float_start_nodes.append(node(start))
             float_end_nodes.append(  node(end))

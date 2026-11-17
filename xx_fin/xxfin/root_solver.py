@@ -19,7 +19,7 @@ xtol    = 1.e-12
 near_half_width = 0.02  ## the half width of the narrow bracket tried 1st around a guess of the root (see ir_add_curve_point_near)
 
 def _default_root_scalar(f, bracket, xtol, method):
-    return _scipy_root_scalar(f, bracket=bracket, xtol=xtol, method=method)
+    return _scipy_root_scalar(f, bracket = bracket, xtol = xtol, method = method)
 
 root_scalar_impl = _default_root_scalar    #-- swappable; e.g. replaced by AADCContext during recording
 

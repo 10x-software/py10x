@@ -9,12 +9,12 @@ from xxfin.snapshot import SNAPSHOT
 
 
 class MktDataBasis(Traitable):
-    provider_name: str  = T(T.ID | T.NOT_EMPTY) // 'Mkt Data Provider Name, e.g., BBG'  #-- using Enum seems not ideal due to extensions
-    mkt_name: str       = T(T.ID | T.NOT_EMPTY) // 'Unique Market Name, e.g., SOFR'
-    md_date: date       = T(T.ID | T.NOT_EMPTY) // 'Mkt Data Date'
-    snapshot: SNAPSHOT  = T(T.ID | T.NOT_EMPTY, default = SNAPSHOT.CLOSE) // 'Mkt Data Date time snapshot, most often symbolic'
+    provider_name: str              = T(T.ID | T.NOT_EMPTY) // 'Mkt Data Provider Name, e.g., BBG'  #-- using Enum seems not ideal due to extensions
+    mkt_name: str                   = T(T.ID | T.NOT_EMPTY) // 'Unique Market Name, e.g., SOFR'
+    md_date: date                   = T(T.ID | T.NOT_EMPTY) // 'Mkt Data Date'
+    snapshot: SNAPSHOT              = T(T.ID | T.NOT_EMPTY, default = SNAPSHOT.CLOSE) // 'Mkt Data Date time snapshot, most often symbolic'
 
-    md_basis: dict      = RT()
+    md_basis: dict                  = RT()
 
     mkt_conventions: MktConventions = RT()
 
