@@ -2,7 +2,7 @@ import multiprocessing as mp
 import os
 import socket
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from typing import Any
 
 import psutil
@@ -82,7 +82,7 @@ class Logger:
         self.app_name = app_name
         self.log_level = log_level
         if started_at is None:
-            started_at = datetime.now(tz = timezone.utc)
+            started_at = datetime.now(tz = UTC)
         self.started_at = started_at
         pid = os.getpid()
         self.ps = psutil.Process(pid)
@@ -129,7 +129,7 @@ class LOG:
         global LOGGER
         if LOGGER is None:
             LOGGER = Logger(app_name, log_level.value)
-            LOG.BRIEF(datetime.now(tz=timezone.utc))
+            LOG.BRIEF(datetime.now(tz=UTC))
 
     @staticmethod
     def end():

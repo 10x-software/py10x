@@ -19,7 +19,7 @@ from core_10x.trait import Trait
 from core_10x.trait_definition import T
 from core_10x.ts_store import TS_FIELDS_TAG, TsCollection, TsStore
 from ibis.common.exceptions import TableNotFound
-from typing_extensions import Self
+from typing import Self
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence

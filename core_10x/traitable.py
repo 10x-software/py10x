@@ -16,7 +16,8 @@ from typing import TYPE_CHECKING, Any, get_origin
 from urllib.parse import unquote
 
 from py10x_kernel import BFlags, BSaveRefs, BTraitable, BTraitableClass, BTraitableProcessor, BTraitFlags, OsUser, XCache
-from typing_extensions import Self, deprecated
+from typing_extensions import deprecated
+from typing import Self
 
 from core_10x import concrete_traits
 from core_10x.concrete_resource import CONCRETE_RESOURCE

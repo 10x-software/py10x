@@ -5,7 +5,7 @@ import contextlib
 import re
 import sys
 from collections import Counter
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timezone, UTC
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -27,7 +27,7 @@ from core_10x.traitable_id import ID
 from core_10x.xnone import XNone
 from infra_10x.duckdb_store import DuckDbStore
 from py10x_kernel import BSaveRefs
-from typing_extensions import Self
+from typing import Self
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -926,7 +926,7 @@ def test_serialize(monkeypatch):
                             serialized[id_value] = data
                             out = {'_rev': 1}
                             for name in ts_fields:
-                                out[name] = 'test_user' if name == '_who' else datetime.now(timezone.utc).replace(tzinfo=None)
+                                out[name] = 'test_user' if name == '_who' else datetime.now(UTC).replace(tzinfo=None)
                             return out
 
                         save_new = save

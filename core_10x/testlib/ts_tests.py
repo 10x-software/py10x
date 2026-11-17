@@ -1,5 +1,5 @@
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from typing import Any
 
 import numpy
@@ -232,11 +232,11 @@ class TestTSStore:
         doc_id = 'test_doc_123'
         serialized_entity = {'_id': doc_id, 'name': 'Test Document', 'value': 42}
 
-        dt1 = datetime.now(timezone.utc).replace(tzinfo=None)
+        dt1 = datetime.now(UTC).replace(tzinfo=None)
         time.sleep(0.001)
         result = collection.save_new(ts_store.add_ts('_at', T.TS_TIME, dict(serialized_entity)))
         time.sleep(0.001)
-        dt2 = datetime.now(timezone.utc).replace(tzinfo=None)
+        dt2 = datetime.now(UTC).replace(tzinfo=None)
         assert result['_rev'] == 1
         assert set(result) == {'_rev', '_at'}
 

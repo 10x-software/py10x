@@ -25,7 +25,7 @@ on the bundle base:
 from __future__ import annotations
 
 import json
-from datetime import timezone
+from datetime import timezone, UTC
 
 import pytest
 from core_10x.exec_control import CACHE_ONLY
@@ -276,7 +276,7 @@ class TestBundleHistoryWithNonStorableBase:
 
         assert not AbstractBase.s_history_class
         assert isinstance(AbstractBase.s_storage_helper, NotStorableHelper)
-        with AsOfContext(as_of_time=datetime.now(timezone.utc).replace(tzinfo=None)):
+        with AsOfContext(as_of_time=datetime.now(UTC).replace(tzinfo=None)):
             class Derived(AbstractBase):
                 name: str = T(T.ID)
 

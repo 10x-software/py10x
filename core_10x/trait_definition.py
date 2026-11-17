@@ -4,7 +4,7 @@ import copy
 from collections import defaultdict
 
 from py10x_kernel import BFlags, BTraitFlags
-from typing_extensions import Never
+from typing import Never
 
 from core_10x.ui_hint import Ui, UiHintModification
 from core_10x.xnone import XNone, XNoneType

@@ -9,7 +9,7 @@ suites, but scoped to dialects that go through :class:`infra_10x.ibis_store.Ibis
 from __future__ import annotations
 
 import json
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timezone, UTC
 
 import pytest
 import uuid6
@@ -317,7 +317,7 @@ def _want_sql_column(store: IbisStore, column_eligible: bool) -> bool:
         ('f', 1.25, True),
         ('b', True, True),
         ('s', 'txt', True),
-        ('dt', datetime(2024, 6, 1, tzinfo=timezone.utc), True),
+        ('dt', datetime(2024, 6, 1, tzinfo=UTC), True),
         ('d', date(2024, 6, 1), True),
         ('by', b'raw', True),
         ('cl', int, True),
@@ -495,7 +495,7 @@ def test_datetime_filter_on_empty_table_json_path(ibis_store):
     coll_name = f'filt_{uuid6.uuid7().hex}'
     coll = store.collection(coll_name, Ev.s_dir)
     assert '_at' not in coll._collection_columns() or '_at' not in sql_columns(store, coll_name)
-    assert list(coll.find(f(_at=LT(datetime.now(timezone.utc))))) == []
+    assert list(coll.find(f(_at=LT(datetime.now(UTC))))) == []
     store.delete_collection(coll_name)
 
 

@@ -6,7 +6,7 @@ import json
 from collections import deque
 from urllib.parse import quote, urlencode, urlsplit, urlunsplit
 
-from typing_extensions import Self
+from typing import Self
 
 from core_10x.global_cache import standard_key
 

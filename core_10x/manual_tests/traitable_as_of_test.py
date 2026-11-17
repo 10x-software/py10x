@@ -4,7 +4,7 @@ from datetime import date, datetime
 
 import pytest
 from infra_10x.mongodb_store import MongoStore
-from typing_extensions import Self
+from typing import Self
 
 from core_10x.code_samples.person import Person
 from core_10x.exec_control import BTP, CACHE_ONLY, GRAPH_OFF, GRAPH_ON, INTERACTIVE

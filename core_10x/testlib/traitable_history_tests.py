@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 import time
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timezone, UTC
 
 import pytest
 import uuid6
 from infra_10x.duckdb_store import DuckDbStore
 from py10x_kernel import BSaveRefs, BTraitableProcessor, OsUser
-from typing_extensions import Self
+from typing import Self
 
 from core_10x.exec_control import CACHE_ONLY, GRAPH_OFF, GRAPH_ON, INTERACTIVE
 from core_10x.py_class import PyClass
@@ -35,7 +35,7 @@ def make_clock_freezer(ts_instance, mocker=None, *, freeze: bool = False):
             if self:
                 # Return the frozen cut, then advance the freeze to wall "now" so later
                 # stamps (via mocked SQL) are strictly after the cut.
-                real = datetime.now(timezone.utc).replace(tzinfo=None)
+                real = datetime.now(UTC).replace(tzinfo=None)
                 prev, self[0] = self[0], real
                 return prev
 
@@ -54,7 +54,7 @@ def make_clock_freezer(ts_instance, mocker=None, *, freeze: bool = False):
         assert isinstance(ts_instance, DuckDbStore)
         if mocker is None:
             raise TypeError('mocker is required when freeze=True')
-        frozen_now.append(datetime.now(timezone.utc).replace(tzinfo=None))
+        frozen_now.append(datetime.now(UTC).replace(tzinfo=None))
 
         # TS_TIME / server_time() both go through _server_time_col_sql_expr.
         mocker.patch.object(

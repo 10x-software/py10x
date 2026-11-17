@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import json
 import random
+from datetime import UTC
 
 N_DOCS = 1_000
 READ_N_DOCS = 20_000  # bulk-loaded; bump toward 1_000_000 for a large-scale read/search comparison
@@ -164,7 +165,7 @@ if __name__ == '__main__':
     print(
         f'N_DOCS={N_DOCS}  N_CATEGORIES={N_CATEGORIES}  SAMPLE_SIZE={SAMPLE_SIZE}  HISTORY_ENTITIES={HISTORY_ENTITIES}  HISTORY_REVISIONS={HISTORY_REVISIONS}'
     )
-    print(f'started {datetime.now(timezone.utc).isoformat()}')
+    print(f'started {datetime.now(UTC).isoformat()}')
 
     all_results: dict[str, dict[str, str]] = {}
     for label, uri in backends:

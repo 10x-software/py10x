@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timezone, UTC
 from typing import Any
 
 import pytest
@@ -573,7 +573,7 @@ class TestCompoundFilters:
             'f': 1.5,
             'b': True,
             's': 'hello',
-            'dt': datetime(2024, 1, 1, tzinfo=timezone.utc),
+            'dt': datetime(2024, 1, 1, tzinfo=UTC),
             'd': date(2024, 6, 1),
             'by': b'hello\x00',
             'cl': Person,
@@ -590,7 +590,7 @@ class TestCompoundFilters:
             'f': 2,
             'b': False,
             's': 'world',
-            'dt': datetime(2025, 1, 1, tzinfo=timezone.utc),
+            'dt': datetime(2025, 1, 1, tzinfo=UTC),
             'd': date(2025, 6, 1),
             'by': b'other',
             'cl': int,
