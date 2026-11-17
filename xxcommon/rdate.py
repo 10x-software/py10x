@@ -91,8 +91,8 @@ FREQUENCY_TABLE = NamedConstantTable(TENOR_FREQUENCY, TENOR_PARAMS,
 )
 
 class PROPAGATE_DATES(NamedConstant):
-    BACKWARD = ()  ## BACKWARD period propagation is more standard for G10 interest rate swaps
-    FORWARD = ()
+    BACKWARD    = ()  ## BACKWARD period propagation is more standard for G10 interest rate swaps
+    FORWARD     = ()
 
 class RDate(Nucleus):
     """
@@ -110,7 +110,7 @@ class RDate(Nucleus):
         frequency_table's named_constant_class must be {tenor_frequency_class}
         """
         cls.s_tenor_frequency_class = tenor_frequency_class
-        cls.s_frequency_table = frequency_table
+        cls.s_frequency_table       = frequency_table
 
     # s_spot_tenors = { 'ON', 'TN', 'SN' }
 
@@ -119,9 +119,9 @@ class RDate(Nucleus):
     def __init__(self, symbol: str = None, freq: TENOR_FREQUENCY = None, count: int = None):
         cls = self.__class__
         if symbol is not None:
-            match = re.match(r'(-?\d+)([a-zA-Z]+)', symbol)
-            count = int(match.group(1))
-            letter = match.group(2)
+            match   = re.match(r'(-?\d+)([a-zA-Z]+)', symbol)
+            count   = int(match.group(1))
+            letter  = match.group(2)
 
             freq = cls.s_frequency_table.primary_key(TENOR_PARAMS.CHAR, letter.upper())
             if freq is None:
@@ -132,8 +132,8 @@ class RDate(Nucleus):
             if count is None:
                 count = 1
 
-        self.freq = freq
-        self.count = count
+        self.freq   = freq
+        self.count  = count
 
     def symbol(self) -> str:
         return f'{self.count}{self.__class__.s_frequency_table[self.freq][TENOR_PARAMS.CHAR]}'
@@ -174,8 +174,8 @@ class RDate(Nucleus):
         if self.freq is cls.s_tenor_frequency_class.BIZDAY:
             not_rolled = cal.advance_bizdays(d, self.count)     ## roll to bizday for '0B'
         else:
-            fn = cls.s_frequency_table[self.freq][TENOR_PARAMS.RDATE_FUNC]
-            not_rolled = fn(d, self.count)
+            fn          = cls.s_frequency_table[self.freq][TENOR_PARAMS.RDATE_FUNC]
+            not_rolled  = fn(d, self.count)
 
         return roll_rule(not_rolled, cal)
 
@@ -187,8 +187,8 @@ class RDate(Nucleus):
     def apply_rule(cls, d: date, cal: Calendar, roll_rule: BIZDAY_ROLL_RULE, comma_separated_rdates_str: str) -> date:
         rdates = comma_separated_rdates_str.split(',')
         for rdate_symbol in rdates:
-            rdate = RDate(symbol = rdate_symbol)
-            d = rdate.apply(d, cal, roll_rule)
+            rdate   = RDate(symbol = rdate_symbol)
+            d       = rdate.apply(d, cal, roll_rule)
         return d
 
     def conversion_freq_multiplier(self, other_freq: TENOR_FREQUENCY) -> float:
@@ -196,8 +196,8 @@ class RDate(Nucleus):
         if my_freq is other_freq:
             return 1.0
 
-        freq_table = self.__class__.s_frequency_table
-        conversion_map = freq_table[my_freq][TENOR_PARAMS.CONVERSIONS]
+        freq_table      = self.__class__.s_frequency_table
+        conversion_map  = freq_table[my_freq][TENOR_PARAMS.CONVERSIONS]
         if not conversion_map:
             raise ValueError(f'{my_freq} cannot be converted into any other frequency')
 
@@ -211,8 +211,8 @@ class RDate(Nucleus):
         if self.freq is other.freq:
             return (self, other)
 
-        mult = self.conversion_freq_multiplier(other.freq)  # -- either int or 1/int
-        mult_i = int(mult)
+        mult    = self.conversion_freq_multiplier(other.freq)  # -- either int or 1/int
+        mult_i  = int(mult)
         if mult_i >= 1:
             return (RDate(freq = other.freq, count = self.count * mult_i), other)
 
@@ -248,17 +248,17 @@ class RDate(Nucleus):
         return self.multadd(other, 0, freq_to_try_for_fract_count = self.__class__.s_frequency_table[self.freq][TENOR_PARAMS.MIN_FREQUENCY])
 
     def __rmul__(self, other: float) -> RDate:
-        return self.multadd(other, 0, freq_to_try_for_fract_count=self.__class__.s_frequency_table[self.freq][TENOR_PARAMS.MIN_FREQUENCY])
+        return self.multadd(other, 0, freq_to_try_for_fract_count = self.__class__.s_frequency_table[self.freq][TENOR_PARAMS.MIN_FREQUENCY])
 
     def __truediv__(self, other):
         if isinstance(other, (int, float)):
-            return self.multadd(1 / other, 0, freq_to_try_for_fract_count=self.__class__.s_frequency_table[self.freq][TENOR_PARAMS.MIN_FREQUENCY])
+            return self.multadd(1 / other, 0, freq_to_try_for_fract_count = self.__class__.s_frequency_table[self.freq][TENOR_PARAMS.MIN_FREQUENCY])
 
         rd1, rd2 = self.equate_freq(other)
         return rd1.count / rd2.count
 
     def __add__(self, other) -> RDate:
-        return self.multadd(1.0, other, freq_to_try_for_fract_count=self.__class__.s_frequency_table[self.freq][TENOR_PARAMS.MIN_FREQUENCY])
+        return self.multadd(1.0, other, freq_to_try_for_fract_count = self.__class__.s_frequency_table[self.freq][TENOR_PARAMS.MIN_FREQUENCY])
 
     @classmethod
     def add_bizdays(cls, d: date, biz_days: int, cal: Calendar, roll_rule: BIZDAY_ROLL_RULE) -> date:
@@ -299,18 +299,18 @@ class RDate(Nucleus):
             return [roll_rule(start, calendar)]
 
         if date_propagation == PROPAGATE_DATES.BACKWARD:
-            begin = end
-            finish = start
-            dir = -1
-            precedes = lambda x, y: x > y   #-- x comes before y in the direction of propagation
+            begin       = end
+            finish      = start
+            dir         = -1
+            precedes    = lambda x, y: x > y   #-- x comes before y in the direction of propagation
         else:
-            begin = start
-            finish = end
-            dir = 1
-            precedes = lambda x, y: x < y
+            begin       = start
+            finish      = end
+            dir         = 1
+            precedes    = lambda x, y: x < y
 
-        unadjusted = [begin]
-        num_steps = 0
+        unadjusted  = [begin]
+        num_steps   = 0
         while True:
             #-- step from begin, not from the previous date: chained month steps drift at month ends,
             #   e.g., Nov 30 -> Feb 28 -> May 28 instead of Nov 30 -> Feb 28 -> May 30
@@ -331,9 +331,9 @@ class RDate(Nucleus):
         return sorted({roll_rule(d, calendar) for d in unadjusted})
 
     def period_dates(self, start: date, end: date, calendar: Calendar, roll_rule: BIZDAY_ROLL_RULE, date_propagation: PROPAGATE_DATES, allow_stub = True) -> tuple:
-        all_dates = self.dates_schedule(start, end, calendar, roll_rule, date_propagation, allow_stub)
+        all_dates   = self.dates_schedule(start, end, calendar, roll_rule, date_propagation, allow_stub)
         start_dates = all_dates[:-1]
-        end_dates = all_dates[1:]
+        end_dates   = all_dates[1:]
 
         return start_dates, end_dates, all_dates
 
@@ -350,7 +350,7 @@ class RDate(Nucleus):
             start_date, end_date = end_date, start_date
 
         bizdays = []
-        d = RDate.roll_to_bizday(start_date, calendar, BIZDAY_ROLL_RULE.FOLLOWING)
+        d       = RDate.roll_to_bizday(start_date, calendar, BIZDAY_ROLL_RULE.FOLLOWING)
         while d <= end_date:
             bizdays.append(d)
             d = RDate.add_bizdays(d, 1, calendar, BIZDAY_ROLL_RULE.NO_ROLL)

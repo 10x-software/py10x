@@ -27,16 +27,16 @@ class R:
         M = (   1000,       3,          True),
     )
     def __init__(self, text: str):
-        text = text.upper()
-        x = 0
+        text        = text.upper()
+        x           = 0
         prev_values = [0, 0, 0]
         for i, symbol in enumerate(reversed(text)):
             ref = R.SYMBOL_TABLE[symbol]
-            v = ref.VALUE
+            v   = ref.VALUE
 
             # -- Rules
-            repeat = ref.REPEAT
-            over_repeated = all(v == prev_values[i] for i in range(repeat))
+            repeat          = ref.REPEAT
+            over_repeated   = all(v == prev_values[i] for i in range(repeat))
             assert not over_repeated, f"'{symbol}' is repeated more than {repeat} times"
 
             subtractable = ref.SUBTRACTABLE

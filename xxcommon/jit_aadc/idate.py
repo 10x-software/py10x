@@ -49,8 +49,8 @@ class IDate:
     def __init__(self, value):
         #-- A bare ordinal is how __sub__/__add__ build their result without a second constructor;
         #   anything else is date-like. `iint` has to be named here -- it is not an int subclass.
-        ordinal = value if isinstance(value, (iint, int)) else value.toordinal()
-        self.ordinal = ordinal if isinstance(ordinal, iint) else iint(ordinal)
+        ordinal         = value if isinstance(value, (iint, int)) else value.toordinal()
+        self.ordinal    = ordinal if isinstance(ordinal, iint) else iint(ordinal)
 
     def mark_as_input(self):
         """Its adjoint is always 0 -- an ``iint`` is not differentiable (requires aadc>=2.22.2 to replay)."""

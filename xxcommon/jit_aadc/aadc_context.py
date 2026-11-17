@@ -68,7 +68,7 @@ class AADCDomainSwap:
 
     def __exit__(self, *args):
         if _root_solver:
-            _root_solver.root_scalar_impl = self._saved_root_scalar
+            _root_solver.root_scalar_impl    = self._saved_root_scalar
         if not XXCommonEnvVars.use_cxx_curve:
             CurveParams.DEFAULT_INTERPOLATOR = self._saved_interpolator
 

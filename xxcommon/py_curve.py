@@ -27,21 +27,21 @@ class IP_KIND(NamedConstant, lowercase_values = True):
     NO_INTERP   = (0, )     #-- NO interp outside of given nodes
 
 class CurveParams(Traitable):
-    DEFAULT_INTERPOLATOR = interpolate.interp1d
+    DEFAULT_INTERPOLATOR    = interpolate.interp1d
 
-    interpolator: Any   = RT()
-    ip_kind: IP_KIND    = RT(IP_KIND.LINEAR)
-    assume_sorted: bool = RT(True)
-    copy: bool          = RT(False)
-    fill_value: Any     = RT('extrapolate')     ## it's 'extrapolate' or a tuple (left_value, right_value) for extrapolation
-    bounds_error: bool  = RT(False)
+    interpolator: Any       = RT()
+    ip_kind: IP_KIND        = RT(IP_KIND.LINEAR)
+    assume_sorted: bool     = RT(True)
+    copy: bool              = RT(False)
+    fill_value: Any         = RT('extrapolate')     ## it's 'extrapolate' or a tuple (left_value, right_value) for extrapolation
+    bounds_error: bool      = RT(False)
 
     def interpolator_get(self):     return self.__class__.DEFAULT_INTERPOLATOR
 
 class Curve(AnonymousTraitable):
-    times: list         = T([], T.STICKY)       #-- only ints or floats are allowed
-    values: list        = T([], T.STICKY)
-    params: CurveParams = RT()
+    times: list             = T([], T.STICKY)       #-- only ints or floats are allowed
+    values: list            = T([], T.STICKY)
+    params: CurveParams     = RT()
 
     beginning_of_time: Any  = T(None)    #-- may be float or int
 
@@ -83,28 +83,28 @@ class Curve(AnonymousTraitable):
                 times.insert(i, t)
                 values.insert(i, value)
 
-    def update(self, t, value, reset=True):
+    def update(self, t, value, reset = True):
         with UPWARD_DEPS_OFF():
-            times = self.times
-            values = self.values
+            times   = self.times
+            values  = self.values
             self.insert_time_value(times, values, t, value)
 
-            self.times = times
+            self.times  = times
             self.values = values
             if reset:
                 self.reset()
 
-    def update_many(self, times, values, reset=True):
+    def update_many(self, times, values, reset = True):
         assert len(times) == len(values), 'times and values size mismatch'
         with UPWARD_DEPS_OFF():
-            c_times = self.times
-            c_values = self.values
+            c_times     = self.times
+            c_values    = self.values
 
         f = self.__class__.insert_time_value
         for i, t in enumerate(times):
             f(c_times, c_values, t, values[i])
 
-        self.times = c_times
+        self.times  = c_times
         self.values = c_values
         if reset:
             self.reset()
@@ -112,30 +112,30 @@ class Curve(AnonymousTraitable):
     class Builder:
         def __init__(self, curve):
             with UPWARD_DEPS_OFF():
-                self.curve = curve
-                self.times = curve.times
+                self.curve  = curve
+                self.times  = curve.times
                 self.values = curve.values
 
         def __enter__(self):
             return self
 
         def __exit__(self, exc_type, exc_val, exc_tb):
-            c = self.curve
-            c.times = self.times
-            c.values = self.values
+            c           = self.curve
+            c.times     = self.times
+            c.values    = self.values
             c.reset()
 
         def update(self, t, value):
             self.curve.__class__.insert_time_value(self.times, self.values, t, value)
 
-    def remove(self, t, reset=True) -> bool:
-        t = self._to_number(t)
-        times = self.times
+    def remove(self, t, reset = True) -> bool:
+        t       = self._to_number(t)
+        times   = self.times
         if t not in times:
             return False
 
-        values = self.values
-        i = times.index(t)
+        values  = self.values
+        i       = times.index(t)
         times.pop(i)
         values.pop(i)
         if reset:
@@ -168,8 +168,8 @@ class Curve(AnonymousTraitable):
         )
 
     def value(self, t) -> float:
-        t = self._to_number(t)
-        times = self.times
+        t       = self._to_number(t)
+        times   = self.times
 
         if self.params.ip_kind is IP_KIND.NO_INTERP:
             return self.values[times.index(t)] if t in times else math.nan
@@ -199,7 +199,7 @@ class DateCurve(Curve):
     beginning_of_time: int  = M()
     dates: list             = RT()
 
-    s_epoch_date = date(1970, 1, 1)
+    s_epoch_date            = date(1970, 1, 1)
 
     @classmethod
     def _to_number(cls, d) -> int:
@@ -212,15 +212,15 @@ class DateCurve(Curve):
 
     @classmethod
     def _from_number(cls, x: int) -> date:
-        return cls.s_epoch_date + timedelta(days=x)
+        return cls.s_epoch_date + timedelta(days = x)
 
     def dates_get(self) -> list:
         f = self._from_number
         return [f(x) for x in self.times]
 
     def dates_set(self, trait, value) -> RC:
-        f = self._to_number     #-- TODO: possibly improve performance by using a different f (which doesn't check the type)
-        times = [f(d) for d in value]
+        f       = self._to_number     #-- TODO: possibly improve performance by using a different f (which doesn't check the type)
+        times   = [f(d) for d in value]
         return self.set_value('times', times)
 
     def beginning_of_time_set(self, trait, d) -> RC:
@@ -243,11 +243,11 @@ class DateCurve(Curve):
         super().reset()
         self.invalidate_value('dates')
 
-    def remove(self, d, reset=True):
-        if super().remove(d, reset=reset):
+    def remove(self, d, reset = True):
+        if super().remove(d, reset = reset):
             self.invalidate_value('dates')
 
     def dates_values(self, min_date: date = None, max_date: date = None) -> list:
-        dates = self.dates
-        values = self.values
-        return [(d, v) for d, v in zip(dates, values, strict=True) if (not min_date or d >= min_date) and (not max_date or d <= max_date)]
+        dates   = self.dates
+        values  = self.values
+        return [(d, v) for d, v in zip(dates, values, strict = True) if (not min_date or d >= min_date) and (not max_date or d <= max_date)]

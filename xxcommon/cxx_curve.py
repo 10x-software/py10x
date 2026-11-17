@@ -98,9 +98,9 @@ class DateCurve(AnonymousTraitable):
             self.invalidate_value('dates')
 
     def dates_values(self, min_date: date = None, max_date: date = None) -> list:
-        dates = self.dates
-        values = self.values
-        return [(d, v) for d, v in zip(dates, values, strict=True) if (not min_date or d >= min_date) and (not max_date or d <= max_date)]
+        dates   = self.dates
+        values  = self.values
+        return [(d, v) for d, v in zip(dates, values, strict = True) if (not min_date or d >= min_date) and (not max_date or d <= max_date)]
 
     def update_many(self, times, values, reset = True):
         assert len(times) == len(values), 'times and values size mismatch'
@@ -112,8 +112,8 @@ class DateCurve(AnonymousTraitable):
             self.reset()
 
     def apply_curve_params(self):
-        curve = self.bcurve
-        params = self.params
+        curve   = self.bcurve
+        params  = self.params
         curve.set_ip_kind(params.ip_kind)
         fill = params.fill_value
         if isinstance(fill, tuple):
@@ -122,8 +122,8 @@ class DateCurve(AnonymousTraitable):
             curve.set_linear()
 
     def set_curve_params(self, **param_values) -> RC:
-        params = self.params
-        rc = params.set_values(**param_values)
+        params  = self.params
+        rc      = params.set_values(**param_values)
         if rc:
             self.apply_curve_params()
 
