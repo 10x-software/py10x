@@ -169,15 +169,15 @@ class UxDialog(ux.Dialog):
     def __init__(
             self,
             w: ux.Widget,
-            parent: ux.Widget = None,
-            title: str = None,
-            ok = 'Ok',
-            cancel = 'Cancel',
-            accept_callback = None,
-            cancel_callback = None,
-            open_callback = None,
-            min_width = 0,
-            min_height = 0,
+            parent: ux.Widget   = None,
+            title: str          = None,
+            ok                  = 'Ok',
+            cancel              = 'Cancel',
+            accept_callback     = None,
+            cancel_callback     = None,
+            open_callback       = None,
+            min_width           = 0,
+            min_height          = 0,
             #window_flags        = None
     ):
         """
@@ -389,11 +389,11 @@ class UxSearchableList(ux.GroupBox):
         self,
         text_widget: ux.LineEdit = None,
         reset_selection = True,
-        choices: list = None,
-        select_hook = None,
-        sort = False,
-        case_sensitive = False,
-        title = ''
+        choices: list   = None,
+        select_hook     = None,
+        sort            = False,
+        case_sensitive  = False,
+        title           = ''
     ):
         """
         :param text_widget: if an external text_widget given, it is used, otherwise its own is created on top of the list
