@@ -116,9 +116,9 @@ class TestCustomSetterAndConverterReads(DepTracker):
     def test_converter_read_not_tracked(self, go):
         # CONVERT_VALUES so assign-from-str routes through wrapper_f_from_str.
         with GRAPH_ON(convert_values = 1) as gp_conv:
-            Leaf(name = 'L').payload    = 10.0
-            ParentViaConverter.n_gets   = 0
-            p                           = ParentViaConverter(name = 'pc')
+            Leaf(name = 'L').payload      = 10.0
+            ParentViaConverter.n_gets     = 0
+            p                             = ParentViaConverter(name = 'pc')
 
             assert p.out == 7
             assert self._payload_deps(gp_conv, p.T.out) == []
@@ -184,15 +184,15 @@ class ParentConstructsByIdTraits(Traitable):
 
 class TestIdTraitGettersOnConstruction:
     def test_id_getter_reads_not_tracked_on_caller(self, go):
-        Shared(name = 'GBP').n              = 1
-        ParentConstructsByIdTraits.n_gets   = 0
-        p                                   = ParentConstructsByIdTraits(name = 'hid')
+        Shared(name = 'GBP').n                = 1
+        ParentConstructsByIdTraits.n_gets     = 0
+        p                                     = ParentConstructsByIdTraits(name = 'hid')
 
         assert p.out == 'ok'
         assert list(GraphDeps(BTraitableProcessor.current(), p.T.out, {Shared: ('n',)}).deps()) == []
 
-        n0                      = ParentConstructsByIdTraits.n_gets
-        Shared(name = 'GBP').n  = 99
+        n0                        = ParentConstructsByIdTraits.n_gets
+        Shared(name = 'GBP').n    = 99
         assert p.out == 'ok'
         assert ParentConstructsByIdTraits.n_gets == n0
 
