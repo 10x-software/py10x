@@ -35,26 +35,26 @@ class SecKeys:
         return dir
 
     @classmethod
-    def generate_keys(cls, pwd=None) -> tuple:
-        private_key = rsa.generate_private_key(public_exponent=PUBLIC_EXP, key_size=KEY_SIZE, backend=default_backend())
-        public_key = private_key.public_key()
+    def generate_keys(cls, pwd = None) -> tuple:
+        private_key = rsa.generate_private_key(public_exponent = PUBLIC_EXP, key_size = KEY_SIZE, backend = default_backend())
+        public_key  = private_key.public_key()
 
         if pwd:
-            format = serialization.PrivateFormat.PKCS8
-            algo = serialization.BestAvailableEncryption(bytes(pwd, encoding=ENCODING))
+            format  = serialization.PrivateFormat.PKCS8
+            algo    = serialization.BestAvailableEncryption(bytes(pwd, encoding = ENCODING))
         else:
-            format = serialization.PrivateFormat.TraditionalOpenSSL
-            algo = serialization.NoEncryption()
+            format  = serialization.PrivateFormat.TraditionalOpenSSL
+            algo    = serialization.NoEncryption()
 
-        private_key_pem = private_key.private_bytes(encoding=serialization.Encoding.PEM, format=format, encryption_algorithm=algo)
-        public_key_pem = public_key.public_bytes(encoding=serialization.Encoding.PEM, format=serialization.PublicFormat.SubjectPublicKeyInfo)
+        private_key_pem = private_key.private_bytes(encoding = serialization.Encoding.PEM, format = format, encryption_algorithm = algo)
+        public_key_pem  = public_key.public_bytes(encoding = serialization.Encoding.PEM, format = serialization.PublicFormat.SubjectPublicKeyInfo)
 
         return (private_key_pem, public_key_pem)
 
     @classmethod
     def create_keys(cls, keys: tuple = None) -> tuple:
         private_key, public_key = keys if keys else cls.generate_keys()
-        home_dir = cls.home_dir()
+        home_dir                = cls.home_dir()
         try:
             with open(f'{home_dir}/{PRIVATE_KEY_FILE}', 'wb') as f:
                 f.write(private_key)
@@ -73,8 +73,8 @@ class SecKeys:
     @classmethod
     @cache
     def keys(cls) -> tuple:
-        home_dir = cls.home_dir()
-        file = f'{home_dir}/{PRIVATE_KEY_FILE}'
+        home_dir    = cls.home_dir()
+        file        = f'{home_dir}/{PRIVATE_KEY_FILE}'
         if os.path.exists(file):
             try:
                 with open(file, 'rb') as f:
@@ -93,7 +93,7 @@ class SecKeys:
     @classmethod
     def encrypt(cls, message, public_key: bytes = None) -> bytes | None:
         if type(message) is str:
-            message = bytes(message, encoding=ENCODING)
+            message = bytes(message, encoding = ENCODING)
 
         if public_key is None:
             _, public_key = cls.keys()
@@ -113,12 +113,12 @@ class SecKeys:
         # fmt: on
 
     @classmethod
-    def decrypt(cls, encrypted_message: bytes, to_str=True):
+    def decrypt(cls, encrypted_message: bytes, to_str = True):
         private_key, _ = cls.keys()
         if private_key is None:
             return None
 
-        private_key = load_pem_private_key(private_key, password=None)
+        private_key = load_pem_private_key(private_key, password = None)
         # fmt: off
         res = private_key.decrypt(
             encrypted_message,
@@ -131,20 +131,20 @@ class SecKeys:
         # fmt: on
 
         if to_str:
-            res = res.decode(encoding=ENCODING)
+            res = res.decode(encoding = ENCODING)
 
         return res
 
     @classmethod
     def encrypt_private_key(cls, password) -> bytes | None:
         if type(password) is str:
-            password = bytes(password, encoding=ENCODING)
+            password = bytes(password, encoding = ENCODING)
 
         private_key, _ = cls.keys()
         if private_key is None:
             return None
 
-        private_key = load_pem_private_key(private_key, password=None)
+        private_key = load_pem_private_key(private_key, password = None)
         # fmt: off
         return private_key.private_bytes(
             encoding                = serialization.Encoding.PEM,
@@ -156,9 +156,9 @@ class SecKeys:
     @classmethod
     def decrypt_private_key(cls, private_key_with_password, password) -> bytes:
         if type(password) is str:
-            password = bytes(password, encoding=ENCODING)
+            password = bytes(password, encoding = ENCODING)
 
-        pk = load_pem_private_key(private_key_with_password, password=password)
+        pk = load_pem_private_key(private_key_with_password, password = password)
         # fmt: off
         return pk.private_bytes(
             encoding                = serialization.Encoding.PEM,

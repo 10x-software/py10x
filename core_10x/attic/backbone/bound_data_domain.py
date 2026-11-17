@@ -45,5 +45,5 @@ class BoundDataDomain(BackboneTraitable):
                 raise ValueError(f'{self.domain} - unknown category {category}')
             return None
 
-        r_spec = ResourceSpec(_id=r_spec_id)
+        r_spec = ResourceSpec(_id = r_spec_id)
         return r_spec.resource

@@ -8,13 +8,13 @@ def _raise_type_error(cls, **kwargs):
 
 
 class DataDomain:
-    s_dir = {}
+    s_dir                   = {}
 
     s_resource_requirements = {}
 
     def __init_subclass__(cls, **kwargs):
-        name = cls.name()
-        ed = DataDomain.s_dir.get(name)
+        name    = cls.name()
+        ed      = DataDomain.s_dir.get(name)
         assert ed is None, f"DataDomain '{name}' is already registered in {ed}"
         DataDomain.s_dir[name] = cls
 
@@ -24,9 +24,9 @@ class DataDomain:
         for category, resource_reqs in cls.__dict__.items():
             if isinstance(resource_reqs, ResourceRequirements):
                 assert category.isupper(), f"Category '{category}' must be an uppercase name"
-                resource_reqs.domain = cls
-                resource_reqs.category = category
-                rrs[category] = resource_reqs
+                resource_reqs.domain    = cls
+                resource_reqs.category  = category
+                rrs[category]           = resource_reqs
 
         assert rrs, f"DataDomain '{cls} must define at least one category"
 

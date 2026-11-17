@@ -24,9 +24,9 @@ class VaultUser(VaultTraitable):
     def create_new(cls, master_password: str, save = True) -> 'VaultUser':
         VaultTraitable.keep_master_password(master_password)
         private_key_pem, public_key_pem = SecKeys.generate_keys()
-        me = VaultUser()
-        me.public_key = public_key_pem
-        me.private_key_encrypted = SecKeys.encrypt_private_key(private_key_pem, master_password)
+        me                              = VaultUser()
+        me.public_key                   = public_key_pem
+        me.private_key_encrypted        = SecKeys.encrypt_private_key(private_key_pem, master_password)
 
         if save:
             me.save().throw()
@@ -67,4 +67,4 @@ class VaultUser(VaultTraitable):
     @classmethod
     @cache
     def me(cls) -> 'VaultUser':
-        return cls.existing_instance(user_id=cls.myname())
+        return cls.existing_instance(user_id = cls.myname())

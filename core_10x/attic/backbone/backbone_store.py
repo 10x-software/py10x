@@ -28,8 +28,8 @@ class BackboneStore:
     @classmethod
     @cache
     def bb_store(cls) -> TsStore:  # -- BB Store
-        cls_name = EnvVars.backbone_store_class_name
-        cls.hostname = hostname = EnvVars.backbone_store_host_name
+        cls_name        = EnvVars.backbone_store_class_name
+        cls.hostname    = hostname = EnvVars.backbone_store_host_name
         if not cls_name or not hostname:
             return None
 
@@ -47,7 +47,7 @@ class BackboneStore:
             cls.username = ''
             cls.password = ''
 
-        return store_cls.instance(hostname=hostname, dbname=cls.BACKBONE_DB_NAME, username=cls.username, password=cls.password)
+        return store_cls.instance(hostname = hostname, dbname = cls.BACKBONE_DB_NAME, username = cls.username, password = cls.password)
 
     @classmethod
     @cache
@@ -56,4 +56,4 @@ class BackboneStore:
         if db_name == cls.BACKBONE_DB_NAME:
             return bb_store
 
-        return cls.store_cls.instance(hostname=cls.hostname, dbname=db_name, username=cls.username, password=cls.password)
+        return cls.store_cls.instance(hostname = cls.hostname, dbname = db_name, username = cls.username, password = cls.password)

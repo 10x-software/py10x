@@ -44,7 +44,7 @@ class BackboneUser(BackboneTraitable):
         return OsUser.me.name()
 
     def is_admin_get(self) -> bool:
-        for group in BackboneUserGroup.collection().find(f(is_admin=True)):
+        for group in BackboneUserGroup.collection().find(f(is_admin = True)):
             if group.is_member(self.user_id):
                 return True
 
@@ -64,4 +64,4 @@ class BackboneUser(BackboneTraitable):
     @classmethod
     @cache
     def me(cls) -> BackboneUser:
-        return cls.existing_instance(user_id=OsUser.me.name())
+        return cls.existing_instance(user_id = OsUser.me.name())

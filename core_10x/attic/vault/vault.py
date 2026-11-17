@@ -41,11 +41,11 @@ class Vault:
         if login is None:
             login = username
 
-        ra = ResourceAccessor(username = username, resource_uri = resource_uri)
-        user = ra.user
+        ra      = ResourceAccessor(username = username, resource_uri = resource_uri)
+        user    = ra.user
         ra.set_values(
-            login = login,
-            password = user.sec_keys.encrypt_text(password)
+            login       = login,
+            password    = user.sec_keys.encrypt_text(password)
         ).throw()
 
         ra.save().throw()

@@ -55,13 +55,13 @@ class PackageManifest:
 
     @staticmethod
     def _resource_requirements(cls) -> ResourceRequirements:
-        module = cls.__module__
-        parts = module.split('.')
+        module  = cls.__module__
+        parts   = module.split('.')
         if len(parts) < 2:
             return None  # -- should be at least package.module, so it's most probably '__main__.Class'
 
-        package = '.'.join(parts[:-1])
-        man_def: dict = PyClass.find_symbol(f'{package}.{PackageManifest.SYMBOL}')
+        package         = '.'.join(parts[:-1])
+        man_def: dict   = PyClass.find_symbol(f'{package}.{PackageManifest.SYMBOL}')
         if not man_def:
             return None
 
