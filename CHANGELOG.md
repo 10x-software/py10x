@@ -9,7 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Changes since **0.3.0**. Coordinated with **py10x-kernel** and **py10x-infra** at the same 0.4.0 line.
+## [0.4.0] - 2026-11-18
+
+Changes since **0.3.0** (2026-08-12). Coordinated with **py10x-kernel** and **py10x-infra** at the same 0.4.0 line. Downstream **py10x-fin-base** / **py10x-fin-base-cxx** 0.2.0 ship alongside and require this release; see [`xx_fin/CHANGELOG.md`](xx_fin/CHANGELOG.md).
 
 ### Added
 - **`NOT` trait filter** (`core_10x/trait_filter.py`): `f(age=NOT(GT(5)))` negates a field operator (Mongo `$nor`; matches missing / null fields on every backend). `NOT(f(...))`, `NOT(AND(...))`, `NOT(OR(...))` are rewritten via De Morgan.

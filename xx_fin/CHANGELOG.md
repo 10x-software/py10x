@@ -7,12 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Changes since **0.1.2**. The next release is 0.2.0.
+## [0.2.0] - 2026-11-18
+
+Changes since **0.1.2**. Pinned to py10x-core 0.4.0.
 
 ### Added
 - **`FinBasket` and instrument lifecycle** (`xxfin/fin_instrument.py`, `xxfin/ccy_forward.py`): `FinBasket`, a core `Basket` of `FinInstrument`s aggregated by `FIN_AGGREGATOR.PRICE` / `PRICE_CCY`, replaces `PreBasket` as `FinInstrument.leaves`. Lifecycle API: `next_lifecycle_date(after)`, `lifecycle_transform()` (what one unit becomes as of the pricing context's `md_date`, or `XNone`) and `FinBasket.fire_lifecycle()`. A `CcyForward` becomes a `CcyUnit` on its `end_date`.
 - **`IRSwapQuotable` leg schedules**: `fixed_start_dates` / `fixed_end_dates` / `fixed_pay_dates` / `fixed_dc_fractions`, `pay_date` (the last payment) and `swap_rate_calc(rate_curve, today)`. The py and C++ bootstraps read their schedules from the quotable.
 - **`RateCurve` schedule helpers** (`xxfin/py_rate_curve.py`): `period_dates`, `discount_factors_by_date`, `annuity_for_dc_fractions`, `swap_float_leg_for_period_dates`, `swap_float_leg_simple_compounding`, `swap_rate_for_period_dates`; a date shared by both legs is discounted once.
+- **`PricingContext.pricing_date`** (`xxfin/pricing_context.py`): the date present values are taken to, on `md_date`'s market data; it defaults to `md_date`, and an earlier date is rejected. `FinInstrument.discount_factor(d)` discounts to it with the forward factor `DF(md_date, d) / DF(md_date, pricing_date)` (a cash flow on or before it counts at 1), and `price_ccy` converts at its FX rate.
 - **`SNAPSHOT.MANUAL`**: snapshot type for manual market-data overrides, e.g. of a fixing.
 
 ### Changed
