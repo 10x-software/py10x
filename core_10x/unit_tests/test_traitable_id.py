@@ -260,3 +260,36 @@ def test_circular_embedded_serialization_is_still_detected():
     obj.nxt = obj
     with pytest.raises(Exception, match = 'circular embedded serialization'):
         obj.serialize_nx(True)
+
+
+#----------------------------------------------------------------------------
+#   Escaping \ and | in endogenous IDs
+#----------------------------------------------------------------------------
+
+
+class Pair(Traitable):
+    x: str = RT(T.ID)
+    y: str = RT(T.ID)
+
+
+@pytest.mark.parametrize('first, second', [
+    (('a|', 'b'), ('a', '|b')),
+    (('a\\', '|b'), ('a', '\\|b')),
+    (('a', ''), ('a|', '')),
+    (('', '|'), ('|', '')),
+])
+def test_distinct_id_values_give_distinct_ids(first, second):
+    a = Pair(x = first[0], y = first[1])
+    b = Pair(x = second[0], y = second[1])
+    assert a.id().value != b.id().value
+    assert a is not b
+
+
+@pytest.mark.parametrize('x, y, expected', [
+    ('a', 'b', 'a|b'),
+    ('a|', 'b', 'a\\||b'),
+    ('a\\', 'b', 'a\\\\|b'),
+    ('a', '', 'a|'),
+])
+def test_id_escapes_separator_and_backslash(x, y, expected):
+    assert Pair(x = x, y = y).id().value == expected

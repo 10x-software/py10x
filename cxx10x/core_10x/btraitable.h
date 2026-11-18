@@ -403,3 +403,27 @@ public:
     static constexpr unsigned ALL      = 0x1;
     static constexpr unsigned NEW_ONLY = 0x2;
 };
+
+//-- escapes \ and | in an ID part, so distinct value tuples never join to the same ID
+class PyIdEscaper {
+    static PyObject* make(const char* s) {
+        const auto obj = PyUnicode_FromString(s);
+        if (!obj)
+            throw py::error_already_set();
+        return obj;     //-- leaked on purpose: destroying it after interpreter shutdown would crash
+    }
+
+public:
+    //-- a new reference; an unchanged part comes back as itself, unallocated
+    static PyObject* escape(PyObject* part) {
+        static const auto bs = make("\\"), bs_bs = make("\\\\"), bar = make("|"), bs_bar = make("\\|");
+        const auto step = py::reinterpret_steal<py::object>(PyUnicode_Replace(part, bs, bs_bs, -1));
+        if (!step)
+            throw py::error_already_set();
+        const auto escaped = PyUnicode_Replace(step.ptr(), bar, bs_bar, -1);
+        if (!escaped)
+            throw py::error_already_set();
+        return escaped;
+    }
+};
+

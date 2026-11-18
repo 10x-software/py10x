@@ -7,7 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 `py10x-fin-base` / `py10x-fin-base-cxx` version independently and have their own changelog: [`xx_fin/CHANGELOG.md`](xx_fin/CHANGELOG.md).
 
-## [0.4.1]
+## [Unreleased]
+
+### Fixed
+- **Endogenous IDs** (py10x-kernel; breaking for such data): in an ID of more than one part, each part is escaped (`\` → `\\`, `|` → `\|`) before joining with `|`. Distinct values could join to the same ID, e.g. `('a|', 'b')` and `('a', '|b')` both gave `a|||b`. Stored objects with such an ID whose values contain `|` or `\` get new IDs; all other IDs are unchanged.
+
+## [0.4.1] - 2026-11-18
 
 ### Fixed
 - **PyPI project page**: the README's relative links and screenshot 404'd on PyPI; the published readme now points them at GitHub `main` (rewritten at build time by `hatch-fancy-pypi-readme`).

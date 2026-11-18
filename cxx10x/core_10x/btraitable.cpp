@@ -169,6 +169,12 @@ py::object BTraitable::endogenous_id() {
         regulars.append(py::str("00"));     //-- for possible hash collision
     }
 
+    auto const reg_ptr = regulars.ptr();
+    if (auto const len = PyList_Size(reg_ptr); len > 1) {
+        for (Py_ssize_t idx = 0; idx < len; ++idx)
+            PyList_SetItem(reg_ptr, idx, PyIdEscaper::escape(PyList_GET_ITEM(reg_ptr, idx)));
+    }
+
     return py::str("|").attr("join")(regulars);
 }
 
