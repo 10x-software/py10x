@@ -26,11 +26,11 @@ def _clear_all_caches():
         clearable.clear()
 
 
-def cache(f=None, *, keep_value=True):
+def cache(f = None, *, keep_value = True):
     def _cache(f):
-        sig = inspect.signature(f)
-        params = sig.parameters
-        num_args = len(params)
+        sig         = inspect.signature(f)
+        params      = sig.parameters
+        num_args    = len(params)
         if num_args == 0:
             return _cache_no_args(f, keep_value)
 
@@ -44,59 +44,59 @@ def cache(f=None, *, keep_value=True):
     return _cache if f is None else _cache(f)
 
 
-def _cache_no_args(f, keep_value=True):
+def _cache_no_args(f, keep_value = True):
     the_value = [XNone]
 
     def getter():
         v = the_value[0]
         if v is XNone:
-            v = f()
-            the_value[0] = v if keep_value else None
+            v               = f()
+            the_value[0]    = v if keep_value else None
         return v
 
     def clear():
         the_value[0] = XNone
 
     getter.__name__ = f.__name__
-    getter.value = the_value
-    getter.clear = clear
+    getter.value    = the_value
+    getter.clear    = clear
     _CLEARABLES.append(getter)
     return getter
 
 
-def _cache_single_arg(f, keep_value=True):
+def _cache_single_arg(f, keep_value = True):
     the_cache = {}
 
     def getter(arg):
         value = the_cache.get(arg, the_cache)  # -- will throw if arg is not hashable!
         if value is the_cache:  # -- i.e., arg is seen for the first time
-            value = f(arg)
-            the_cache[arg] = value if keep_value else None
+            value           = f(arg)
+            the_cache[arg]  = value if keep_value else None
 
         return value
 
     getter.__name__ = f.__name__
-    getter.cache = the_cache
-    getter.clear = lambda: the_cache.clear()
+    getter.cache    = the_cache
+    getter.clear    = lambda: the_cache.clear()
     _CLEARABLES.append(getter)
     return getter
 
 
-def _cache_with_args(f, keep_value=True):
+def _cache_with_args(f, keep_value = True):
     the_cache = {}
 
     def getter(*args, **kwargs):
-        key = *args, *tuple(kwargs.items())
-        value = the_cache.get(key, the_cache)  # -- will throw if key is not hashable!
+        key     = *args, *tuple(kwargs.items())
+        value   = the_cache.get(key, the_cache)  # -- will throw if key is not hashable!
         if value is the_cache:  # -- i.e., key is seen for the first time
-            value = f(*args, **kwargs)
-            the_cache[key] = value if keep_value else None
+            value           = f(*args, **kwargs)
+            the_cache[key]  = value if keep_value else None
 
         return value
 
     getter.__name__ = f.__name__
-    getter.cache = the_cache
-    getter.clear = lambda: the_cache.clear()
+    getter.cache    = the_cache
+    getter.clear    = lambda: the_cache.clear()
     _CLEARABLES.append(getter)
     return getter
 
@@ -124,11 +124,11 @@ def ___operator_reset(cls):
 
 
 def singleton(cls):
-    cls.___instances = {}
-    cls.__new__ = ___operator_new
-    cls.___ctor = cls.__init__
-    cls.__init__ = lambda self, *args, **kwargs: None
-    cls._reset_singleton = lambda: ___operator_reset(cls)
+    cls.___instances        = {}
+    cls.__new__             = ___operator_new
+    cls.___ctor             = cls.__init__
+    cls.__init__            = lambda self, *args, **kwargs: None
+    cls._reset_singleton    = lambda: ___operator_reset(cls)
     return cls
 
 

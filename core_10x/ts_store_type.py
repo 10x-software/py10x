@@ -7,9 +7,9 @@ class TS_STORE_TYPE(NamedConstant):
     All known TsStore subclasses must be "registered" here.
     """
 
-    MONGODB = 'infra_10x.mongodb_store.MongoStore'
-    DUCKDB = 'infra_10x.duckdb_store.DuckDbStore'
-    POSTGRESQL = 'infra_10x.postgres_store.PostgresStore'
+    MONGODB     = 'infra_10x.mongodb_store.MongoStore'
+    DUCKDB      = 'infra_10x.duckdb_store.DuckDbStore'
+    POSTGRESQL  = 'infra_10x.postgres_store.PostgresStore'
 
     @classmethod
     def ts_store_class(cls, uri_protocol: str):

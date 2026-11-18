@@ -42,8 +42,8 @@ class FuncTreeWalker(ast.NodeTransformer):
     s_builtin_names = frozenset(dir(builtins))
 
     def __init__(self, typenames_of_interest, traitable_class: type[Traitable]):
-        self.typenames_of_interest = typenames_of_interest
-        self.traitable_class = traitable_class
+        self.typenames_of_interest  = typenames_of_interest
+        self.traitable_class        = traitable_class
         self.attrs: dict[str, type] = {}        #-- attr -> data_type
         self.locals: dict[str, str] = {}        #-- local_var -> type_name
         self.others: set[str]       = set()     #-- other vars
@@ -63,7 +63,7 @@ class FuncTreeWalker(ast.NodeTransformer):
                 if trait and not trait.getter_params:
                     self.attrs[name] = trait.data_type
             if name in self.attrs:
-                return ast.copy_location(ast.Name(id = _self_attr(name), ctx=node.ctx), node)
+                return ast.copy_location(ast.Name(id = _self_attr(name), ctx = node.ctx), node)
 
         return node
 
@@ -79,8 +79,8 @@ class FuncTreeWalker(ast.NodeTransformer):
         if not isinstance(node, ast.Constant):
             return None
 
-        dt = type(node.value)
-        type_name = dt.__name__
+        dt          = type(node.value)
+        type_name   = dt.__name__
         return type_name if type_name in self.typenames_of_interest else None
 
     def visit_Assign(self, node: ast.Assign):
@@ -105,12 +105,12 @@ class FuncTreeWalker(ast.NodeTransformer):
 
 class CythonCompiler(TraitableMethodOptimizer):
     #-- Python -> Cython type maps
-    s_pytype_cy_map: dict[type, str] = {
+    s_pytype_cy_map: dict[type, str]    = {
         int:    'long',
         float:  'double',
         bool:   'bint',
     }
-    s_pyname_cy_map: dict[str, str] = { pytype.__name__: cy for pytype, cy in s_pytype_cy_map.items() }
+    s_pyname_cy_map: dict[str, str]     = { pytype.__name__: cy for pytype, cy in s_pytype_cy_map.items() }
 
     def __init__(self, traitable_class, attr_name):
         super().__init__(traitable_class, attr_name)
@@ -118,9 +118,9 @@ class CythonCompiler(TraitableMethodOptimizer):
         if self.data.trait is None:
             raise NotImplementedError(f'** Curretly only traits are supported:\n{self.data.traitable_class.__name__}.{self.data.name} is not a trait')
 
-        self.class_trait = class_trait = ClassTrait(self.data.traitable_class, self.data.trait)
-        self.unique_name = f"{PyClass.name(class_trait.cls).replace('.', '_')}_{self.data.original_method.__name__}"
-        self.compiled_module = None
+        self.class_trait        = class_trait = ClassTrait(self.data.traitable_class, self.data.trait)
+        self.unique_name        = f"{PyClass.name(class_trait.cls).replace('.', '_')}_{self.data.original_method.__name__}"
+        self.compiled_module    = None
 
     #== TCC in-memory compilation → Python callable
 
@@ -130,18 +130,18 @@ class CythonCompiler(TraitableMethodOptimizer):
         Calls PyInit_<module_name>() to obtain the Python module.
         Sets self.compiled_module and self.compiled_getter.
         """
-        c_src = self.generate_c_source()
-        module_name = self.unique_name
-        python_include = sysconfig.get_path('include')
+        c_src           = self.generate_c_source()
+        module_name     = self.unique_name
+        python_include  = sysconfig.get_path('include')
 
         binary = TCC.compile(c_src, include_dirs = [python_include])
 
-        init_ptr = binary.symbol(f'PyInit_{module_name}')
-        result = ctypes.CFUNCTYPE(ctypes.py_object)(init_ptr)()
+        init_ptr    = binary.symbol(f'PyInit_{module_name}')
+        result      = ctypes.CFUNCTYPE(ctypes.py_object)(init_ptr)()
 
         if isinstance(result, types.ModuleType):
-            result.__tcc_binary__ = binary  # -- keep TCC memory alive as long as the module lives
-            self.compiled_module = result
+            result.__tcc_binary__   = binary  # -- keep TCC memory alive as long as the module lives
+            self.compiled_module    = result
             return  getattr(self.compiled_module, self.unique_name) #-- single-phase init, done
 
         #-- multi-phase init: result is a PyModuleDef* returned from PyModuleDef_Init,
@@ -150,23 +150,23 @@ class CythonCompiler(TraitableMethodOptimizer):
         ctypes.c_ssize_t.from_address(id(result)).value += 1
 
         #-- PyModule_FromDefAndSpec is static inline in 3.11 headers; use PyModule_FromDefAndSpec2
-        spec = importlib.util.spec_from_loader(module_name, loader = None)
+        spec        = importlib.util.spec_from_loader(module_name, loader = None)
         spec.origin = '<tcc_jit>'
 
-        api = ctypes.pythonapi
-        api.PyModule_FromDefAndSpec2.restype = ctypes.py_object
-        api.PyModule_FromDefAndSpec2.argtypes = [ctypes.c_void_p, ctypes.py_object, ctypes.c_int]
-        api.PyModule_ExecDef.restype = ctypes.c_int
-        api.PyModule_ExecDef.argtypes = [ctypes.py_object, ctypes.c_void_p]
+        api                                     = ctypes.pythonapi
+        api.PyModule_FromDefAndSpec2.restype    = ctypes.py_object
+        api.PyModule_FromDefAndSpec2.argtypes   = [ctypes.c_void_p, ctypes.py_object, ctypes.c_int]
+        api.PyModule_ExecDef.restype            = ctypes.c_int
+        api.PyModule_ExecDef.argtypes           = [ctypes.py_object, ctypes.c_void_p]
 
         def_ptr = id(result)  # -- PyModuleDef* == id() of the wrapped object
-        module = api.PyModule_FromDefAndSpec2(def_ptr, spec, sys.api_version)
-        rc = api.PyModule_ExecDef(module, def_ptr)
+        module  = api.PyModule_FromDefAndSpec2(def_ptr, spec, sys.api_version)
+        rc      = api.PyModule_ExecDef(module, def_ptr)
         if rc != 0:
             raise RuntimeError(f'PyModule_ExecDef failed for {module_name}')
 
-        module.__tcc_binary__ = binary  #-- keep TCC memory alive as long as the module lives
-        self.compiled_module = module
+        module.__tcc_binary__   = binary  #-- keep TCC memory alive as long as the module lives
+        self.compiled_module    = module
         return getattr(module, self.unique_name)
 
     def generate_c_source(self) -> str:
@@ -174,25 +174,25 @@ class CythonCompiler(TraitableMethodOptimizer):
         return self.cython_to_c('\n'.join(cy_text))
 
     def generate_cython_source(self) -> list:
-        src = textwrap.dedent(inspect.getsource(self.data.original_method))
-        tree = ast.parse(src)
+        src     = textwrap.dedent(inspect.getsource(self.data.original_method))
+        tree    = ast.parse(src)
 
         #-- Walk the AST tree and return a potentially modified copy
 
-        walker = FuncTreeWalker(self.s_pyname_cy_map, self.class_trait.cls)
-        new_tree = walker.visit(tree)
+        walker      = FuncTreeWalker(self.s_pyname_cy_map, self.class_trait.cls)
+        new_tree    = walker.visit(tree)
         ast.fix_missing_locations(new_tree)
 
         #-- Change the name and extract the body
 
-        func_def: ast.FunctionDef = new_tree.body[0]
-        func_def.name = self.unique_name
-        body_lines = ast.unparse(func_def).split('\n')
+        func_def: ast.FunctionDef   = new_tree.body[0]
+        func_def.name               = self.unique_name
+        body_lines                  = ast.unparse(func_def).split('\n')
 
         #-- Produce import lines
 
         self_attr_names = { _self_attr(name) for name in walker.attrs.keys() }
-        all_known = {'self'}
+        all_known       = {'self'}
         all_known.update(self_attr_names, set(walker.locals.keys()))
         other_names = walker.others - all_known
 
@@ -225,8 +225,8 @@ class CythonCompiler(TraitableMethodOptimizer):
         Use 'free' names in the getter (not excluded, not builtins),
         look them up in getter.__globals__, construct import lines.
         """
-        lines = []
-        g = self.data.original_method.__globals__
+        lines   = []
+        g       = self.data.original_method.__globals__
         for name in other_names:
             obj = g.get(name)
             if obj is None:     #-- local, param or a bug in the original getter :-)
@@ -257,8 +257,8 @@ class CythonCompiler(TraitableMethodOptimizer):
 
             result = subprocess.run(
                 [sys.executable, '-m', 'cython', '--3str', str(pyx)],
-                capture_output = True,
-                text = True
+                capture_output  = True,
+                text            = True
             )
             if result.returncode != 0:
                 raise RuntimeError(f'Cython transpilation failed:\n{result.stderr}')

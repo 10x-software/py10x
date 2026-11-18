@@ -50,19 +50,19 @@ class TraitDefinition:
         self.process_args(args, kwargs)
 
         for tag, def_value_fn in self.s_known_attributes.items():
-            def_value = def_value_fn()
-            value = kwargs.pop(tag, def_value)
+            def_value   = def_value_fn()
+            value       = kwargs.pop(tag, def_value)
             if tag == FLAGS_TAG and isinstance(value, BFlags):
                 value = BFlags(value.value())  # copy: avoid mutating a caller's BFlags constant
             setattr(self, tag, value)
 
         self.params = kwargs
-        self.name = None
+        self.name   = None
 
     def __floordiv__(self, comment):
         """Add or replace comment in params with // operator"""
         assert isinstance(comment, str), f'Trait comment must be a string: {comment}'
-        ui_hint = getattr(self, UI_HINT_TAG)
+        ui_hint     = getattr(self, UI_HINT_TAG)
         ui_hint.tip = comment
         return self
 
@@ -70,7 +70,7 @@ class TraitDefinition:
         """Prevent IDE from complaining about calling traits with parameters"""
 
     def set_widget_type(self, widget_type: Ui.WIDGET_TYPE):
-        ui_hint = getattr(self, UI_HINT_TAG)
+        ui_hint             = getattr(self, UI_HINT_TAG)
         ui_hint.widget_type = widget_type
 
     def copy(self) -> TraitDefinition:
@@ -94,29 +94,29 @@ class TraitDefinition:
         kwargs:
             known attributes and extra params (usually empty)
         """
-        the_args = list(args)
-        already_processed = defaultdict(bool)
+        the_args            = list(args)
+        already_processed   = defaultdict(bool)
 
         n = len(the_args)
         while n:
             arg = the_args.pop(0)
-            dt = type(arg)
+            dt  = type(arg)
             if dt is Ui:  # -- only Ui hint is given, no more args
                 assert not already_processed[UI_HINT_TAG], f'Duplicated Ui hint: {args}'
                 assert n == 1, f'No positional args after Ui hint: {args}'
-                kwargs[UI_HINT_TAG] = arg
-                already_processed[UI_HINT_TAG] = True
+                kwargs[UI_HINT_TAG]             = arg
+                already_processed[UI_HINT_TAG]  = True
 
             elif issubclass(dt, BFlags):  # -- no default value => n <=2
                 assert not already_processed[FLAGS_TAG], f'Duplicated T.flags: {args}'
                 assert n <= 2, f'Too many positional args after T.flags: {args}'
-                kwargs[FLAGS_TAG] = BFlags(arg.value())  # copy: RT(T.STICKY) must not mutate T.STICKY
-                already_processed[FLAGS_TAG] = True
+                kwargs[FLAGS_TAG]               = BFlags(arg.value())  # copy: RT(T.STICKY) must not mutate T.STICKY
+                already_processed[FLAGS_TAG]    = True
 
             else:  # -- must be a default value
                 assert not already_processed[DEFAULT_TAG], f'Duplicated default value: {args}'
-                kwargs[DEFAULT_TAG] = arg
-                already_processed[DEFAULT_TAG] = True
+                kwargs[DEFAULT_TAG]             = arg
+                already_processed[DEFAULT_TAG]  = True
 
             n -= 1
 
@@ -136,8 +136,8 @@ class TraitModification(TraitDefinition):
     }
     # fmt: on
     def apply(self, trait_def: TraitDefinition) -> TraitDefinition:
-        res = trait_def.copy()
-        modifiers = self.__class__.s_modifiers
+        res         = trait_def.copy()
+        modifiers   = self.__class__.s_modifiers
         for attr_name in self.__class__.s_known_attributes:
             modified_value = getattr(self, attr_name)
             if modified_value is not Never:

@@ -89,7 +89,7 @@ class InstrumentationRegistry:
         self.target_base_classes: set[type] = set()   #-- empty: auto-discovery instruments NO class until
         # the caller opts a base class in via set_target_base_classes() -- known_module_names coverage is
         # unaffected either way.
-        self.exclude_classes: set[type] = set()   #-- target_base_classes entries not instrumented themselves
+        self.exclude_classes: set[type]     = set()   #-- target_base_classes entries not instrumented themselves
 
         self.instrumented_callables: dict[tuple[object, str], tuple[Callable, Callable]]    = {}  #-- (owner, attr_name) -> (original, instrumented)
         self.instrumented_getters: dict[Callable, Callable]                                 = {}    #-- orig_getter -> instrumented_getter

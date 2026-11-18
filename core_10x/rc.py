@@ -57,7 +57,7 @@ class RC:
         ss = traceback.StackSummary.extract(traceback.walk_tb(ex_info[2]))
         return f'{ex_info[0]} ({ex_info[1]})\n{"".join(ss.format())}'
 
-    def __init__(self, rc, data=None):
+    def __init__(self, rc, data = None):
         self.rc = rc
         if data is None and rc is False:
             data = self.show_exception_info()
@@ -114,7 +114,7 @@ class RC:
             return ''
 
         payload = self.payload
-        n = len(payload)
+        n       = len(payload)
         if n == 0:
             return self.__class__.show_exception_info()
 
@@ -193,7 +193,7 @@ def exc_to_rc(
 ) -> Callable[[...], RC]:
     """Also usable as ``@exc_to_rc(...)`` -- called with no ``func`` yet, it returns itself pre-bound to those kwargs."""
     if func is None:
-        return functools.partial(exc_to_rc, exc_class=exc_class, message=message, show_exception_info=show_exception_info)
+        return functools.partial(exc_to_rc, exc_class = exc_class, message = message, show_exception_info = show_exception_info)
 
     def wrapper(*args, **kwargs) -> RC:
         try:

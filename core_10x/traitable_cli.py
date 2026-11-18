@@ -16,7 +16,7 @@ class TraitableCli(Traitable):
         else:  # -- subordinate parser
             assert _command and _command.isidentifier(), 'command must be a valid identifier'
             cls.s_master.s_switch[_command] = cls
-            cls.s_master = cls
+            cls.s_master                    = cls
 
         super().__init_subclass__(**kwargs)
 
@@ -62,9 +62,9 @@ class TraitableCli(Traitable):
 
     @classmethod
     def instance_from_args(cls, input_args: tuple) -> tuple:
-        args = []
-        trait_values = {}
-        rc = cls.parse(input_args, args, trait_values)
+        args            = []
+        trait_values    = {}
+        rc              = cls.parse(input_args, args, trait_values)
         if not rc:
             return rc, None
 
@@ -91,8 +91,8 @@ class TraitableCli(Traitable):
             except Exception as ex:
                 return RC(False, str(ex)), None
 
-        command, *args = args
-        parser = cls.s_switch.get(command)
+        command, *args  = args
+        parser          = cls.s_switch.get(command)
         if not parser or not issubclass(parser, TraitableCli):
             return RC(False, f'Unknown argument {command}'), None
 

@@ -25,7 +25,8 @@ Implementation: `dev_10x/uv_sync.py`, `dev_10x/xx_promote.py`,
 `xx-style` enforces what Black-style formatters can't keep: `kw = value` in calls and
 parameter defaults, and `=` aligned in groups of consecutive assignments (trait definitions
 included) and of one-per-line kwargs in multi-line calls. The rules are in the module docstring.
-It changes nothing but spaces around `=`, and refuses to write a file whose AST would change.
+It only adds spaces around `=`, never removes them (hand alignment such as a table survives), and
+refuses to write a file whose AST would change.
 
 ```bash
 uv run xx-style            # restyle the tracked .py files in place

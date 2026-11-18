@@ -10,11 +10,11 @@ from core_10x.jit.traitable_method_optimizer import TraitableMethodOptimizer
 
 class NodeTransforfmer(ast.NodeTransformer):
     def __init__(self, traitable_class: type[Traitable], method_name: str):
-        self.traitable_class = traitable_class
-        self.method_name = method_name
-        self.self_attrs = set()
-        self.self_params = []
-        self.njit = True
+        self.traitable_class    = traitable_class
+        self.method_name        = method_name
+        self.self_attrs         = set()
+        self.self_params        = []
+        self.njit               = True
 
     def visit_FunctionDef(self, node):
         node.name = self.method_name
@@ -74,35 +74,35 @@ class NumbaCompiler(TraitableMethodOptimizer):
     def __init__(self, traitable_class: type[Traitable], attr_name: str):
         super().__init__(traitable_class, attr_name)
 
-        self.target_getter_name = f'{self.data.original_method.__name__}_{self.__class__.s_target_getter_suffix}'
-        self.ast_node_transformer = NodeTransforfmer(self.data.traitable_class, self.target_getter_name)
-        self.compiled_getter = None
+        self.target_getter_name     = f'{self.data.original_method.__name__}_{self.__class__.s_target_getter_suffix}'
+        self.ast_node_transformer   = NodeTransforfmer(self.data.traitable_class, self.target_getter_name)
+        self.compiled_getter        = None
 
     @classmethod
     def is_lazy(cls) -> bool:
         return True
 
     def generate_optimized_method(self) -> typing.Callable:
-        tg = self.target_getter()
-        jit = numba.jit(forceobj = True) if not self.ast_node_transformer.njit else numba.njit
-        self.compiled_getter = op_method = jit(tg)
+        tg                      = self.target_getter()
+        jit                     = numba.jit(forceobj = True) if not self.ast_node_transformer.njit else numba.njit
+        self.compiled_getter    = op_method = jit(tg)
         return self.modified_getter(op_method)
 
     def target_getter(self):
-        src = inspect.getsource(self.data.original_method)
-        src = textwrap.dedent(src)
-        tree = ast.parse(src)
+        src     = inspect.getsource(self.data.original_method)
+        src     = textwrap.dedent(src)
+        tree    = ast.parse(src)
 
         transformer = self.ast_node_transformer
-        new_tree = transformer.visit(tree)
+        new_tree    = transformer.visit(tree)
         ast.fix_missing_locations(new_tree)
         self.target_ast_tree = new_tree
 
         code = compile(new_tree, '<jit>', 'exec')
 
-        g = self.data.original_method.__globals__
-        target_getter_name = self.target_getter_name
-        ns = {}
+        g                   = self.data.original_method.__globals__
+        target_getter_name  = self.target_getter_name
+        ns                  = {}
         exec(code, g, ns)
         target_getter = ns[target_getter_name]
 

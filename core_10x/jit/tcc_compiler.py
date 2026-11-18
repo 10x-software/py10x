@@ -30,10 +30,10 @@ class _InMemBinary:
         return ptr
 
 class TCC:
-    _OUTPUT_MEMORY = 1
-    _RELOCATE_AUTO = ctypes.c_void_p(1)
+    _OUTPUT_MEMORY  = 1
+    _RELOCATE_AUTO  = ctypes.c_void_p(1)
 
-    s_lib = None
+    s_lib           = None
     @classmethod
     @cache
     def _init(cls):
@@ -59,9 +59,9 @@ class TCC:
         cs = ctypes.c_char_p
 
         def bind(name, restype, *argtypes):
-            f = getattr(L, name)
-            f.restype  = restype
-            f.argtypes = list(argtypes)
+            f           = getattr(L, name)
+            f.restype   = restype
+            f.argtypes  = list(argtypes)
 
         bind('tcc_new',              vp)
         bind('tcc_delete',           None, vp)
@@ -98,9 +98,9 @@ class TCC:
     ) -> _InMemBinary:
         cls._init()
 
-        L      = cls.s_lib
-        state  = L.tcc_new()
-        errors: list[str] = []
+        L                   = cls.s_lib
+        state               = L.tcc_new()
+        errors: list[str]   = []
 
         if not state:
             raise RuntimeError('tcc_new() returned NULL')
@@ -108,7 +108,7 @@ class TCC:
         #-- capture TCC error messages via callback
         _ErrorFunc = ctypes.CFUNCTYPE(None, ctypes.c_void_p, ctypes.c_char_p)
         def _on_error(opaque, msg):
-            errors.append(msg.decode(errors='replace') if msg else '')
+            errors.append(msg.decode(errors = 'replace') if msg else '')
         error_cb = _ErrorFunc(_on_error)   #-- keep alive for the duration
         L.tcc_set_error_func(state, None, error_cb)
 
@@ -129,7 +129,7 @@ class TCC:
 
             rc = L.tcc_compile_string(state, c_source.encode())
             if rc != 0:
-                msg = '\n'.join(errors)
+                msg     = '\n'.join(errors)
                 context = _tcc_error_context(c_source, errors)
                 raise RuntimeError(f'TCC compile failed:\n{msg}{context}')
 
@@ -142,15 +142,15 @@ class TCC:
             if rc != 0:
                 raise RuntimeError('TCC relocate failed:\n' + '\n'.join(errors))
 
-            return _InMemBinary(L, binary_handle=state)
+            return _InMemBinary(L, binary_handle = state)
         except Exception:
             L.tcc_delete(state)
             raise
 
 def _tcc_error_context(c_source: str, errors: list[str], radius: int = 3) -> str:
     """Extract source lines around line numbers mentioned in TCC error messages."""
-    src_lines = c_source.split('\n')
-    seen: set[int] = set()
+    src_lines           = c_source.split('\n')
+    seen: set[int]      = set()
     snippets: list[str] = []
     for msg in errors:
         m = re.search(r'<string>:(\d+):', msg)
@@ -159,9 +159,9 @@ def _tcc_error_context(c_source: str, errors: list[str], radius: int = 3) -> str
             if lineno in seen:
                 continue
             seen.add(lineno)
-            lo = max(0, lineno - radius)
-            hi = min(len(src_lines), lineno + radius + 1)
-            block = []
+            lo      = max(0, lineno - radius)
+            hi      = min(len(src_lines), lineno + radius + 1)
+            block   = []
             for i in range(lo, hi):
                 marker = '=>' if i == lineno else '  '
                 block.append(f'  {marker} {i+1:4d}: {src_lines[i]}')
@@ -174,9 +174,9 @@ def _inject_dll_exports(L: ctypes.CDLL, state: int, dll_name: str) -> int:
     exported symbol into TCC via tcc_add_symbol.
     Returns the number of symbols injected.
     """
-    k32 = ctypes.WinDLL('kernel32', use_last_error=True)
-    k32.GetModuleHandleA.restype  = ctypes.c_void_p
-    k32.GetModuleHandleA.argtypes = [ctypes.c_char_p]
+    k32                             = ctypes.WinDLL('kernel32', use_last_error = True)
+    k32.GetModuleHandleA.restype    = ctypes.c_void_p
+    k32.GetModuleHandleA.argtypes   = [ctypes.c_char_p]
 
     base = k32.GetModuleHandleA(dll_name.encode())
     if not base:
@@ -196,16 +196,16 @@ def _inject_dll_exports(L: ctypes.CDLL, state: int, dll_name: str) -> int:
     if not export_rva:
         return 0
 
-    exp = base + export_rva
-    num_names    = ctypes.c_uint32.from_address(exp + 24).value
-    funcs_rva    = ctypes.c_uint32.from_address(exp + 28).value
-    names_rva    = ctypes.c_uint32.from_address(exp + 32).value
-    ordinals_rva = ctypes.c_uint32.from_address(exp + 36).value
+    exp             = base + export_rva
+    num_names       = ctypes.c_uint32.from_address(exp + 24).value
+    funcs_rva       = ctypes.c_uint32.from_address(exp + 28).value
+    names_rva       = ctypes.c_uint32.from_address(exp + 32).value
+    ordinals_rva    = ctypes.c_uint32.from_address(exp + 36).value
 
     count = 0
     for i in range(num_names):
         name_rva  = ctypes.c_uint32.from_address(base + names_rva    + i * 4).value
-        sym_name  = ctypes.string_at(base + name_rva).decode('ascii', errors='replace')
+        sym_name  = ctypes.string_at(base + name_rva).decode('ascii', errors = 'replace')
         ordinal   = ctypes.c_uint16.from_address(base + ordinals_rva + i * 2).value
         func_rva  = ctypes.c_uint32.from_address(base + funcs_rva    + ordinal * 4).value
         L.tcc_add_symbol(state, sym_name.encode(), ctypes.c_void_p(base + func_rva))

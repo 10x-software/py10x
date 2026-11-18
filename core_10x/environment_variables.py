@@ -48,8 +48,8 @@ class _EnvVarsMeta(type):
 class _EnvVars(metaclass = _EnvVarsMeta):
     class Var:
         def __init__(self, env_var_class, attr_name: str, value = None):
-            self.env_var_class = env_var_class
-            self.attr_name = attr_name
+            self.env_var_class  = env_var_class
+            self.attr_name      = attr_name
             if value is None:
                 value = getattr(env_var_class, attr_name)
             self.value = value
@@ -58,8 +58,8 @@ class _EnvVars(metaclass = _EnvVarsMeta):
             return bool(self.value)
 
         def check(self, f = None, err = 'is not defined'):
-            value = self.value
-            rc = bool(value) if not f else f(value)
+            value   = self.value
+            rc      = bool(value) if not f else f(value)
             if not rc:
                 raise ValueError(f'{self.env_var_class.var_name(self.attr_name)} {err}')
 
@@ -118,32 +118,32 @@ class _EnvVars(metaclass = _EnvVarsMeta):
         return cls.create_var_name(cls.s_env_name, var_or_name)
 
     s_env_name: str = None
-    var = None
+    var             = None
     def __init_subclass__(cls, env_name: str = None, **kwargs):
         assert env_name, 'env_name is required'
 
-        cls.s_env_name = env_name
-        annotations = cls.__annotations__
+        cls.s_env_name  = env_name
+        annotations     = cls.__annotations__
         assert annotations, 'No variables are defined'
 
         cls_dict = cls.__dict__
         for name, data_type in annotations.items():
             default_value = cls_dict.get(name)
             if default_value is None:  # -- no default value, let's locate the getter
-                f_get_name = f'{name}_get'
-                f_get = cls_dict.get(f_get_name)
+                f_get_name  = f'{name}_get'
+                f_get       = cls_dict.get(f_get_name)
                 assert f_get, f'Variable {name} must define either a default value or a getter {f_get_name}(cls)'
                 # -- TODO: check signature: f_get(cls)
             else:
                 f_get = lambda cls, def_value = default_value: def_value
 
-            f_apply_name = f'{name}_apply'
-            f_apply = cls_dict.get(f_apply_name)  # -- f(cls, value)
+            f_apply_name    = f'{name}_apply'
+            f_apply         = cls_dict.get(f_apply_name)  # -- f(cls, value)
 
-            var_name = cls.create_var_name(env_name, name)
-            full_getter = cls.full_getter(data_type, var_name, f_get, f_apply)
-            prop = classproperty(full_getter)
-            prop.f_apply = f_apply
+            var_name        = cls.create_var_name(env_name, name)
+            full_getter     = cls.full_getter(data_type, var_name, f_get, f_apply)
+            prop            = classproperty(full_getter)
+            prop.f_apply    = f_apply
             setattr(cls, name, prop)
 
             cls.var = cls.AccessVar(cls)
@@ -153,8 +153,8 @@ class _EnvVars(metaclass = _EnvVarsMeta):
             self.env_vars_class = env_vars_class
 
         def __getattr__(self, item):
-            cls = self.env_vars_class
-            value = getattr(cls, item)
+            cls     = self.env_vars_class
+            value   = getattr(cls, item)
             if value is None:
                 raise AssertionError(f'Unknown var name {item}')
 
@@ -193,6 +193,6 @@ class EnvVars(_EnvVars, env_name = 'XX'):
         XDateTime.set_default_format(value)
 
     def sdlc_area_get(self) -> str:
-        ba = self.build_area
+        ba  = self.build_area
         pba = self.parent_build_area
         return f'{ba}/{pba}' if pba else ba

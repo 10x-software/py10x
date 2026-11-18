@@ -14,13 +14,13 @@ from core_10x.jit.trait_getter_jax_compiler import JaxCompiler
 
 
 class TraitableOptimizer:
-    GENERAL_PY  = None
-    CYTHON_TCC  = CythonCompiler
-    NUMBA       = NumbaCompiler
-    JAX         = JaxCompiler
-    AADT        = None
-    _BEST       = XNone
-    s_opt_classes = {CYTHON_TCC, NUMBA, JAX}
+    GENERAL_PY      = None
+    CYTHON_TCC      = CythonCompiler
+    NUMBA           = NumbaCompiler
+    JAX             = JaxCompiler
+    AADT            = None
+    _BEST           = XNone
+    s_opt_classes   = {CYTHON_TCC, NUMBA, JAX}
     # s_opt_classes = {CYTHON_TCC, NUMBA}
 
     @classmethod
@@ -58,9 +58,9 @@ class TraitableOptimizer:
         attr_name: str,
         mt: type[TraitableMethodOptimizer],
     ) -> tuple[type[TraitableMethodOptimizer], Callable]:
-        data: TraitableMethodData = TraitableMethodData.record(traitable_class, attr_name)
-        op_rec: MethodOptimizationRecord = TraitableMethodOptimizer.optimization_record(traitable_class, attr_name)
-        op_method = op_rec.get_optimization(mt) if mt else op_rec.original_method
+        data: TraitableMethodData           = TraitableMethodData.record(traitable_class, attr_name)
+        op_rec: MethodOptimizationRecord    = TraitableMethodOptimizer.optimization_record(traitable_class, attr_name)
+        op_method                           = op_rec.get_optimization(mt) if mt else op_rec.original_method
         if not op_method:
             return (None, None)
 
@@ -85,9 +85,9 @@ class TraitableOptimizer:
         with GRAPH_OFF():
             if num_runs < 1:
                 num_runs = 1
-            traitable_class = test_obj.__class__
-            data = TraitableMethodData.record(traitable_class, attr_name)
-            op_rec: MethodOptimizationRecord = MethodOptimizationRecord.instance(data.original_method)
+            traitable_class                     = test_obj.__class__
+            data                                = TraitableMethodData.record(traitable_class, attr_name)
+            op_rec: MethodOptimizationRecord    = MethodOptimizationRecord.instance(data.original_method)
             if not force:
                 best = op_rec.get_best_optimization()
                 if best[0]:
@@ -113,8 +113,8 @@ class TraitableOptimizer:
                             print(f'  collecting performance data for {mt_name}')
                         r = test_obj.get_value(attr_name)    # triggers lazy JIT — may raise here
 
-                        results[op_class] = res = [None, 0.]
-                        res[0] = r
+                        results[op_class]   = res = [None, 0.]
+                        res[0]              = r
                         with PerfTimer() as clock:
                             for i in range(num_runs):
                                 ri = test_obj.get_value(attr_name)
@@ -139,8 +139,8 @@ class TraitableOptimizer:
             dt = clock.elapsed * num_runs
             print(f'pure python dt = {clock.elapsed/1e3:.2f} us')
 
-            min_dt = XInf
-            chosen_class = None
+            min_dt          = XInf
+            chosen_class    = None
             for op_class, (val, elapsed) in results.items():
                 if val != value:
                     raise ValueError(f'{op_class}: {val} != {value}')
@@ -149,8 +149,8 @@ class TraitableOptimizer:
                     print(f'  {op_class.__name__}: {elapsed/1e6} ms  (acc = {dt/elapsed: .1f})')
 
                 if elapsed < min_dt:
-                    min_dt = elapsed
-                    chosen_class = op_class
+                    min_dt          = elapsed
+                    chosen_class    = op_class
 
             if not chosen_class:
                 return (None, None)

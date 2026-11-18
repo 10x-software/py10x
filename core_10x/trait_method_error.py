@@ -7,13 +7,13 @@ class TraitMethodError(Exception):
     """
 
     @staticmethod
-    def create(traitable, traitable_class, trait_name: str, method_name: str, value=XNone, other_exc: Exception = None, args=()):
+    def create(traitable, traitable_class, trait_name: str, method_name: str, value = XNone, other_exc: Exception = None, args = ()):
         assert other_exc
 
         if isinstance(other_exc, TraitMethodError):
             return other_exc
 
-        msg = []
+        msg             = []
         traitable_class = traitable_class or traitable.__class__
         msg.append(f'Failed in {traitable_class}.{trait_name}.{method_name}')
         if traitable:

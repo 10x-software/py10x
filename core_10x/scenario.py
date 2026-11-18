@@ -11,9 +11,9 @@ class Scenario:
             s = object.__new__(cls)
             if name:
                 cls.s_instances[name] = s
-            s.name = name
-            s.kwargs = dict(debug=debug, convert_values=convert_values)
-            s.btp = None
+            s.name      = name
+            s.kwargs    = dict(debug = debug, convert_values = convert_values)
+            s.btp       = None
 
         return s
 

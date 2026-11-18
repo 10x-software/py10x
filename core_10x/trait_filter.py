@@ -54,8 +54,8 @@ class _filter(ABC):
     def ibis(self, ibis_collection, field_name: str = None, trait_dir: dict[str, Trait] | None = None): ...
 
 
-_ARRAY_TRAITS = (list_trait, any_trait)
-_NOT_ARRAY = {LABEL.NOT: {'$type': 'array'}}
+_ARRAY_TRAITS   = (list_trait, any_trait)
+_NOT_ARRAY      = {LABEL.NOT: {'$type': 'array'}}
 
 def _trait_of(field_name: str | None, trait_dir: dict[str, Trait] | None) -> Trait | None:
     return trait_dir.get(field_name) if trait_dir and field_name else None
@@ -89,9 +89,9 @@ def _ibis_via_in(trait: Trait | None, value) -> bool:
 
 def _mongo_items_expr(field_name: str, values, serialized: list, exposed: list) -> dict:
     #-- Skips the class id. XNone serializes to None too, but means "unset" rather than a None item.
-    path = f'${field_name}'
-    items = {'$cond': [{'$isArray': path}, {'$slice': [path, 1, 2**31 - 1]}, []]}
-    unset = {'$eq': [{'$ifNull': [path, None]}, None]}
+    path    = f'${field_name}'
+    items   = {'$cond': [{'$isArray': path}, {'$slice': [path, 1, 2**31 - 1]}, []]}
+    unset   = {'$eq': [{'$ifNull': [path, None]}, None]}
     return {LABEL.OR: [
         unset if v is XNone else {'$in': [{'$literal': serial}, items]}
         for v, serial in zip(values, serialized, strict = True) if serial in exposed
@@ -106,20 +106,20 @@ def _mongo_match(field_name: str, trait_dir: dict[str, Trait] | None, values) ->
     trait = _trait_of(field_name, trait_dir)
     if not isinstance(trait, _ARRAY_TRAITS):
         return None
-    serialized = [_serialize_filter_value(trait, v) for v in values]
-    is_any = isinstance(trait, any_trait)
-    exposed = [v for v in serialized if (not isinstance(v, (list, tuple)) if is_any else v is None or isinstance(v, str))]
+    serialized  = [_serialize_filter_value(trait, v) for v in values]
+    is_any      = isinstance(trait, any_trait)
+    exposed     = [v for v in serialized if (not isinstance(v, (list, tuple)) if is_any else v is None or isinstance(v, str))]
     if not exposed:
         return None
-    match = {field_name: {LABEL.IN: exposed, **_NOT_ARRAY}} if is_any else (
+    match   = {field_name: {LABEL.IN: exposed, **_NOT_ARRAY}} if is_any else (
         {field_name: {LABEL.IN: exposed}, '$expr': _mongo_items_expr(field_name, values, serialized, exposed)}
     )
-    others = [v for v in serialized if v not in exposed]
+    others  = [v for v in serialized if v not in exposed]
     return {LABEL.OR: [{field_name: {LABEL.IN: others}}, match]} if others else match
 
 class Op(_filter, ABC):
-    label = ''
-    s_field_op = True
+    label       = ''
+    s_field_op  = True
 
     def negate(self):
         return None
@@ -130,7 +130,7 @@ class Op(_filter, ABC):
         cls.label = label
 
     def __new__(cls, expression = None):
-        obj = super().__new__(cls)
+        obj             = super().__new__(cls)
         obj.right_value = expression
         return obj
 
@@ -151,8 +151,8 @@ class Op(_filter, ABC):
         return self._eval(left_value, self.right_value)
 
     def ibis(self, ibis_collection, field_name: str = None, trait_dir: dict[str, Trait] | None = None):
-        trait = _trait_of(field_name, trait_dir)
-        col, (right,) = ibis_collection.ibis_compare_pair(field_name, trait, [self.serialize_right_value(field_name, trait_dir)])
+        trait           = _trait_of(field_name, trait_dir)
+        col, (right,)   = ibis_collection.ibis_compare_pair(field_name, trait, [self.serialize_right_value(field_name, trait_dir)])
         return self._eval(col, right)
 
 class NOT_EMPTY(Op, label = ''):
@@ -210,9 +210,9 @@ class NE(_ValueOp):
         trait = _trait_of(field_name, trait_dir)
         if _ibis_via_in(trait, self.right_value):
             return NIN([self.right_value]).ibis(ibis_collection, field_name, trait_dir)
-        serialized = self.serialize_right_value(field_name, trait_dir)
-        col, (right,) = ibis_collection.ibis_compare_pair(field_name, trait, [serialized])
-        cmp = col != right
+        serialized      = self.serialize_right_value(field_name, trait_dir)
+        col, (right,)   = ibis_collection.ibis_compare_pair(field_name, trait, [serialized])
+        cmp             = col != right
         return cmp if serialized is None else col.isnull() | cmp
 
 class _Ordered(Op, label = ''):
@@ -288,16 +288,16 @@ class IN(_ValueOp):
 
         ``isin_pred`` is None when every value was ``None``. Callers handle an empty list first.
         """
-        trait = _trait_of(field_name, trait_dir)
-        items, values = [], []
+        trait           = _trait_of(field_name, trait_dir)
+        items, values   = [], []
         for value, serialized in zip(self.right_value, self.serialize_right_value(field_name, trait_dir), strict = True):
             (items if _is_list_item(trait, value) else values).append(serialized)
-        concrete = [v for v in values if v is not None]
-        col, right = ibis_collection.ibis_compare_pair(field_name, trait, concrete)
-        pred = col.isin(right) if concrete else None
+        concrete    = [v for v in values if v is not None]
+        col, right  = ibis_collection.ibis_compare_pair(field_name, trait, concrete)
+        pred        = col.isin(right) if concrete else None
         if items:
-            contains = ibis_collection.ibis_list_contains(field_name, items)
-            pred = contains if pred is None else pred | contains
+            contains    = ibis_collection.ibis_list_contains(field_name, items)
+            pred        = contains if pred is None else pred | contains
         return col, pred, len(concrete) != len(values)
 
     def ibis(self, ibis_collection, field_name: str = None, trait_dir: dict[str, Trait] | None = None):
@@ -332,9 +332,9 @@ class BETWEEN(Op, label = ''):
         obj = super().__new__(cls)
         assert isinstance(bounds, tuple) and len(bounds) == 2, f'{cls.__name__} - (bool, bool) is expected for bounds'
 
-        bound_a, bound_b = bounds
-        obj.left = GE(a) if bound_a else GT(a)
-        obj.right = LE(b) if bound_b else LT(b)
+        bound_a, bound_b    = bounds
+        obj.left            = GE(a) if bound_a else GT(a)
+        obj.right           = LE(b) if bound_b else LT(b)
         return obj
 
     def eval(self, x, field_name: str = None, trait_dir: dict[str, Trait] | None = None) -> bool:
@@ -364,11 +364,11 @@ class FALSE(_filter):
         return AND()  # match-all
 
 
-class BoolOp(Op, ABC, label=''):
-    s_field_op = False
-    s_false: FALSE = FALSE()
-    _op = None  # operator.and_ or operator.or_, set by subclasses
-    _identity = None  # reduce identity: True for AND, False for OR
+class BoolOp(Op, ABC, label = ''):
+    s_field_op      = False
+    s_false: FALSE  = FALSE()
+    _op             = None  # operator.and_ or operator.or_, set by subclasses
+    _identity       = None  # reduce identity: True for AND, False for OR
 
     @abstractmethod
     def negate(self) -> _filter: ...
@@ -385,7 +385,7 @@ class BoolOp(Op, ABC, label=''):
         return obj
 
     def prefix_notation(self, field_name: str = None, trait_dir: dict[str, Trait] | None = None) -> dict:
-        ident = self._identity
+        ident   = self._identity
         rvalues = [pn for e in self.right_value if (pn := e.prefix_notation(field_name, trait_dir)) or not ident]
         return {self.label: rvalues} if rvalues and all(rvalues) else {}
 
@@ -396,8 +396,8 @@ class BoolOp(Op, ABC, label=''):
         return reduce(self._op, (e.ibis(ibis_collection, field_name, trait_dir) for e in self.right_value), self._identity)
 
 class AND(BoolOp):
-    _op = operator.and_
-    _identity = True
+    _op         = operator.and_
+    _identity   = True
 
     @classmethod
     def _simplify(cls, expressions, false):
@@ -407,8 +407,8 @@ class AND(BoolOp):
         return OR(*(NOT(child) for child in self.right_value))
 
 class OR(BoolOp):
-    _op = operator.or_
-    _identity = False
+    _op         = operator.or_
+    _identity   = False
 
     @classmethod
     def _simplify(cls, expressions, false):
@@ -420,9 +420,9 @@ class OR(BoolOp):
 
 class f(_filter):
     def __init__(self, _f: f = None, trait_dir: dict[str, Trait] | None = None, **named_expressions):
-        self.filter = _f
-        self.trait_dir = trait_dir
-        self.named_expressions = {
+        self.filter             = _f
+        self.trait_dir          = trait_dir
+        self.named_expressions  = {
             name: expression if isinstance(expression, _filter) else EQ(expression) for name, expression in named_expressions.items()
         }
         # Mongo has no field-level $and/$or. Combine filters, e.g. OR(f(x=1), f(x=2)), or use x=IN([...]).
@@ -434,10 +434,10 @@ class f(_filter):
         ``empty`` is the no-constraint result when both sides are absent (``f()``): True for
         eval/ibis, ``{}`` for prefix_notation.
         """
-        td = self.trait_dir or trait_dir
-        f = filter_fn(self.filter, td) if self.filter else None
-        n = [(name, r) for name, op in self.named_expressions.items() if (r := named_fn(name, op, td)) is not None]
-        r = reduce_fn(n) if n else None
+        td  = self.trait_dir or trait_dir
+        f   = filter_fn(self.filter, td) if self.filter else None
+        n   = [(name, r) for name, op in self.named_expressions.items() if (r := named_fn(name, op, td)) is not None]
+        r   = reduce_fn(n) if n else None
         if f is not None and r is not None:
             return combine_fn(f, r)
         if f is not None:
@@ -459,7 +459,7 @@ class f(_filter):
     def prefix_notation(self, field_name: str = None, trait_dir: dict[str, Trait] | None = None) -> dict:
         return self._apply(
             trait_dir,
-            filter_fn   = lambda filt, td: filt.prefix_notation(trait_dir=td),
+            filter_fn   = lambda filt, td: filt.prefix_notation(trait_dir = td),
             named_fn    = lambda name, op, td: op.prefix_notation(name, td, mongo_doc = True),
             reduce_fn   = lambda parts: parts[0][1] if len(parts) == 1 else {AND.label: [document for _, document in parts]},
             combine_fn  = lambda a, b: {AND.label: [a, b]},
@@ -469,18 +469,18 @@ class f(_filter):
     def ibis(self, ibis_collection, field_name: str = None, trait_dir: dict[str, Trait] | None = None):
         return self._apply(
             trait_dir,
-            filter_fn=lambda filt, td: filt.ibis(ibis_collection, trait_dir=td),
-            named_fn=lambda name, op, td: op.ibis(ibis_collection, name, td),
-            reduce_fn=lambda parts: reduce(operator.and_, map(operator.itemgetter(1), parts)) if parts else True,
-            combine_fn=operator.and_,
-            empty=True,
+            filter_fn   = lambda filt, td: filt.ibis(ibis_collection, trait_dir = td),
+            named_fn    = lambda name, op, td: op.ibis(ibis_collection, name, td),
+            reduce_fn   = lambda parts: reduce(operator.and_, map(operator.itemgetter(1), parts)) if parts else True,
+            combine_fn  = operator.and_,
+            empty       = True,
         )
 
     def negate(self) -> _filter:
         """An ``f`` is the conjunction of its fields, so its negation is an OR."""
-        parts = [f(**{name: NOT(op)}, trait_dir=self.trait_dir) for name, op in self.named_expressions.items()]
+        parts = [f(**{name: NOT(op)}, trait_dir = self.trait_dir) for name, op in self.named_expressions.items()]
         if self.filter is not None:
-            parts.append(f(NOT(self.filter), trait_dir=self.trait_dir))
+            parts.append(f(NOT(self.filter), trait_dir = self.trait_dir))
         return OR(*parts) if parts else BoolOp.s_false
 
 class NOT(Op):

@@ -51,9 +51,9 @@ class ResourceType:
         assert xrt is None, f"Resource type '{name}' has already been created"
         self.s_dir[name] = xrt
 
-        self.name = name
-        self.resource_stack = deque()
-        self.resource_drivers = {}
+        self.name               = name
+        self.resource_stack     = deque()
+        self.resource_drivers   = {}
 
     # def __call__(self, *args, **kwargs):
     #     return ResourceRequirements(self, *args, **kwargs)
@@ -96,7 +96,7 @@ class ResourceType:
 class ResourceSpec:
     def __init__(self, resource_class, kwargs: dict):
         self.resource_class = resource_class
-        self.kwargs = kwargs
+        self.kwargs         = kwargs
 
     def hostname(self) -> str | None:
         return self.kwargs.get(Resource.HOSTNAME_TAG)
@@ -111,8 +111,8 @@ class ResourceSpec:
             self.kwargs[self.resource_class.PASSWORD_TAG] = password
 
     def uri(self) -> str:
-        kwargs = dict(self.kwargs)
-        protocol = kwargs.pop(Resource.PROTOCOL_TAG, None)
+        kwargs      = dict(self.kwargs)
+        protocol    = kwargs.pop(Resource.PROTOCOL_TAG, None)
         if not protocol:
             raise ValueError('URI protocol is missing.')
 
@@ -120,7 +120,7 @@ class ResourceSpec:
         password = kwargs.pop(Resource.PASSWORD_TAG, None)
         userinfo = ''
         if username:
-            userinfo = quote(username, safe='')
+            userinfo = quote(username, safe = '')
             if password:
                 userinfo += f':{quote(password, safe="")}'
             userinfo += '@'
@@ -130,18 +130,18 @@ class ResourceSpec:
         if port is None:  # add default port
             port = self.resource_class.s_instance_kwargs_map.get(Resource.PORT_TAG, (None, None))[1]
 
-        dbname = kwargs.pop(Resource.DBNAME_TAG, None)
-        query = kwargs.pop(Resource.QUERY_TAG, '')
-        fragment = kwargs.pop(Resource.FRAGMENT_TAG, '')
+        dbname      = kwargs.pop(Resource.DBNAME_TAG, None)
+        query       = kwargs.pop(Resource.QUERY_TAG, '')
+        fragment    = kwargs.pop(Resource.FRAGMENT_TAG, '')
         if kwargs:
-            extra = urlencode({k: v if isinstance(v, str) else json.dumps(v) for k, v in kwargs.items()}, doseq=True)
+            extra = urlencode({k: v if isinstance(v, str) else json.dumps(v) for k, v in kwargs.items()}, doseq = True)
             query = f'{query}&{extra}' if query else extra
 
         # -- always emit '//' so empty-netloc URIs like duckdb:// or duckdb:///path round-trip correctly;
         # -- urlunsplit drops '//' for unknown schemes when netloc is empty
-        netloc = userinfo + (f'{host}:{port}' if port is not None else host)
-        path = f'{"/" if dbname[0] != "/" else ""}{dbname}' if dbname else ''
-        url = f'{protocol}://{netloc}{path}'
+        netloc  = userinfo + (f'{host}:{port}' if port is not None else host)
+        path    = f'{"/" if dbname[0] != "/" else ""}{dbname}' if dbname else ''
+        url     = f'{protocol}://{netloc}{path}'
         if query:
             url += f'?{query}'
         if fragment:
@@ -185,10 +185,10 @@ class Resource(abc.ABC):
         PORT_TAG:      (PORT_TAG,     None),
     }
     # fmt: on
-    s_resource_type: ResourceType = None
-    s_driver_name: str = None
-    s_login_label = 'login name'
-    s_secret_label = 'password'
+    s_resource_type: ResourceType   = None
+    s_driver_name: str              = None
+    s_login_label                   = 'login name'
+    s_secret_label                  = 'password'
 
     @classmethod
     def parse_uri(cls, uri: str) -> dict:
@@ -237,7 +237,7 @@ class Resource(abc.ABC):
             assert resource_type and isinstance(resource_type, ResourceType), 'instance of ResourceType is expected'
             assert resource_name is None, f'May not define Resource name for top class of Resource Type: {resource_type}'
             cls.s_resource_type = resource_type
-            cls.s_instances = {}
+            cls.s_instances     = {}
 
         else:  # -- a Resource of a particular resource type, or an abstract intermediate
             assert resource_type is None, f'resource_type is already set: {cls.s_resource_type}'
@@ -292,8 +292,8 @@ class Resource(abc.ABC):
         assert cls is not Resource, 'This method must be called for a Resource subclass, e.g., TsStore'
 
         spec = cls.spec_from_uri(uri)
-        spec.set_credentials(username=username, password=password)
-        return spec.resource_class.instance(**spec.kwargs, _cache=_cache, _create_if_needed=_create_if_needed)
+        spec.set_credentials(username = username, password = password)
+        return spec.resource_class.instance(**spec.kwargs, _cache = _cache, _create_if_needed = _create_if_needed)
 
     @classmethod
     def spec_from_uri(cls, uri: str) -> ResourceSpec:
@@ -337,7 +337,7 @@ class Resource(abc.ABC):
             raise OSError(f'Failed to connect to {cls.s_driver_name}({args}, {translated_kwargs})\nOriginal Exception:\n{e!s}') from e
 
     @classmethod
-    def standard_key(cls, *args, password=None, **kwargs) -> tuple:
+    def standard_key(cls, *args, password = None, **kwargs) -> tuple:
         return standard_key(args, kwargs)
 
 

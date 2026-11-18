@@ -60,8 +60,8 @@ class FunctionalAccountKeyring(keyring.backend.KeyringBackend):
         # selects it. Only TypeError from that probe is suppressed, so __init__ must never raise --
         # starting empty on a missing env var/file (rather than raising) satisfies that too.
         if entries is None:
-            secrets_file = os.environ.get(SECRETS_FILE_ENV_VAR)
-            entries = self._read_manifest(secrets_file) if secrets_file else {}
+            secrets_file    = os.environ.get(SECRETS_FILE_ENV_VAR)
+            entries         = self._read_manifest(secrets_file) if secrets_file else {}
         self._entries: dict[tuple[str, str], str] = dict(entries)
 
     @staticmethod
@@ -93,7 +93,7 @@ class FunctionalAccountKeyring(keyring.backend.KeyringBackend):
     @classmethod
     def from_secrets_file(cls, secrets_file: str | Path) -> FunctionalAccountKeyring:
         """Build a backend from an explicit manifest path, independent of the environment."""
-        return cls(entries=cls._read_manifest(secrets_file))
+        return cls(entries = cls._read_manifest(secrets_file))
 
     def get_password(self, service: str, username: str) -> str | None:
         return self._entries.get((service, username))

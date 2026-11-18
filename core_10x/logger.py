@@ -21,8 +21,8 @@ class PerfTimer:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.end = time.perf_counter_ns()
-        self.elapsed = self.end - self.start
+        self.end        = time.perf_counter_ns()
+        self.elapsed    = self.end - self.start
 
 class LogMessage(Traitable, custom_collection = True, keep_history = False):
     ns: int             = T(T.ID)
@@ -79,20 +79,20 @@ class Logger:
         started_at: datetime = None,
         do_print = True
     ):
-        self.app_name = app_name
-        self.log_level = log_level
+        self.app_name   = app_name
+        self.log_level  = log_level
         if started_at is None:
             started_at = datetime.now(tz = UTC)
         self.started_at = started_at
-        pid = os.getpid()
-        self.ps = psutil.Process(pid)
+        pid             = os.getpid()
+        self.ps         = psutil.Process(pid)
 
-        cls = self.__class__
-        full_name = cls.collection_name(app_name, started_at, pid)
+        cls         = self.__class__
+        full_name   = cls.collection_name(app_name, started_at, pid)
         cls.log_store()     #-- fail early, in the parent, if needed: an error in the child would go unnoticed
-        self.queue = mp.Queue()
-        self.proc = mp.Process(target = cls.logger_process, args = (self.queue, full_name, do_print))
-        self.proc.daemon = True
+        self.queue          = mp.Queue()
+        self.proc           = mp.Process(target = cls.logger_process, args = (self.queue, full_name, do_print))
+        self.proc.daemon    = True
         self.proc.start()
 
     def log(self, data: dict):
@@ -129,7 +129,7 @@ class LOG:
         global LOGGER
         if LOGGER is None:
             LOGGER = Logger(app_name, log_level.value)
-            LOG.BRIEF(datetime.now(tz=UTC))
+            LOG.BRIEF(datetime.now(tz = UTC))
 
     @staticmethod
     def end():

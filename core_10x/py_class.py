@@ -34,7 +34,7 @@ class PyClass:
 
     @staticmethod
     def top_level_package(cls) -> str:
-        return cls.__module__.split('.', maxsplit=1)[0]
+        return cls.__module__.split('.', maxsplit = 1)[0]
 
     # ===================================================================================================================
     #   Finding classes/symbols in the code base
@@ -49,7 +49,7 @@ class PyClass:
     @cache
     def find_symbol(canonical_symbol_name: str):
         try:
-            module_name, symbol_name = canonical_symbol_name.rsplit('.', maxsplit=1)
+            module_name, symbol_name = canonical_symbol_name.rsplit('.', maxsplit = 1)
         except Exception as e:
             raise ValueError(f"Invalid canonical_symbol_name = '{canonical_symbol_name}'") from e
 
@@ -70,9 +70,9 @@ class PyClass:
 
     @staticmethod
     def find_by_topic_and_suffix(topic: str, suffix: str, package_name: str, module_name: str, class_name: str):
-        module_name_with_topic = f'{module_name}_{topic}'
-        class_name_with_suffix = f'{class_name}{suffix}'
-        found = PyClass.find(f'{package_name}.{module_name_with_topic}.{class_name_with_suffix}')
+        module_name_with_topic  = f'{module_name}_{topic}'
+        class_name_with_suffix  = f'{class_name}{suffix}'
+        found                   = PyClass.find(f'{package_name}.{module_name_with_topic}.{class_name_with_suffix}')
         if not found:
             found = PyClass.find(f'{package_name}.{topic}.{module_name_with_topic}.{class_name_with_suffix}')
 
@@ -98,11 +98,11 @@ class PyClass:
                     -- the module abc.infra.messenger_ui
                     -- the module abc.infra.ui.messenger_ui
         """
-        parts = cls.__module__.rsplit('.', maxsplit=1)
+        parts = cls.__module__.rsplit('.', maxsplit = 1)
         assert len(parts) >= 2, f'{cls} - package is missing'
 
         module_name = f'{parts[-1]}'
-        class_name = cls.__name__
+        class_name  = cls.__name__
 
         # -- 1) look it up in alternative_packages
         for alt_package in alternative_packages:
@@ -111,8 +111,8 @@ class PyClass:
                 return found
 
         # -- 2) look it up in the cls' package
-        package_name = parts[0]
-        found = PyClass.find_by_topic_and_suffix(topic, class_name_suffix, package_name, module_name, class_name)
+        package_name    = parts[0]
+        found           = PyClass.find_by_topic_and_suffix(topic, class_name_suffix, package_name, module_name, class_name)
         if found:
             return found
 
@@ -160,9 +160,9 @@ class PyClass:
         if node is not None:
             return
 
-        node = {}
-        all_nodes[cls] = node
-        parents = PyClass.parents(cls)
+        node            = {}
+        all_nodes[cls]  = node
+        parents         = PyClass.parents(cls)
         for p in parents:
             PyClass._collect_class_nodes(p, root_class, all_nodes)
             p_node = all_nodes.get(p)
@@ -220,7 +220,7 @@ class PyClass:
             return []
 
     @staticmethod
-    def class_names_by_module(*package_names, exclude_packages=()) -> dict:
+    def class_names_by_module(*package_names, exclude_packages = ()) -> dict:
         res = {}
         for pname in package_names:
             PyClass._collect_class_names(res, pname, exclude_packages)
@@ -228,7 +228,7 @@ class PyClass:
         return res
 
     @staticmethod
-    def canonical_class_names(*package_names, exclude_packages=()) -> list:
+    def canonical_class_names(*package_names, exclude_packages = ()) -> list:
         res = []
         for pname in package_names:
             PyClass._collect_class_names(res, pname, exclude_packages)
@@ -279,11 +279,11 @@ class PyClass:
                 res.extend([f'{full_module_name}.{cname}' for cname in class_names])
 
     @staticmethod
-    def all_classes(*package_names, exclude_packages=(), parent_classes=()) -> tuple:
+    def all_classes(*package_names, exclude_packages = (), parent_classes = ()) -> tuple:
         """
         Warning! This function will import every class in the packages specified.
         """
-        all_class_names = PyClass.canonical_class_names(*package_names, exclude_packages=exclude_packages)
+        all_class_names = PyClass.canonical_class_names(*package_names, exclude_packages = exclude_packages)
         return tuple(cls for class_name in all_class_names if (cls := PyClass.find(class_name, *parent_classes)))
 
     @staticmethod
@@ -291,8 +291,8 @@ class PyClass:
         dir = {}
         for cls in classes:
             module_name = cls.__module__
-            path = module_name.split('.')
-            d = dir
+            path        = module_name.split('.')
+            d           = dir
             for package in path[:-1]:
                 d = d.setdefault(package, {})
             module_classes = d.setdefault(path[-1], [])
@@ -302,9 +302,9 @@ class PyClass:
 
     @staticmethod
     def own_attribute(cls, attr_name: str) -> tuple:  # -- (exists, value)
-        d = cls.__dict__
-        value = d.get(attr_name, d)
-        rc = value is not d
+        d       = cls.__dict__
+        value   = d.get(attr_name, d)
+        rc      = value is not d
         return (rc, value if rc else None)
 
     # ===================================================================================================================

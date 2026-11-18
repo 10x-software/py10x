@@ -26,8 +26,8 @@ if TYPE_CHECKING:
     from core_10x.traitable import Traitable
 
 
-_REV = Nucleus.REVISION_TAG()
-TS_FIELDS_TAG = '_ts_fields'
+_REV            = Nucleus.REVISION_TAG()
+TS_FIELDS_TAG   = '_ts_fields'
 
 
 class TsDuplicateKeyError(Exception):
@@ -86,7 +86,7 @@ class TsCollection(abc.ABC):
 
         for doc in self.find():
             try:
-                if not to_coll.save_new(doc, overwrite=overwrite).get(_REV):
+                if not to_coll.save_new(doc, overwrite = overwrite).get(_REV):
                     rc.add_error(f'Failed to save {doc.get(to_coll.s_id_tag)} to {to_coll.collection_name()}')
             except TsDuplicateKeyError:
                 if overwrite:
@@ -95,10 +95,10 @@ class TsCollection(abc.ABC):
         return rc
 
 
-class TsStore(Resource, resource_type=TS_STORE):
+class TsStore(Resource, resource_type = TS_STORE):
     s_requires_schema: bool = False
 
-    s_instance_kwargs_map = Resource.s_instance_kwargs_map | {
+    s_instance_kwargs_map   = Resource.s_instance_kwargs_map | {
         Resource.SSL_TAG: (Resource.SSL_TAG, True),
         'sst': ('sst', 1000),
     }
@@ -154,10 +154,10 @@ class TsStore(Resource, resource_type=TS_STORE):
     def spec_from_uri(cls, uri: str) -> ResourceSpec:
         if not uri:
             raise ValueError('TsStore URI is empty (check your EnvVars)')
-        parts = uri.split(':', maxsplit=1)
-        protocol = parts[0]
-        ts_class = TS_STORE_TYPE.ts_store_class(protocol)
-        kwargs = ts_class.parse_uri(uri)
+        parts       = uri.split(':', maxsplit = 1)
+        protocol    = parts[0]
+        ts_class    = TS_STORE_TYPE.ts_store_class(protocol)
+        kwargs      = ts_class.parse_uri(uri)
         kwargs.setdefault(ts_class.PROTOCOL_TAG, protocol)
         return ResourceSpec(ts_class, kwargs)
 
@@ -174,8 +174,8 @@ class TsStore(Resource, resource_type=TS_STORE):
     def delete_database(self, dbname: str) -> bool:
         return False
 
-    VAULT_WORKER_ROLE = 'xxVaultWorker'
-    VAULT_ADMIN_ROLE = 'xxVaultAdmin'
+    VAULT_WORKER_ROLE   = 'xxVaultWorker'
+    VAULT_ADMIN_ROLE    = 'xxVaultAdmin'
 
     def can_serve_as_vault(self) -> bool:
         return False
@@ -263,15 +263,15 @@ class TsStore(Resource, resource_type=TS_STORE):
 
         rc = RC(True)
         for collection_name in self.collection_names():
-            from_coll = self.collection(collection_name, {})
-            to_coll = to_store.collection(collection_name, from_coll.intrinsic_trait_dir())
-            rc += from_coll.copy_to(to_coll, overwrite=overwrite)
+            from_coll   = self.collection(collection_name, {})
+            to_coll     = to_store.collection(collection_name, from_coll.intrinsic_trait_dir())
+            rc += from_coll.copy_to(to_coll, overwrite = overwrite)
         return rc
 
     @contextmanager
     def transaction(self):
         """Context manager for transactional operations. Yields a transaction object with commit() and abort()."""
-        tx = self.Transaction(self)
+        tx      = self.Transaction(self)
         success = False
         try:
             yield tx
@@ -303,8 +303,8 @@ class SaveIfChanged(BTPTracker):
         self.parent = parent or nullcontext()
         with self.parent:
             super().__init__()
-        self.classes = classes if isinstance(classes, tuple) else tuple(classes)
-        self.auto_save = auto_save
+        self.classes    = classes if isinstance(classes, tuple) else tuple(classes)
+        self.auto_save  = auto_save
 
     def __enter__(self):
         self.parent.__enter__()
@@ -325,11 +325,11 @@ class SaveIfChanged(BTPTracker):
             self.save().throw()
 
     def _tracked(self) -> Generator:
-        tracked = self.tracked_objects()
-        embedded = [traitable for traitable in tracked if traitable.s_embeddable]
+        tracked     = self.tracked_objects()
+        embedded    = [traitable for traitable in tracked if traitable.s_embeddable]
         if embedded:  #-- an embedded object is stored inside whoever holds it: those are saved, never the embedded object itself
             tracked = [traitable for traitable in tracked if not traitable.s_embeddable]
-            known = {(traitable.__class__, traitable.id().value) for traitable in tracked}
+            known   = {(traitable.__class__, traitable.id().value) for traitable in tracked}
             holders = BTraitableProcessor.current().cache().find_holders(embedded)
             tracked += [holder for holder in holders if (holder.__class__, holder.id().value) not in known]
 

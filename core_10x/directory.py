@@ -22,7 +22,7 @@ class Directory:
     @staticmethod
     def instance(value: Any = None, **kwargs) -> Directory:
         dir_class = Directory._dir_class(value)
-        return dir_class(value=value, **kwargs)
+        return dir_class(value = value, **kwargs)
 
     # fmt: off
     def __init__(
@@ -35,10 +35,10 @@ class Directory:
         # fmt: on
         self.check_dir_value(value)
 
-        self.name = name
-        self.value = value
-        self.members = members or {}
-        self.parent = parent
+        self.name       = name
+        self.value      = value
+        self.members    = members or {}
+        self.parent     = parent
 
     @classmethod
     def check_dir_value(cls, value):
@@ -55,14 +55,14 @@ class Directory:
         return self.members
 
     def _add_subdir(self, subdir: Directory):
-        self.members[subdir.value] = subdir
-        subdir.parent = self
+        self.members[subdir.value]  = subdir
+        subdir.parent               = self
 
     def _get_or_add_subdir(self, value, **subdir_values):
         subdir = self.members.get(value)
         if subdir is None:
-            subdir = Directory.instance(value, **subdir_values)
-            subdir.parent = self
+            subdir              = Directory.instance(value, **subdir_values)
+            subdir.parent       = self
             self.members[value] = subdir
 
         return subdir
@@ -72,7 +72,7 @@ class Directory:
             self._get_or_add_subdir(value, **subdir_values)
         else:
             p_value = path[0]
-            subdir = self._get_or_add_subdir(p_value)
+            subdir  = self._get_or_add_subdir(p_value)
             subdir.insert(value, *path[1:], **subdir_values)
 
     def insert_many(self, values: list, **subdir_values):
@@ -112,8 +112,8 @@ class Directory:
         return paths_found
 
     def _flatten(self, res: dict, *current_path):
-        path = *current_path, self.value
-        label = self.name
+        path    = *current_path, self.value
+        label   = self.name
         if not label:
             label = self.show_value()
         res[path] = label
@@ -131,14 +131,14 @@ class Directory:
         return res
 
     def choices(self, with_root: bool = False, path_delimiter: str = '/') -> dict:
-        f = self.flatten(with_root = with_root)
+        f       = self.flatten(with_root = with_root)
         v_n_map = { path[-1]: name for path, name in f.items() }
-        res = {}
-        cr = 1
+        res     = {}
+        cr      = 1
         for path in f:
-            label = path_delimiter.join(v_n_map[p] for p in path)
-            value = path[-1]
-            already_in = res.get(label)
+            label       = path_delimiter.join(v_n_map[p] for p in path)
+            value       = path[-1]
+            already_in  = res.get(label)
             if already_in:
                 if already_in == value:
                     continue
@@ -189,8 +189,8 @@ class Directory:
             value, name = value_name
 
         else:       #-- just a value
-            value = value_name
-            name = None
+            value   = value_name
+            name    = None
 
         dir = Directory.instance(value, name = name)
 
@@ -234,8 +234,8 @@ class DxTraitable(Directory):
 class DxClass(Directory):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        cls = self.value
-        self.name = PyClass.name(cls) if cls else ''
+        cls         = self.value
+        self.name   = PyClass.name(cls) if cls else ''
 
     @classmethod
     def check_dir_value(cls, value):

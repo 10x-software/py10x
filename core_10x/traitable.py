@@ -48,7 +48,7 @@ if TYPE_CHECKING:
 
     from core_10x.ts_store import TsCollection
 
-_REV = Nucleus.REVISION_TAG()
+_REV    = Nucleus.REVISION_TAG()
 _HOLDER = Nucleus.HOLDER_TAG()
 
 class Index:
@@ -78,8 +78,8 @@ class Index:
     def __init__(self, name: str, spec: str | list[tuple[str, int]] | None = None, **kwargs):
         if spec is None:
             spec = name
-        self.name = name
-        self.spec = spec
+        self.name   = name
+        self.spec   = spec
         self.kwargs = kwargs
 
     def __repr__(self):
@@ -98,20 +98,20 @@ class TraitAccessor:
             self.obj = None
 
     def __getattr__(self, trait_name: str):
-        cls = self.cls
-        trait = cls.trait(trait_name, throw=True)
-        obj = self.obj
+        cls     = self.cls
+        trait   = cls.trait(trait_name, throw = True)
+        obj     = self.obj
         return BoundTrait(obj, trait) if obj else ClassTrait(cls, trait)
 
-    def __call__(self, trait_name: str, throw=True) -> Trait:
-        return self.cls.trait(trait_name, throw=True)
+    def __call__(self, trait_name: str, throw = True) -> Trait:
+        return self.cls.trait(trait_name, throw = True)
 
 
 class UnboundTraitAccessor:
     __slots__ = ()
 
     def __get__(self, instance, owner):
-        return TraitAccessor(instance) if instance else TraitAccessor(None, cls=owner)
+        return TraitAccessor(instance) if instance else TraitAccessor(None, cls = owner)
 
 
 COLL_NAME_TAG = '_collection_name'
@@ -197,26 +197,26 @@ class TraitDir(dict):
         return super().pop(key, *default)
 
 
-class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
-    s_dir = {}
-    s_default_trait_factory = RT
-    s_own_trait_definitions = None
-    s_cxx_mixins = (BTraitable,)
-    T = UnboundTraitAccessor()
+class Traitable(BTraitable, Nucleus, metaclass = TraitableMetaclass):
+    s_dir                                                       = {}
+    s_default_trait_factory                                     = RT
+    s_own_trait_definitions                                     = None
+    s_cxx_mixins                                                = (BTraitable,)
+    T                                                           = UnboundTraitAccessor()
 
-    s_cls_by_canonical_name: dict[str, type] = {}                                  # -- used when non-module locals hide names from eval.
-    s_fwd_ref_pending: dict[str, list[tuple[type, str, str]]] = defaultdict(list)  # -- fwd ref placeholders by canonical name
-    s_fwd_ref_simple_name_rx = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*$')             # -- simple names only supported for
+    s_cls_by_canonical_name: dict[str, type]                    = {}                                  # -- used when non-module locals hide names from eval.
+    s_fwd_ref_pending: dict[str, list[tuple[type, str, str]]]   = defaultdict(list)  # -- fwd ref placeholders by canonical name
+    s_fwd_ref_simple_name_rx                                    = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*$')             # -- simple names only supported for
                                                                                    # forward refs and non-module-scoped types
-    _collection_name: str = XNone
-    _rev: int = XNone
+    _collection_name: str                                       = XNone
+    _rev: int                                                   = XNone
 
     @classmethod
     @cache
     def rev_trait(cls) -> Trait:
         return Trait.create(
             _REV,
-            T(0, T.RESERVED, data_type=int),
+            T(0, T.RESERVED, data_type = int),
         )
 
     @classmethod
@@ -224,7 +224,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
     def collection_name_trait(cls) -> Trait:
         return Trait.create(
             COLL_NAME_TAG,
-            T(T.RESERVED | T.RUNTIME, data_type=str),
+            T(T.RESERVED | T.RUNTIME, data_type = str),
         )
 
     @classmethod
@@ -243,14 +243,14 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
 
     @classmethod
     def own_trait_definitions(cls) -> Generator[tuple[str, TraitDefinition]]:
-        class_dict = dict(cls.__dict__)
-        own_trait_definitions = class_dict.get('s_own_trait_definitions')
+        class_dict              = dict(cls.__dict__)
+        own_trait_definitions   = class_dict.get('s_own_trait_definitions')
         if own_trait_definitions is not None:
             yield from cls.s_own_trait_definitions.items()
             return
 
-        module_dict = sys.modules[cls.__module__].__dict__ if cls.__module__ else {}
-        type_annotations = class_dict.get('__annotations__', {})
+        module_dict         = sys.modules[cls.__module__].__dict__ if cls.__module__ else {}
+        type_annotations    = class_dict.get('__annotations__', {})
         type_annotations |= {k: XNoneType for k, v in class_dict.items() if isinstance(v, TraitModification) and k not in type_annotations}
 
         rc = RC(True)
@@ -338,7 +338,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
     def resolve_pending_forward_refs(cls, rc) -> None:
         """Patch sibling traits keyed by canonical ``class`` name (:meth:`~PyClass.name`)."""
 
-        resolution_key = PyClass.name(cls)
+        resolution_key                              = PyClass.name(cls)
         cls.s_cls_by_canonical_name[resolution_key] = cls
 
         pending = cls.s_fwd_ref_pending.pop(resolution_key, None)
@@ -350,8 +350,8 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
             trait = other_cls.s_dir.get(trait_name)
             if trait is None:
                 continue  # -- trait was redefined / removed since registration
-            trait.data_type = cls
-            trait.t_def.data_type = cls
+            trait.data_type         = cls
+            trait.t_def.data_type   = cls
             trait.check_integrity(other_cls, rc)
 
     @classmethod
@@ -372,11 +372,11 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
 
     @classmethod
     def build_trait_dir(cls):
-        class_dict = dict(cls.__dict__)
-        module_dict = sys.modules[cls.__module__].__dict__ if cls.__module__ else {}
-        type_annotations = class_dict.get('__annotations__', {})
-        trait_dir = cls.s_dir
-        reserved_storable_traits = TraitableMetaclass.reserved_storable_traits(cls)
+        class_dict                  = dict(cls.__dict__)
+        module_dict                 = sys.modules[cls.__module__].__dict__ if cls.__module__ else {}
+        type_annotations            = class_dict.get('__annotations__', {})
+        trait_dir                   = cls.s_dir
+        reserved_storable_traits    = TraitableMetaclass.reserved_storable_traits(cls)
         trait_dir |= reserved_storable_traits
         trait_dir |= functools.reduce(operator.or_, cls.inherited_trait_dirs(), {})
 
@@ -385,12 +385,12 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
             trait_def = class_dict.get(trait_name, class_dict)
             if trait_def is class_dict and any(func_name in class_dict for func_name in Trait.method_defs(trait_name)):
                 if cls.check_trait_type(trait_name, trait_def, old_trait, type_annotations.get(trait_name), class_dict, module_dict, rc):
-                    trait_def = old_trait.t_def.copy()
-                    trait_dir[trait_name] = Trait.create(trait_name, trait_def)
+                    trait_def               = old_trait.t_def.copy()
+                    trait_dir[trait_name]   = Trait.create(trait_name, trait_def)
 
         for trait_name, trait_def in cls.own_trait_definitions():
-            trait_def.name = trait_name
-            trait_dir[trait_name] = Trait.create(trait_name, trait_def)
+            trait_def.name          = trait_name
+            trait_dir[trait_name]   = Trait.create(trait_name, trait_def)
 
         cls._post_build_trait_dir(trait_dir)
 
@@ -428,8 +428,8 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
     #-- Class Introspection
     @classmethod
     def describe_class(cls, **kwargs) -> dict:
-        bases = [b for b in cls.__bases__ if issubclass(b, Traitable)]
-        traits = []
+        bases   = [b for b in cls.__bases__ if issubclass(b, Traitable)]
+        traits  = []
         for name, trait in cls.s_dir.items():
             d = trait.describe(**kwargs)
             if owner := next((b for b in bases if b.s_dir.get(name) is trait), None):
@@ -451,24 +451,24 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
     #
     #     return traitable_class
 
-    s_bclass: BTraitableClass = None
-    s_embeddable = False
-    s_scenario_result = False  #-- True for ScenarioResult and its subclasses
-    s_custom_collection = False
-    s_default_cache = False  # -- if True, instances are created/loaded on the processor's default_cache; later writes use the current cache
-    s_history_class = XNone  # -- will be set in __init__subclass__ for storable traitables unless keep_history = False. affects storage only.
-    s_history_base = None  # -- the history-class-builder root for `cls`; subclasses (e.g. Bundle) may override (-> BundleHistory).
-    s_immutable = (
+    s_bclass: BTraitableClass                               = None
+    s_embeddable                                            = False
+    s_scenario_result                                       = False  #-- True for ScenarioResult and its subclasses
+    s_custom_collection                                     = False
+    s_default_cache                                         = False  # -- if True, instances are created/loaded on the processor's default_cache; later writes use the current cache
+    s_history_class                                         = XNone  # -- will be set in __init__subclass__ for storable traitables unless keep_history = False. affects storage only.
+    s_history_base                                          = None  # -- the history-class-builder root for `cls`; subclasses (e.g. Bundle) may override (-> BundleHistory).
+    s_immutable                                             = (
         XNone  # -- will be turned on in __init__subclass__ for storable traitables without history unless immutable=False. affects storage only.
     )
-    s_direct_subclasses: list[type[Traitable]] = []
-    s_storage_helper: AbstractStorableHelper = StorageHelperDescriptor()
-    s_storage_helper_cached: AbstractStorableHelper | None = None
-    s_indices: list[Index] = []  # -- declarative indices; populated in __init_subclass__ (inherited + own)
+    s_direct_subclasses: list[type[Traitable]]              = []
+    s_storage_helper: AbstractStorableHelper                = StorageHelperDescriptor()
+    s_storage_helper_cached: AbstractStorableHelper | None  = None
+    s_indices: list[Index]                                  = []  # -- declarative indices; populated in __init_subclass__ (inherited + own)
 
     def __init_subclass__(
         cls,
-        root_class=False,  # -- the class is a 'root' with no intent to instantiate - skip irrelevant checks!
+        root_class = False,  # -- the class is a 'root' with no intent to instantiate - skip irrelevant checks!
         embeddable: bool = None,  # -- if instances of cls may be embedded in other traitables
         custom_collection: bool = None,  # -- if instance(s) of cls may work with a specific collection
         default_cache: bool = None,  # -- if True, instances are created/loaded on the processor's default_cache
@@ -500,8 +500,8 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
 
         cls.s_indices = list((functools.reduce(operator.or_, cls._inherited_indices(), {}) | cls._own_indices()).values())
 
-        cls.s_dir = TraitDir()
-        cls.s_bclass = BTraitableClass(cls)
+        cls.s_dir       = TraitDir()
+        cls.s_bclass    = BTraitableClass(cls)
 
         cls.build_trait_dir()  # -- build cls.s_dir from trait definitions in cls.__dict__
 
@@ -543,7 +543,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
             elif not root_class and not cls.is_storable():
                 rc.add_error(f"{cls} is 'embeddable', but all its traits declared RUNTIME")
 
-        if cls.is_storable() and (rt_id_trait := next((trait for trait in cls.traits(flags_on=T.ID) if trait.flags_on((T.RUNTIME))), None)):
+        if cls.is_storable() and (rt_id_trait := next((trait for trait in cls.traits(flags_on = T.ID) if trait.flags_on((T.RUNTIME))), None)):
             rc.add_error(f'{cls}.{rt_id_trait.name} is a RUNTIME ID trait - traitable must not be storable (all traits must be RUNTIME)')
 
     def __init__(
@@ -551,9 +551,9 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         *,
         _id: ID = None,
         _collection_name: str = None,
-        _skip_init=False,
-        _replace=False,
-        _update=False,
+        _skip_init = False,
+        _replace = False,
+        _update = False,
         **trait_values,
     ):
         cls = self.__class__
@@ -565,9 +565,9 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
             assert not trait_values, f'{self.__class__}(_id=...) may not be invoked with trait_values'
             super().__init__(cls.s_bclass, _id)
         else:
-            super().__init__(cls.s_bclass, ID(collection_name=_collection_name))
+            super().__init__(cls.s_bclass, ID(collection_name = _collection_name))
             if not _skip_init:
-                self.initialize(trait_values, _replace=_replace, _update=_update)
+                self.initialize(trait_values, _replace = _replace, _update = _update)
 
         self.__post_init__()
 
@@ -577,14 +577,14 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
 
     @classmethod
     def from_id(cls, _id: ID) -> Self:
-        return cls(_id=_id)
+        return cls(_id = _id)
 
     @classmethod
     def existing_instance(cls, _collection_name: str = None, _throw: bool = True, **trait_values) -> Self | None:
         if not cls.is_storable() and cls.is_id_endogenous():  # runtime endogenous instances are created on the fly
-            return cls(_collection_name=_collection_name, **trait_values)
+            return cls(_collection_name = _collection_name, **trait_values)
 
-        obj = cls(_collection_name=_collection_name, _skip_init=True)
+        obj = cls(_collection_name = _collection_name, _skip_init = True)
         if not obj.accept_existing(trait_values):
             if _throw:
                 raise ValueError(f'Instance does not exist: {cls}({trait_values})')
@@ -596,7 +596,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
     def existing_instance_by_id(cls, _id: ID = None, _id_value: str = None, _collection_name: str = None, _throw: bool = True) -> Self | None:
         if _id is None:
             _id = ID(_id_value, _collection_name)
-        obj = cls(_id=_id)
+        obj = cls(_id = _id)
         if obj.id_exists():
             return obj
 
@@ -609,26 +609,26 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
     def existing_instances_by_filter(cls, query: f, _coll_name: str = None, _at_most: int = 0, _order: dict = None) -> list[Self]:
         # ids = cls.load_ids(query = query, _coll_name = _coll_name, _at_most = _at_most, _order = _order)
         # return [ obj for id in ids if(obj := cls.existing_instance_by_id(_id = id, _collection_name = _coll_name, _throw = False)) ]
-        ids_in_store = cls.load_ids(query=query, _coll_name=_coll_name, _at_most=_at_most, _order=_order)
-        proc = BTraitableProcessor.current()
-        cache = proc.default_cache() if cls.s_default_cache else proc.cache()
-        ids_in_memory = cache.object_ids_by_class(cls.s_bclass)
-        ids_sought_from_memory = {id for id in ids_in_memory if query.eval(cls(_id=id))}
-        id_sought_from_store = {id for id in ids_in_store if id not in ids_in_memory}  # --exclulde matches from store that are no longer matching in-memory
-        return [cls(_id=id) for id in itertools.chain(ids_sought_from_memory, id_sought_from_store)]
+        ids_in_store            = cls.load_ids(query = query, _coll_name = _coll_name, _at_most = _at_most, _order = _order)
+        proc                    = BTraitableProcessor.current()
+        cache                   = proc.default_cache() if cls.s_default_cache else proc.cache()
+        ids_in_memory           = cache.object_ids_by_class(cls.s_bclass)
+        ids_sought_from_memory  = {id for id in ids_in_memory if query.eval(cls(_id = id))}
+        id_sought_from_store    = {id for id in ids_in_store if id not in ids_in_memory}  # --exclulde matches from store that are no longer matching in-memory
+        return [cls(_id = id) for id in itertools.chain(ids_sought_from_memory, id_sought_from_store)]
 
     @classmethod
     @deprecated('Use either new_or_replace or new_or_update methods instead.')
     def update(cls, **kwargs) -> Self:
-        return cls(**kwargs, _replace=True)
+        return cls(**kwargs, _replace = True)
 
     @classmethod
     def new_or_replace(cls, **kwargs) -> Self:
-        return cls(**kwargs, _replace=True)
+        return cls(**kwargs, _replace = True)
 
     @classmethod
     def new_or_update(cls, **kwargs) -> Self:
-        return cls(**kwargs, _update=True)
+        return cls(**kwargs, _update = True)
 
     @classmethod
     @cache
@@ -646,7 +646,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         Runtime._post_build_trait_dir = cls._post_build_trait_dir
         return Runtime
 
-    def set_values(self, _ignore_unknown_traits=True, **trait_values) -> RC:
+    def set_values(self, _ignore_unknown_traits = True, **trait_values) -> RC:
         return self._set_values(trait_values, _ignore_unknown_traits)
 
     def __getitem__(self, item):
@@ -710,7 +710,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
     @classmethod
     def from_str(cls, s: str) -> Nucleus:
         # return cls(ID(s))  # collection name?
-        return cls.existing_instance_by_id(_id_value=s)
+        return cls.existing_instance_by_id(_id_value = s)
 
     @classmethod
     def from_any_xstr(cls, value) -> Nucleus:
@@ -745,27 +745,27 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
     @cache
     def vault_store() -> TsStore:
         rc, uri = SecKeys.check_vault_uri()
-        rc.throw(exc=OSError)
+        rc.throw(exc = OSError)
 
-        spec = TsStore.spec_from_uri(uri)
-        store_class: type[TsStore] = spec.resource_class
-        is_running, with_auth = store_class.is_running_with_auth(spec.hostname(), spec.port())
+        spec                        = TsStore.spec_from_uri(uri)
+        store_class: type[TsStore]  = spec.resource_class
+        is_running, with_auth       = store_class.is_running_with_auth(spec.hostname(), spec.port())
         if not is_running:
             raise OSError(f"Vault Store '{uri}' is not running")
 
         if with_auth:
             rc, login, pwd = SecKeys.retrieve_vault_login_password(uri)
-            rc.throw(exc=OSError)
+            rc.throw(exc = OSError)
 
-            spec.set_credentials(username=login, password=pwd)
+            spec.set_credentials(username = login, password = pwd)
 
         return store_class.instance(**spec.kwargs)
 
     @staticmethod
     def store_from_uri(uri: str, *, _cache: bool = True, _create_if_needed: bool = False) -> TsStore:
-        spec = TsStore.spec_from_uri(uri)
-        store_class: type[TsStore] = spec.resource_class
-        is_running, with_auth = store_class.is_running_with_auth(spec.hostname(), spec.port())
+        spec                        = TsStore.spec_from_uri(uri)
+        store_class: type[TsStore]  = spec.resource_class
+        is_running, with_auth       = store_class.is_running_with_auth(spec.hostname(), spec.port())
         if not is_running:
             raise OSError(f"TsStore '{uri}' is not running")
 
@@ -774,12 +774,12 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
                 ra = VaultResourceAccessor.retrieve_ra(
                     CONCRETE_RESOURCE.TS_STORE,
                     uri,
-                    _create_resource_if_needed=_create_if_needed,
-                    _cache=_cache,
+                    _create_resource_if_needed  = _create_if_needed,
+                    _cache                      = _cache,
                 )
                 return ra.resource
 
-        return store_class.instance(**spec.kwargs, _cache=_cache, _create_if_needed=_create_if_needed)
+        return store_class.instance(**spec.kwargs, _cache = _cache, _create_if_needed = _create_if_needed)
 
     @staticmethod
     @cache
@@ -806,12 +806,12 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
 
     @classmethod
     def collection(cls, _coll_name: str = None, create_if_needed: bool = False) -> TsCollection | None:
-        return (create_if_needed and cls._ensure_indices(_coll_name)) or cls.s_storage_helper.collection(_coll_name, create_if_needed=create_if_needed)
+        return (create_if_needed and cls._ensure_indices(_coll_name)) or cls.s_storage_helper.collection(_coll_name, create_if_needed = create_if_needed)
 
     @classmethod
-    @cache(keep_value=False)
+    @cache(keep_value = False)
     def _ensure_indices(cls, _coll_name: str = None) -> TsCollection | None:
-        coll = cls.s_storage_helper.collection(_coll_name, create_if_needed=True)
+        coll = cls.s_storage_helper.collection(_coll_name, create_if_needed = True)
         if coll is not None:
             for idx in cls.s_indices:
                 coll.create_index(idx.name, idx.spec, **idx.kwargs)
@@ -831,11 +831,11 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
 
     @classmethod
     def load(cls, id: ID, reload: bool = True) -> Traitable | None:
-        return cls.s_storage_helper.load(id, reload=reload)
+        return cls.s_storage_helper.load(id, reload = reload)
 
     @classmethod
-    def load_many(cls, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None, _deserialize=True, reload: bool = True) -> list[Self]:
-        return cls.s_storage_helper.load_many(query, _coll_name, _at_most, _order, _deserialize, reload=reload)
+    def load_many(cls, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None, _deserialize = True, reload: bool = True) -> list[Self]:
+        return cls.s_storage_helper.load_many(query, _coll_name, _at_most, _order, _deserialize, reload = reload)
 
     @classmethod
     def load_ids(cls, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None) -> list[ID]:
@@ -849,7 +849,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         if not self.s_scenario_result and BTraitableProcessor.current().cache().in_scenario():
             return RC(False, f'{self.__class__} - only a ScenarioResult may be saved inside a Scenario')
 
-        return self.__class__.s_storage_helper.save(self, save_references=int(save_references))
+        return self.__class__.s_storage_helper.save(self, save_references = int(save_references))
 
     def serialize_object(self, save_references: int = BSaveRefs.NONE):
         return super().serialize_object(int(save_references))
@@ -866,7 +866,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         return cls.s_storage_helper.as_of(traitable_id, as_of_time)
 
     @classmethod
-    def history(cls, _at_most: int = 0, _filter: f = None, _deserialize=False, _collection_name: str = None, _before: datetime = None, **named_filters) -> list:
+    def history(cls, _at_most: int = 0, _filter: f = None, _deserialize = False, _collection_name: str = None, _before: datetime = None, **named_filters) -> list:
         """Get history entries for this traitable class."""
         return cls.s_storage_helper.history(_at_most, _filter, _deserialize, _collection_name, _before, **named_filters)
 
@@ -876,24 +876,24 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         return cls.s_storage_helper.latest_revision(traitable_id, timestamp, deserialize)
 
     @classmethod
-    def restore(cls, traitable_id, timestamp: datetime = None, save=False) -> bool:
+    def restore(cls, traitable_id, timestamp: datetime = None, save = False) -> bool:
         """Restore a traitable to a specific point in time."""
         return cls.s_storage_helper.restore(traitable_id, timestamp, save)
 
     def post_serialize(self, serialized_data: dict) -> dict:
         """Mark store-side TS_TIME / TS_USER fields for stamping in ``save`` / ``save_new``."""
-        ts_traits = list(self.traits(flags_on=T.TS))
+        ts_traits = list(self.traits(flags_on = T.TS))
         if not ts_traits:
             return serialized_data
 
-        store = self.store()
+        store           = self.store()
         post_serialized = dict(serialized_data)
         for trait in ts_traits:
             store.add_ts(trait.name, BFlags(trait.flags) & T.TS, post_serialized)
         return post_serialized
 
 
-class TraitableFwdRef(Traitable, root_class=True):
+class TraitableFwdRef(Traitable, root_class = True):
     """Internal base for deferred sibling Traitable annotations; not for direct use."""
 
     s_name_prefix = '_TraitableFwdRefPlaceholder#'
@@ -901,8 +901,8 @@ class TraitableFwdRef(Traitable, root_class=True):
     @staticmethod
     def resolve_key(owner_cls: type, referenced_simple_name: str) -> str:
         """Canonical name of the referenced sibling (trailing segment of :meth:`~PyClass.name` swapped)."""
-        full = PyClass.name(owner_cls)
-        dot = full.rfind('.')
+        full    = PyClass.name(owner_cls)
+        dot     = full.rfind('.')
         if dot < 0:
             return referenced_simple_name
         return f'{full[:dot]}.{referenced_simple_name}'
@@ -931,8 +931,8 @@ class TraitableFwdRef(Traitable, root_class=True):
     @staticmethod
     @cache
     def placeholder(mod_nm: str, resolve_key: str) -> type:
-        placeholder = types.new_class(f'{TraitableFwdRef.s_name_prefix}{resolve_key}', (TraitableFwdRef,), {'root_class': True})
-        placeholder.__module__ = mod_nm
+        placeholder             = types.new_class(f'{TraitableFwdRef.s_name_prefix}{resolve_key}', (TraitableFwdRef,), {'root_class': True})
+        placeholder.__module__  = mod_nm
         return placeholder
 
 
@@ -959,7 +959,7 @@ class AbstractStorableHelper(ABC):
     def load(self, id: ID, reload: bool = True) -> Traitable | None: ...
 
     @abstractmethod
-    def load_many(self, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None, _deserialize=True, reload: bool = True) -> list[Traitable]: ...
+    def load_many(self, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None, _deserialize = True, reload: bool = True) -> list[Traitable]: ...
 
     @abstractmethod
     def load_ids(self, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None) -> list[ID]: ...
@@ -980,13 +980,13 @@ class AbstractStorableHelper(ABC):
     def as_of(self, traitable_id: ID, as_of_time: datetime) -> Traitable: ...
 
     @abstractmethod
-    def history(self, _at_most: int = 0, _filter: f = None, _deserialize=False, _collection_name: str = None, _before: datetime = None, **named_filters) -> list: ...
+    def history(self, _at_most: int = 0, _filter: f = None, _deserialize = False, _collection_name: str = None, _before: datetime = None, **named_filters) -> list: ...
 
     @abstractmethod
     def latest_revision(self, traitable_id: ID, timestamp: datetime = None, deserialize: bool = False) -> dict | TraitableHistory | None: ...
 
     @abstractmethod
-    def restore(self, traitable_id, timestamp: datetime = None, save=False) -> bool: ...
+    def restore(self, traitable_id, timestamp: datetime = None, save = False) -> bool: ...
 
 
 class NotStorableHelper(AbstractStorableHelper):
@@ -1005,7 +1005,7 @@ class NotStorableHelper(AbstractStorableHelper):
     def load(self, id: ID, reload: bool = True) -> Traitable | None:
         return None
 
-    def load_many(self, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None, _deserialize=True, reload: bool = True) -> list[Traitable]:
+    def load_many(self, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None, _deserialize = True, reload: bool = True) -> list[Traitable]:
         return []
 
     def load_ids(self, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None) -> list[ID]:
@@ -1026,31 +1026,31 @@ class NotStorableHelper(AbstractStorableHelper):
     def as_of(self, traitable_id: ID, as_of_time: datetime) -> Traitable:
         raise RuntimeError(f'{self.traitable_class} is not storable')
 
-    def history(self, _at_most: int = 0, _filter: f = None, _deserialize=False, _collection_name: str = None, _before: datetime = None, **named_filters) -> list:
+    def history(self, _at_most: int = 0, _filter: f = None, _deserialize = False, _collection_name: str = None, _before: datetime = None, **named_filters) -> list:
         raise RuntimeError(f'{self.traitable_class} is not storable')
 
     def latest_revision(self, traitable_id: ID, timestamp: datetime = None, deserialize: bool = False) -> dict | TraitableHistory | None:
         raise RuntimeError(f'{self.traitable_class} is not storable')
 
-    def restore(self, traitable_id, timestamp: datetime = None, save=False) -> bool:
+    def restore(self, traitable_id, timestamp: datetime = None, save = False) -> bool:
         raise RuntimeError(f'{self.traitable_class} is not storable')
 
 
 class StorableHelper(AbstractStorableHelper):
     def collection(self, _coll_name: str = None, create_if_needed: bool = False) -> TsCollection:
-        cls = self.traitable_class
-        cname = _coll_name or PackageRefactoring.find_class_id(cls)
-        return cls.store().collection(cname, trait_dir=cls.s_dir, create_if_needed=create_if_needed)
+        cls     = self.traitable_class
+        cname   = _coll_name or PackageRefactoring.find_class_id(cls)
+        return cls.store().collection(cname, trait_dir = cls.s_dir, create_if_needed = create_if_needed)
 
     def exists_in_store(self, id: ID) -> bool:
-        return self.traitable_class.collection(_coll_name=id.collection_name).id_exists(id.value)
+        return self.traitable_class.collection(_coll_name = id.collection_name).id_exists(id.value)
 
     def load_data(self, id: ID) -> dict | None:
-        return self.traitable_class.collection(_coll_name=id.collection_name).load(id.value)
+        return self.traitable_class.collection(_coll_name = id.collection_name).load(id.value)
 
     def delete_in_store(self, id: ID) -> RC:
-        cls = self.traitable_class
-        coll = cls.collection(_coll_name=id.collection_name)
+        cls     = self.traitable_class
+        coll    = cls.collection(_coll_name = id.collection_name)
         if not coll:
             return RC(False, f'{cls} - no store available')
         if not coll.delete(id.value):
@@ -1068,31 +1068,31 @@ class StorableHelper(AbstractStorableHelper):
 
     def _find_(self, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None):
         # TODO FUTURE - current state as history query?
-        cls = self.traitable_class
-        coll = cls.collection(_coll_name=_coll_name)
-        return coll.find(f(query, cls.s_dir), _at_most=_at_most, _order=_order)
+        cls     = self.traitable_class
+        coll    = cls.collection(_coll_name = _coll_name)
+        return coll.find(f(query, cls.s_dir), _at_most = _at_most, _order = _order)
 
     def load_many(self, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None, _deserialize: bool = True, reload: bool = True) -> list[Traitable] | list[dict]:
-        cursor = self._find(query=query, _coll_name=_coll_name, _at_most=_at_most, _order=_order)
+        cursor = self._find(query = query, _coll_name = _coll_name, _at_most = _at_most, _order = _order)
 
         if not _deserialize:
             return list(cursor)
 
-        f_deserialize = functools.partial(Traitable.deserialize_object, self.traitable_class.s_bclass, _coll_name, reload=reload)
+        f_deserialize = functools.partial(Traitable.deserialize_object, self.traitable_class.s_bclass, _coll_name, reload = reload)
         return [f_deserialize(serialized_data) for serialized_data in cursor]
 
     def load_ids(self, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None) -> list[ID]:
-        id_tag = self.traitable_class.collection(_coll_name=_coll_name).s_id_tag  # better?
-        cursor = self._find(query=query, _coll_name=_coll_name, _at_most=_at_most, _order=_order)
+        id_tag = self.traitable_class.collection(_coll_name = _coll_name).s_id_tag  # better?
+        cursor = self._find(query = query, _coll_name = _coll_name, _at_most = _at_most, _order = _order)
         return [ID(serialized_data.get(id_tag), _coll_name) for serialized_data in cursor]
 
     def delete_collection(self, _coll_name: str = None, drop_history = False) -> bool:
-        cls = self.traitable_class
-        store = cls.store()
+        cls     = self.traitable_class
+        store   = cls.store()
         if not store:
             return False
         cname = _coll_name or PackageRefactoring.find_class_id(cls)
-        return store.delete_collection(collection_name=cname)
+        return store.delete_collection(collection_name = cname)
 
     def save(self, traitable: Traitable, save_references: int) -> RC:
         rc = traitable.verify()
@@ -1109,7 +1109,7 @@ class StorableHelper(AbstractStorableHelper):
             if not serialized_data:  # -- it's a lazy instance - no reason to load and re-save
                 return RC_TRUE
 
-            coll = self.traitable_class.collection(traitable.id().collection_name, create_if_needed=True)
+            coll = self.traitable_class.collection(traitable.id().collection_name, create_if_needed = True)
             if not coll:
                 return RC(False, f'{self.__class__} - no store available')
 
@@ -1125,7 +1125,7 @@ class StorableHelper(AbstractStorableHelper):
         rev_tag = _REV
         traitable.set_revision(save_result[rev_tag])
         rc = RC(True)
-        for trait in traitable.traits(flags_on=T.TS):
+        for trait in traitable.traits(flags_on = T.TS):
             if trait.name not in save_result:
                 continue
             rc <<= traitable.set_trait_value(trait, trait.f_deserialize(trait, save_result[trait.name]))
@@ -1148,13 +1148,13 @@ class StorableHelper(AbstractStorableHelper):
     def as_of(self, traitable_id: ID, as_of_time: datetime) -> Traitable:
         raise RuntimeError(f'{self.traitable_class} does not keep history')
 
-    def history(self, _at_most: int = 0, _filter: f = None, _deserialize=False, _collection_name: str = None, _before: datetime = None, **named_filters) -> list:
+    def history(self, _at_most: int = 0, _filter: f = None, _deserialize = False, _collection_name: str = None, _before: datetime = None, **named_filters) -> list:
         raise RuntimeError(f'{self.traitable_class} does not keep history')
 
     def latest_revision(self, traitable_id: ID, timestamp: datetime = None, deserialize: bool = False) -> dict | TraitableHistory | None:
         raise RuntimeError(f'{self.traitable_class} does not keep history')
 
-    def restore(self, traitable_id, timestamp: datetime = None, save=False) -> bool:
+    def restore(self, traitable_id, timestamp: datetime = None, save = False) -> bool:
         raise RuntimeError(f'{self.traitable_class} does not keep history')
 
 
@@ -1168,17 +1168,17 @@ class StorableHelperWithHistory(StorableHelper):
 
     def _save_serialized(self, coll, serialized_data, old_rev) -> dict:
         save_result = super()._save_serialized(coll, serialized_data, old_rev)
-        rev = save_result[_REV]
+        rev         = save_result[_REV]
         if rev > old_rev:
             self.traitable_class.s_history_class(
-                serialized_traitable={k: v for k, v in (serialized_data | save_result).items() if k not in (_REV, TS_FIELDS_TAG)},
-                _traitable_rev=rev,
-                _collection_name=self._history_collection_name(coll.collection_name()) if self.traitable_class.s_custom_collection else XNone,
-            ).save(save_references=BSaveRefs.NONE).throw()
+                serialized_traitable    = {k: v for k, v in (serialized_data | save_result).items() if k not in (_REV, TS_FIELDS_TAG)},
+                _traitable_rev          = rev,
+                _collection_name        = self._history_collection_name(coll.collection_name()) if self.traitable_class.s_custom_collection else XNone,
+            ).save(save_references = BSaveRefs.NONE).throw()
         return save_result
 
     def as_of(self, traitable_id: ID, as_of_time: datetime) -> Self | None:
-        history_entry = self.traitable_class.latest_revision(traitable_id, as_of_time, deserialize=True)
+        history_entry = self.traitable_class.latest_revision(traitable_id, as_of_time, deserialize = True)
         return history_entry.traitable if history_entry else None
 
     def delete_collection(self, _coll_name: str = None, drop_history: bool = False) -> bool:
@@ -1187,7 +1187,7 @@ class StorableHelperWithHistory(StorableHelper):
         return rc
 
     def history(
-        self, _at_most: int = 0, _filter: f = None, _deserialize=False, _collection_name: str = None, _before: datetime = None, **named_filters
+        self, _at_most: int = 0, _filter: f = None, _deserialize = False, _collection_name: str = None, _before: datetime = None, **named_filters
     ) -> list:
         cls = self.traitable_class
 
@@ -1197,13 +1197,13 @@ class StorableHelperWithHistory(StorableHelper):
         if not cls.s_custom_collection and _collection_name:
             raise RuntimeError(f'{cls} does not support custom _collection_name')
 
-        as_of = {'_at': LE(_before)} if _before else {}
-        cursor = cls.s_history_class.load_many(
+        as_of   = {'_at': LE(_before)} if _before else {}
+        cursor  = cls.s_history_class.load_many(
             f(_filter, **named_filters, **as_of),
-            _order={'_traitable_id': 1, '_at': -1, '_traitable_rev': -1},
-            _at_most=_at_most,
-            _deserialize=_deserialize,
-            _coll_name=self._history_collection_name(_collection_name),
+            _order          = {'_traitable_id': 1, '_at': -1, '_traitable_rev': -1},
+            _at_most        = _at_most,
+            _deserialize    = _deserialize,
+            _coll_name      = self._history_collection_name(_collection_name),
         )
 
         return list(cursor)
@@ -1211,28 +1211,28 @@ class StorableHelperWithHistory(StorableHelper):
     def latest_revision(self, traitable_id: ID, timestamp: datetime = None, deserialize: bool = False) -> dict | TraitableHistory | None:
         """Get the latest revision of a traitable from history."""
         for entry in self.traitable_class.history(
-            _filter=f(_traitable_id=traitable_id.value),
-            _collection_name=traitable_id.collection_name,
-            _at_most=1,
-            _deserialize=deserialize,
-            _before=timestamp,
+            _filter             = f(_traitable_id = traitable_id.value),
+            _collection_name    = traitable_id.collection_name,
+            _at_most            = 1,
+            _deserialize        = deserialize,
+            _before             = timestamp,
         ):
             return entry  # Return the raw history entry dict
 
         return None
 
-    def restore(self, traitable_id, timestamp: datetime = None, save=False) -> bool:
+    def restore(self, traitable_id, timestamp: datetime = None, save = False) -> bool:
         """Restore a traitable to a specific point in time."""
         history_entry = self.traitable_class.latest_revision(
             traitable_id,
             timestamp,
-            deserialize=True,
+            deserialize = True,
         )
         if not history_entry or not history_entry.traitable:
             return False
 
         if save:
-            return bool(self.traitable_class.collection(traitable_id.collection_name).save_new(history_entry.serialized_traitable, overwrite=True).get(_REV))
+            return bool(self.traitable_class.collection(traitable_id.collection_name).save_new(history_entry.serialized_traitable, overwrite = True).get(_REV))
         return True
 
 
@@ -1243,10 +1243,10 @@ class StorableHelperAsOf(StorableHelperWithHistory):
     def _find(self, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None):
         last_id = None
         for item in self.traitable_class.history(
-            _filter=query,
-            _before=self.as_of_time,
-            _collection_name=_coll_name,
-            _deserialize=True,
+            _filter             = query,
+            _before             = self.as_of_time,
+            _collection_name    = _coll_name,
+            _deserialize        = True,
         ):
             # TODO: optimize by returning one entry per id using a pipeline query
             if last_id != item._traitable_id:
@@ -1254,34 +1254,34 @@ class StorableHelperAsOf(StorableHelperWithHistory):
                 yield item.serialized_traitable
 
     def exists_in_store(self, id: ID) -> bool:
-        history_entry = self.traitable_class.latest_revision(id, self.as_of_time, deserialize=True)
+        history_entry = self.traitable_class.latest_revision(id, self.as_of_time, deserialize = True)
         return bool(history_entry)  # TODO: optimize by not downloading the latest revision
 
     def load_data(self, id: ID) -> dict | None:
-        history_entry = self.traitable_class.latest_revision(id, self.as_of_time, deserialize=True)
+        history_entry = self.traitable_class.latest_revision(id, self.as_of_time, deserialize = True)
         return history_entry.serialized_traitable if history_entry else None
 
 
 def __getattr__(name):
     if name == 'THIS_CLASS':  # -- to use for traits with the same Traitable class type
-        warnings.warn('THIS_CLASS is deprecated; use typing.Self instead', DeprecationWarning, stacklevel=2)
+        warnings.warn('THIS_CLASS is deprecated; use typing.Self instead', DeprecationWarning, stacklevel = 2)
         return Self
     raise AttributeError(name)
 
 
-class EventBase(Traitable, keep_history=False):
+class EventBase(Traitable, keep_history = False):
     _at: datetime               = T(T.TS_TIME) // 'time saved'
     _who: str                   = T(T.TS_USER) // 'authenticated user, if any'
 
-    s_indices = [Index('_at_idx', '_at')]
+    s_indices                   = [Index('_at_idx', '_at')]
 
 
 class TraitableHistory(EventBase):
-    s_traitable_class = None
-    s_trait_name_map = {'_traitable_id': '_id', '_traitable_rev': '_rev'}
+    s_traitable_class   = None
+    s_trait_name_map    = {'_traitable_id': '_id', '_traitable_rev': '_rev'}
 
     #-- Companion suffix for a ``keep_history=True`` class - both its class and collection name.
-    s_suffix = '#history'
+    s_suffix            = '#history'
 
     @classmethod
     def history_collection_name(cls, collection_name: str) -> str:
@@ -1319,11 +1319,11 @@ class TraitableHistory(EventBase):
         )
 
     def deserialize_traits(self, serialized_data):
-        hist_data = {
+        hist_data                   = {
             trait.name: serialized_data.pop(trait.name, None)
-            for trait in itertools.chain(self.traits(flags_on=T.TS), self.traits(flags_off=T.RUNTIME | T.TS))
+            for trait in itertools.chain(self.traits(flags_on = T.TS), self.traits(flags_off = T.RUNTIME | T.TS))
         }
-        self.serialized_traitable = serialized_data | {v: hist_data[k] for k, v in self.s_trait_name_map.items()}
+        self.serialized_traitable   = serialized_data | {v: hist_data[k] for k, v in self.s_trait_name_map.items()}
         return super().deserialize_traits(hist_data)
 
     @classmethod
@@ -1331,15 +1331,15 @@ class TraitableHistory(EventBase):
         return cls.s_traitable_class.store()
 
     @classmethod
-    def history_class(cls, traitable_class: type[Traitable], base=None, **kwargs):
-        history_class_name = cls.history_collection_name(traitable_class.__name__)
-        ns = {
+    def history_class(cls, traitable_class: type[Traitable], base = None, **kwargs):
+        history_class_name  = cls.history_collection_name(traitable_class.__name__)
+        ns                  = {
             's_traitable_class': traitable_class,
             's_custom_collection': traitable_class.s_custom_collection,
             's_scenario_result': traitable_class.s_scenario_result,  #-- the history record of a ScenarioResult is saved with it
             '__module__': traitable_class.__module__,
         }
-        history_class = types.new_class(
+        history_class       = types.new_class(
             history_class_name,
             (cls,) if not base else (base,) if issubclass(base, cls) else (cls, base),
             kwargs,
@@ -1359,10 +1359,10 @@ class AsOfContext:
     """
 
     as_of_time: datetime
-    traitable_classes: list[type[Traitable]] = field(default_factory=lambda: [Traitable])
+    traitable_classes: list[type[Traitable]]                            = field(default_factory = lambda: [Traitable])
 
-    _btp: BTraitableProcessor | None = None
-    _saved_helpers: dict[type[Traitable], AbstractStorableHelper|None] = field(default_factory=dict)
+    _btp: BTraitableProcessor | None                                    = None
+    _saved_helpers: dict[type[Traitable], AbstractStorableHelper|None]  = field(default_factory = dict)
 
     def __post_init__(self):
         invalid_class = next((traitable_class for traitable_class in self.traitable_classes if not traitable_class.s_history_class), None)
@@ -1370,8 +1370,8 @@ class AsOfContext:
             raise ValueError(f'{invalid_class} is not storable or does not keep history')
 
     def _visit_storage_helpers(self, visitor):
-        visited: set[type[Traitable]] = set()
-        stack = list(self.traitable_classes)
+        visited: set[type[Traitable]]   = set()
+        stack                           = list(self.traitable_classes)
         while stack:
             traitable_class = stack.pop()
             if traitable_class in visited:
@@ -1420,10 +1420,10 @@ NAMED_TRAITABLE_NAME_TRAIT = 'name'
 class NamedTraitable(Traitable):
     #-- subclass may rename the identity trait, e.g. `class Ccy(NamedTraitable, name_trait = 'ccy_name')`;
     #-- the renamed trait must still be declared with T(T.ID) in the subclass body
-    s_ctor_allowed = True
-    s_name_trait = NAMED_TRAITABLE_NAME_TRAIT
+    s_ctor_allowed  = True
+    s_name_trait    = NAMED_TRAITABLE_NAME_TRAIT
 
-    name: str = T(T.ID)
+    name: str       = T(T.ID)
 
     def __init_subclass__(cls, name_trait: str = None, **kwargs):
         if name_trait is not None:
@@ -1449,7 +1449,7 @@ class NamedTraitable(Traitable):
             super().__init__(**kwargs)
 
 
-class traitable_trait(concrete_traits.nucleus_trait, data_type=Traitable, base_class=True):
+class traitable_trait(concrete_traits.nucleus_trait, data_type = Traitable, base_class = True):
     def post_ctor(self): ...
 
     def is_acceptable_type(self, data_type: type) -> bool:
@@ -1480,16 +1480,16 @@ class traitable_trait(concrete_traits.nucleus_trait, data_type=Traitable, base_c
             return def_value
 
         if isinstance(def_value, str):  # -- id
-            return self.data_type.existing_instance_by_id(_id_value=def_value)
+            return self.data_type.existing_instance_by_id(_id_value = def_value)
 
         if isinstance(def_value, dict):  # -- trait values
             return self.data_type(**def_value)
 
         raise ValueError(f'{self.data_type} - may not be constructed from {def_value}')
 
-    _REF_CLS_SEP = '~'
-    _REF_COLL_SEP = '^'
-    _REF_ID_ESCAPE = f'%{_REF_CLS_SEP}{_REF_COLL_SEP}'
+    _REF_CLS_SEP    = '~'
+    _REF_COLL_SEP   = '^'
+    _REF_ID_ESCAPE  = f'%{_REF_CLS_SEP}{_REF_COLL_SEP}'
 
     def serialize(self, value: Traitable) -> dict | str:
         """Pack non-embedded *id* refs to a string; leave embedded / full payloads as dict."""
@@ -1511,25 +1511,25 @@ class traitable_trait(concrete_traits.nucleus_trait, data_type=Traitable, base_c
                 raise RuntimeError(f'No object tag in nucleus record: {val}')
             if not (cls_id := val.get(Nucleus.CLASS_TAG())):
                 raise RuntimeError(f'No class tag in nucleus record: {val}')
-            class_prefix = f'{cls_id}{cls._REF_CLS_SEP}'
-            val = obj
+            class_prefix    = f'{cls_id}{cls._REF_CLS_SEP}'
+            val             = obj
         else:
             class_prefix = ''
         if not (id_val := val.get(Nucleus.ID_TAG())):
             raise RuntimeError(f'No id in record: {val}')
-        id_enc = ''.join(f'%{ord(c):02X}' if c in cls._REF_ID_ESCAPE else c for c in id_val)
+        id_enc      = ''.join(f'%{ord(c):02X}' if c in cls._REF_ID_ESCAPE else c for c in id_val)
         coll_suffix = f'{cls._REF_COLL_SEP}{coll}' if (coll := val.get(Nucleus.COLLECTION_TAG())) else ''
         return f'{class_prefix}{id_enc}{coll_suffix}'
 
     @classmethod
     def _unpack_xref(cls, s: str) -> dict:
-        cls_sep, coll_sep = cls._REF_CLS_SEP, cls._REF_COLL_SEP
-        coll = None
+        cls_sep, coll_sep   = cls._REF_CLS_SEP, cls._REF_COLL_SEP
+        coll                = None
         if coll_sep in s:
             s, coll = s.split(coll_sep, 1)
         if cls_sep in s:
-            class_id, id_enc = s.rsplit(cls_sep, 1)
-            obj = {Nucleus.ID_TAG(): unquote(id_enc, errors='strict')}
+            class_id, id_enc    = s.rsplit(cls_sep, 1)
+            obj                 = {Nucleus.ID_TAG(): unquote(id_enc, errors = 'strict')}
             if coll is not None:
                 obj[Nucleus.COLLECTION_TAG()] = coll
             return {
@@ -1537,7 +1537,7 @@ class traitable_trait(concrete_traits.nucleus_trait, data_type=Traitable, base_c
                 Nucleus.CLASS_TAG(): class_id,
                 Nucleus.OBJECT_TAG(): obj,
             }
-        d = {Nucleus.ID_TAG(): unquote(s, errors='strict')}
+        d = {Nucleus.ID_TAG(): unquote(s, errors = 'strict')}
         if coll is not None:
             d[Nucleus.COLLECTION_TAG()] = coll
         return d
@@ -1552,13 +1552,13 @@ class traitable_trait(concrete_traits.nucleus_trait, data_type=Traitable, base_c
         return self.data_type(**value)
 
 
-class AnonymousTraitable(Traitable, root_class=True, embeddable=True):
+class AnonymousTraitable(Traitable, root_class = True, embeddable = True):
     pass
 
 
 class Bundle(Traitable):
-    s_bundle_base = None
-    s_bundle_members: dict = None
+    s_bundle_base           = None
+    s_bundle_members: dict  = None
 
     @classmethod
     def is_bundle_base(cls) -> bool:
@@ -1567,16 +1567,16 @@ class Bundle(Traitable):
     @classmethod
     def collection(cls, _coll_name: str = None, create_if_needed: bool = False) -> TsCollection | None:
         if (base := cls.s_bundle_base) is None or cls.is_bundle_base():
-            return super().collection(_coll_name, create_if_needed=create_if_needed)
+            return super().collection(_coll_name, create_if_needed = create_if_needed)
 
-        if (coll := base.collection(_coll_name, create_if_needed=create_if_needed)) is None:
+        if (coll := base.collection(_coll_name, create_if_needed = create_if_needed)) is None:
             return None
         coll.extend_trait_dir(cls.s_dir)
         if create_if_needed:
-            cls.store().collection(coll.collection_name(), trait_dir=cls.s_dir, create_if_needed=True)
+            cls.store().collection(coll.collection_name(), trait_dir = cls.s_dir, create_if_needed = True)
         return coll
 
-    def __init_subclass__(cls, members_known=False, **kwargs):
+    def __init_subclass__(cls, members_known = False, **kwargs):
         base = cls.s_bundle_base
         if not base:
             cls.s_bundle_base = cls
@@ -1588,8 +1588,8 @@ class Bundle(Traitable):
                 bundle_members[cls.__name__] = cls
 
             if base.s_history_class is XNone:
-                base.s_history_class = base.s_history_base.history_class(base)
-                base.s_storage_helper_cached = None
+                base.s_history_class            = base.s_history_base.history_class(base)
+                base.s_storage_helper_cached    = None
 
         super().__init_subclass__(**kwargs)
 
@@ -1630,7 +1630,7 @@ class BundleHistory(TraitableHistory):
                 traitable_class,
                 traitable_class.s_bundle_base.s_history_class,
             )
-        return super().history_class(traitable_class, Bundle, members_known=traitable_class.s_bundle_members is not None)
+        return super().history_class(traitable_class, Bundle, members_known = traitable_class.s_bundle_members is not None)
 
 
 Bundle.s_history_base = BundleHistory
@@ -1642,14 +1642,14 @@ Bundle.s_history_base = BundleHistory
 
 
 class VaultUser(Traitable):
-    user_id: str    = T(T.ID) // 'OS login'
-    suspended: bool = T(False)
+    user_id: str                    = T(T.ID) // 'OS login'
+    suspended: bool                 = T(False)
 
-    private_key_encrypted: bytes = T()
-    public_key: bytes            = T()
-    master_password_salt: bytes  = T(b'')        # empty only for rows written before this field existed
+    private_key_encrypted: bytes    = T()
+    public_key: bytes               = T()
+    master_password_salt: bytes     = T(b'')        # empty only for rows written before this field existed
 
-    sec_keys: SecKeys = RT(T.EVAL_ONCE)
+    sec_keys: SecKeys               = RT(T.EVAL_ONCE)
 
     def user_id_get(self) -> str:
         return self.__class__.myname()
@@ -1681,23 +1681,23 @@ class VaultUser(Traitable):
     @classmethod
     @cache
     def me(cls) -> VaultUser:
-        return cls.existing_instance(user_id=cls.myname())
+        return cls.existing_instance(user_id = cls.myname())
 
 
 class VaultResourceAccessor(Traitable):
-    username: str = T(T.ID)
-    resource_dt: CONCRETE_RESOURCE = T(T.ID)
-    resource_uri: str = T(T.ID)
+    username: str                       = T(T.ID)
+    resource_dt: CONCRETE_RESOURCE      = T(T.ID)
+    resource_uri: str                   = T(T.ID)
 
-    login: str = T()
-    password: bytes = T()
+    login: str                          = T()
+    password: bytes                     = T()
 
-    last_updated: datetime = T(T.EVAL_ONCE)
+    last_updated: datetime              = T(T.EVAL_ONCE)
 
-    user: VaultUser = RT(T.EVAL_ONCE)
-    resource: Resource = RT(T.EVAL_ONCE)
-    _create_resource_if_needed: bool = RT(False)
-    _cache: bool = RT(True)
+    user: VaultUser                     = RT(T.EVAL_ONCE)
+    resource: Resource                  = RT(T.EVAL_ONCE)
+    _create_resource_if_needed: bool    = RT(False)
+    _cache: bool                        = RT(True)
 
     def username_get(self) -> str:
         return VaultUser.myname()
@@ -1709,16 +1709,16 @@ class VaultResourceAccessor(Traitable):
         return datetime.now(UTC)
 
     def user_get(self) -> VaultUser:
-        return VaultUser.existing_instance(user_id=self.username)
+        return VaultUser.existing_instance(user_id = self.username)
 
     def resource_get(self) -> Resource:
         res_dt = self.resource_dt
         return res_dt.value.instance_from_uri(
             self.resource_uri,
-            username=self.login,
-            password=self.user.sec_keys.decrypt_text(self.password),
-            _cache=self._cache,
-            _create_if_needed=self._create_resource_if_needed,
+            username            = self.login,
+            password            = self.user.sec_keys.decrypt_text(self.password),
+            _cache              = self._cache,
+            _create_if_needed   = self._create_resource_if_needed,
         )
 
     @staticmethod
@@ -1734,12 +1734,12 @@ class VaultResourceAccessor(Traitable):
             if not Traitable.vault_store().is_vault_admin():
                 return RC(False, f'only vault admins may save resource credentials for {username!r}')
 
-        resource_uri = cls._canonical_uri(resource_dt, resource_uri)
-        ra = cls(username=username, resource_dt=resource_dt, resource_uri=resource_uri)
-        user = ra.user
-        rc = ra.set_values(
-            login=login,
-            password=SecKeys.encrypt(password, user.public_key),  # -- can't call user.sec_keys in admin workflow
+        resource_uri    = cls._canonical_uri(resource_dt, resource_uri)
+        ra              = cls(username = username, resource_dt = resource_dt, resource_uri = resource_uri)
+        user            = ra.user
+        rc              = ra.set_values(
+            login       = login,
+            password    = SecKeys.encrypt(password, user.public_key),  # -- can't call user.sec_keys in admin workflow
             # -- as it tries to decrypt the private key
         )
         if rc:
@@ -1760,42 +1760,42 @@ class VaultResourceAccessor(Traitable):
         if not username:
             username = VaultUser.myname()
 
-        resource_uri = cls._canonical_uri(resource_dt, resource_uri)
-        ra = cls.existing_instance(resource_dt=resource_dt, username=username, resource_uri=resource_uri, _throw=False)
+        resource_uri    = cls._canonical_uri(resource_dt, resource_uri)
+        ra              = cls.existing_instance(resource_dt = resource_dt, username = username, resource_uri = resource_uri, _throw = False)
         if not ra:
             uri = resource_dt.value.uri_no_dbname(resource_uri)
             if uri is not None:
-                ra = cls.existing_instance(resource_dt=resource_dt, username=username, resource_uri=uri, _throw=False)
+                ra = cls.existing_instance(resource_dt = resource_dt, username = username, resource_uri = uri, _throw = False)
             if not ra:
                 where = f'{uri}/*' if uri is not None else resource_uri
                 raise ValueError(f"{cls.__name__} for {username}@'{resource_dt.name}({where})' not found")
 
-        fake_ra = VaultResourceAccessor(resource_dt=resource_dt, username=username, resource_uri=resource_uri)
-        fake_ra.login = ra.login
-        fake_ra.password = ra.password
-        fake_ra._create_resource_if_needed = _create_resource_if_needed
-        fake_ra._cache = _cache
+        fake_ra                             = VaultResourceAccessor(resource_dt = resource_dt, username = username, resource_uri = resource_uri)
+        fake_ra.login                       = ra.login
+        fake_ra.password                    = ra.password
+        fake_ra._create_resource_if_needed  = _create_resource_if_needed
+        fake_ra._cache                      = _cache
         return fake_ra
 
 
 class NamedResource(Bundle):
-    s_resource_dt: CONCRETE_RESOURCE = None
-    logical_name: str = T(T.ID)
-    uri: str = T()
+    s_resource_dt: CONCRETE_RESOURCE    = None
+    logical_name: str                   = T(T.ID)
+    uri: str                            = T()
 
     @classmethod
     def check_integrity(cls, root_class: bool, rc: RC):
-        super().check_integrity(root_class=root_class, rc=rc)
+        super().check_integrity(root_class = root_class, rc = rc)
         if not cls.is_bundle_base() and cls.s_resource_dt is None:
             rc.add_error('Must define s_resource_dt')
 
-    def resource_instance(self, _create_if_needed=False):
+    def resource_instance(self, _create_if_needed = False):
         resource_uri = self.uri
         with Traitable.vault_store():
             try:
-                ra = VaultResourceAccessor.retrieve_ra(self.s_resource_dt, resource_uri, _create_resource_if_needed=_create_if_needed)
+                ra = VaultResourceAccessor.retrieve_ra(self.s_resource_dt, resource_uri, _create_resource_if_needed = _create_if_needed)
             except ValueError:
-                return self.s_resource_dt.value.instance_from_uri(self.uri, _create_if_needed=_create_if_needed)
+                return self.s_resource_dt.value.instance_from_uri(self.uri, _create_if_needed = _create_if_needed)
             else:
                 return ra.resource
 
@@ -1809,8 +1809,8 @@ class NamedOidc(NamedResource):
 
 
 class TsClassAssociation(Traitable):
-    py_canonical_name: str = T(T.ID)
-    ts_logical_name: str = T(Ui.choice('Store Name'))
+    py_canonical_name: str  = T(T.ID)
+    ts_logical_name: str    = T(Ui.choice('Store Name'))
 
     def ts_logical_name_choices(self, trait) -> tuple:
         return tuple(nts.logical_name for nts in NamedTsStore.load_many())
@@ -1825,13 +1825,13 @@ class TsClassAssociation(Traitable):
         # -- 1) Check TsStore association for the class itself, its module and packages
         canonical_name = PyClass.name(traitable_class)
         while True:
-            association = cls.existing_instance(py_canonical_name=canonical_name, _throw=False)
+            association = cls.existing_instance(py_canonical_name = canonical_name, _throw = False)
             if association:
-                named_store = NamedTsStore.existing_instance(logical_name=association.ts_logical_name)
+                named_store = NamedTsStore.existing_instance(logical_name = association.ts_logical_name)
                 return named_store.uri
 
-            parts = canonical_name.rsplit('.', maxsplit=1)
-            name = parts[0]
+            parts   = canonical_name.rsplit('.', maxsplit = 1)
+            name    = parts[0]
             if name == canonical_name:  # -- checked all packages bottom up
                 break  # -- no asscciation for the class. module, packages
 
@@ -1841,10 +1841,10 @@ class TsClassAssociation(Traitable):
         parent_classes = traitable_class.__mro__
         for pclass in parent_classes[1:]:
             if issubclass(pclass, Traitable):
-                canonical_name = PyClass.name(pclass)
-                association = cls.existing_instance(py_canonical_name=canonical_name, _throw=False)
+                canonical_name  = PyClass.name(pclass)
+                association     = cls.existing_instance(py_canonical_name = canonical_name, _throw = False)
                 if association:
-                    named_store = NamedTsStore.existing_instance(logical_name=association.ts_logical_name)
+                    named_store = NamedTsStore.existing_instance(logical_name = association.ts_logical_name)
                     return named_store.uri
 
         return ''

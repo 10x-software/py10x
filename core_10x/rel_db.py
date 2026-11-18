@@ -10,14 +10,14 @@ if TYPE_CHECKING:
     import polars as pl
 
 
-class RelDb(Resource, resource_type=REL_DB):
+class RelDb(Resource, resource_type = REL_DB):
     s_instance_kwargs_map = Resource.s_instance_kwargs_map | {
         Resource.PROTOCOL_TAG: (Resource.PROTOCOL_TAG, None),
     }
 
     def __init__(self, uri: str):
-        self._uri = uri
-        self._connection = None
+        self._uri           = uri
+        self._connection    = None
 
     @classmethod
     def new_instance(cls, **kwargs) -> RelDb:
@@ -64,7 +64,7 @@ class RelDb(Resource, resource_type=REL_DB):
         """
         if self._connection is not None:
             raise RuntimeError('RelDb must not be used as a context manager for insert; call insert() outside the with block.')
-        df.write_database(table_name, self._uri, engine='adbc', if_table_exists=if_exists)
+        df.write_database(table_name, self._uri, engine = 'adbc', if_table_exists = if_exists)
 
     def drop_table(self, table_name: str) -> None:
         if self._connection is None:

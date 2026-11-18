@@ -5,7 +5,7 @@ from typing import Self
 from core_10x.resource import OIDC, Resource, ResourceSpec
 
 
-class OidcSecret(Resource, resource_type=OIDC):
+class OidcSecret(Resource, resource_type = OIDC):
     """OIDC client secret addressed by a client URI.
 
     The vault stores the client id as the accessor login and the client secret
@@ -15,18 +15,18 @@ class OidcSecret(Resource, resource_type=OIDC):
     vault's RSA-2048 key).
     """
 
-    s_login_label = 'client id'
-    s_secret_label = 'client secret'
-    s_instance_kwargs_map = Resource.s_instance_kwargs_map | {
+    s_login_label           = 'client id'
+    s_secret_label          = 'client secret'
+    s_instance_kwargs_map   = Resource.s_instance_kwargs_map | {
         Resource.PROTOCOL_TAG: (Resource.PROTOCOL_TAG, None),
         Resource.QUERY_TAG: (Resource.QUERY_TAG, ''),
         Resource.FRAGMENT_TAG: (Resource.FRAGMENT_TAG, ''),
     }
 
     def __init__(self, uri: str, client_id: str | None, client_secret: str | None):
-        self.uri = uri
-        self.client_id = client_id
-        self.client_secret = client_secret
+        self.uri            = uri
+        self.client_id      = client_id
+        self.client_secret  = client_secret
 
     @classmethod
     def uri_no_dbname(cls, uri: str) -> None:
@@ -42,12 +42,12 @@ class OidcSecret(Resource, resource_type=OIDC):
             raise ValueError('OIDC client secret is empty')
         if password is not None and not username:
             raise ValueError('OIDC client id is required')
-        return super().instance_from_uri(uri, username=username, password=password, _cache=_cache, _create_if_needed=_create_if_needed)
+        return super().instance_from_uri(uri, username = username, password = password, _cache = _cache, _create_if_needed = _create_if_needed)
 
     @classmethod
     def new_instance(cls, **kwargs) -> Self:
-        client_id = kwargs.pop(cls.USERNAME_TAG, None)
-        client_secret = kwargs.pop(cls.PASSWORD_TAG, None)
+        client_id       = kwargs.pop(cls.USERNAME_TAG, None)
+        client_secret   = kwargs.pop(cls.PASSWORD_TAG, None)
         return cls(ResourceSpec(cls, kwargs).uri(), client_id, client_secret)
 
     def on_enter(self):

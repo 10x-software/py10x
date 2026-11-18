@@ -97,7 +97,7 @@ class ProcessContext(BProcessContext):
 class FlagsContext:
     s_default_flags = 0
 
-    def __init__(self, flags=None):
+    def __init__(self, flags = None):
         self._flags = flags if flags is not None else self.s_default_flags
 
     def __enter__(self):
@@ -114,10 +114,10 @@ class CACHE_ONLY(FlagsContext):
 
 class GraphDeps:
     def __init__(self, gp: BTP, bound_trait: BoundTrait, inputs_spec: dict[type, tuple[str, ...]]):
-        self.gp = gp
-        obj = bound_trait.obj
-        trait = bound_trait.trait
-        self.deps_data = gp.find_dependencies(obj, trait, inputs_spec)
+        self.gp         = gp
+        obj             = bound_trait.obj
+        trait           = bound_trait.trait
+        self.deps_data  = gp.find_dependencies(obj, trait, inputs_spec)
 
     def read(self, traitable_cls, obj_id: ID, trait: Trait):
         cache = self.gp.cache()
@@ -129,13 +129,13 @@ class GraphDeps:
 
     def perturb_value(self, traitable, trait_name: str, value):
         obj_cls = traitable.__class__
-        trait = obj_cls.trait(trait_name, throw=True)
+        trait   = obj_cls.trait(trait_name, throw = True)
         self.perturb(obj_cls, traitable.id(), trait, value)
 
-    def deps(self, objects=True, trait_names=False):
+    def deps(self, objects = True, trait_names = False):
         for cls, traits_by_id in self.deps_data.items():
             for id, traits in traits_by_id.items():
-                obj = cls(_id=id) if objects else id
+                obj = cls(_id = id) if objects else id
                 for t, value in traits:
                     if trait_names:
                         t = t.name

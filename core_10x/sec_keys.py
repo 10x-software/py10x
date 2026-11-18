@@ -30,20 +30,20 @@ _ACCEPTABLE_KEYRING_BACKENDS = (
     FailKeyring,  # -- always raises NoKeyringError on use; can never silently store insecurely
 )
 
-PUBLIC_EXP = 65537
-KEY_SIZE = 2048
-PASSWORD_SIZE = 24
-ENCODING = 'utf-8'
-OAEP_HASH = hashes.SHA256
+PUBLIC_EXP      = 65537
+KEY_SIZE        = 2048
+PASSWORD_SIZE   = 24
+ENCODING        = 'utf-8'
+OAEP_HASH       = hashes.SHA256
 
 # OWASP-minimum scrypt; PKCS8's inner PBKDF2 is fixed at 2048 and unraisable, so this
 # is what gates offline guesses against an exfiltrated VaultUser row. See
 # docs/VAULT_SECURITY_DESIGN.md §3.1.
-SCRYPT_N = 2**17
-SCRYPT_R = 8
-SCRYPT_P = 1
-SCRYPT_SALT_SIZE = 16
-SCRYPT_KEY_LENGTH = 32
+SCRYPT_N            = 2**17
+SCRYPT_R            = 8
+SCRYPT_P            = 1
+SCRYPT_SALT_SIZE    = 16
+SCRYPT_KEY_LENGTH   = 32
 
 
 class SecKeys:
@@ -166,18 +166,18 @@ class SecKeys:
     @classmethod
     def generate_keys(cls, pwd = None) -> tuple:
         private_key = rsa.generate_private_key(public_exponent = PUBLIC_EXP, key_size = KEY_SIZE, backend = default_backend())
-        public_key = private_key.public_key()
+        public_key  = private_key.public_key()
 
         if pwd:
-            format = serialization.PrivateFormat.PKCS8
-            algo = serialization.BestAvailableEncryption(bytes(pwd, encoding = ENCODING))
+            format  = serialization.PrivateFormat.PKCS8
+            algo    = serialization.BestAvailableEncryption(bytes(pwd, encoding = ENCODING))
         else:
-            format = serialization.PrivateFormat.TraditionalOpenSSL
-            algo = serialization.NoEncryption()
+            format  = serialization.PrivateFormat.TraditionalOpenSSL
+            algo    = serialization.NoEncryption()
 
         private_key_pem = private_key.private_bytes(encoding = serialization.Encoding.PEM, format = format,
                                                     encryption_algorithm = algo)
-        public_key_pem = public_key.public_bytes(encoding = serialization.Encoding.PEM,
+        public_key_pem  = public_key.public_bytes(encoding = serialization.Encoding.PEM,
                                                  format = serialization.PublicFormat.SubjectPublicKeyInfo)
 
         return (private_key_pem, public_key_pem)
@@ -193,7 +193,7 @@ class SecKeys:
     @classmethod
     def decrypt(cls, encrypted_message: bytes, private_key_pem: bytes, to_str = True):
         private_key = load_pem_private_key(private_key_pem, password = None)
-        res = private_key.decrypt(encrypted_message, cls._oaep_padding())
+        res         = private_key.decrypt(encrypted_message, cls._oaep_padding())
 
         if to_str:
             res = res.decode(encoding = ENCODING)
@@ -206,9 +206,9 @@ class SecKeys:
 
         private_key = load_pem_private_key(private_key_pem, password = None)
         return private_key.private_bytes(
-            encoding = serialization.Encoding.PEM,
-            format = serialization.PrivateFormat.PKCS8,
-            encryption_algorithm = serialization.BestAvailableEncryption(derived),
+            encoding                = serialization.Encoding.PEM,
+            format                  = serialization.PrivateFormat.PKCS8,
+            encryption_algorithm    = serialization.BestAvailableEncryption(derived),
         )
 
     @classmethod
@@ -220,9 +220,9 @@ class SecKeys:
 
         pk = load_pem_private_key(private_key_with_password, password = password)
         return pk.private_bytes(
-            encoding = serialization.Encoding.PEM,
-            format = serialization.PrivateFormat.TraditionalOpenSSL,
-            encryption_algorithm = serialization.NoEncryption(),
+            encoding                = serialization.Encoding.PEM,
+            format                  = serialization.PrivateFormat.TraditionalOpenSSL,
+            encryption_algorithm    = serialization.NoEncryption(),
         )
 
     def __init__(self, private_key_with_password: bytes, public_key_pem: bytes, password, salt: bytes = b''):
@@ -231,8 +231,8 @@ class SecKeys:
         elif type(password) is str:
             password = bytes(password, encoding = ENCODING)
 
-        self.private_key = load_pem_private_key(private_key_with_password, password = password)
-        self.public_key = load_pem_public_key(public_key_pem)
+        self.private_key    = load_pem_private_key(private_key_with_password, password = password)
+        self.public_key     = load_pem_public_key(public_key_pem)
 
     def encrypt_text(self, text: str) -> bytes:
         return SecKeys._oaep_encrypt(self.public_key, bytes(text, encoding = ENCODING))

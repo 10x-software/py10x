@@ -8,8 +8,8 @@ class ID:
     __slots__ = ('collection_name', 'value')
 
     def __init__(self, id_value: str = None, collection_name: str = None):
-        self.value = id_value
-        self.collection_name = collection_name
+        self.value              = id_value
+        self.collection_name    = collection_name
 
     def __eq__(self, other: ID):
         if not isinstance(other, ID):

@@ -33,9 +33,9 @@ class NamedConstant(Nucleus):
 
     def __init__(self, name: str = '', label: str = '', value: Any = None):
         super().__init__()
-        self.name = name
-        self.label = label
-        self.value = value
+        self.name   = name
+        self.label  = label
+        self.value  = value
 
     def __eq__(self, other):
         return self.name == other.name
@@ -43,7 +43,7 @@ class NamedConstant(Nucleus):
     def __hash__(self):
         return hash(self.name)
 
-    def __deepcopy__(self, memo=None):
+    def __deepcopy__(self, memo = None):
         return self
 
     # -- Makes sense only for NamedConstants with Callable values
@@ -126,10 +126,10 @@ class NamedConstant(Nucleus):
     #===================================================================================================================
 
     s_dir: dict[str, NamedConstant] = {}
-    s_reverse_dir = {}
-    s_data_type = None
-    s_default_labels = False
-    s_lowercase_values = False
+    s_reverse_dir                   = {}
+    s_data_type                     = None
+    s_default_labels                = False
+    s_lowercase_values              = False
 
     def __init_subclass__(
         cls,
@@ -162,11 +162,11 @@ class NamedConstant(Nucleus):
                 for name, value in source.__dict__.items():
                     if not name.isupper() or name.startswith('_'):
                         continue
-                    cdef = cls()
-                    cdef.name  = name
-                    cdef.label = cls.default_label(name) if default_labels else name
-                    cdef.value = value
-                    dt = type(value)
+                    cdef        = cls()
+                    cdef.name   = name
+                    cdef.label  = cls.default_label(name) if default_labels else name
+                    cdef.value  = value
+                    dt          = type(value)
                     if data_type is None:
                         data_type = dt
                     else:
@@ -177,8 +177,8 @@ class NamedConstant(Nucleus):
                 if not name.isupper():
                     continue
 
-                cdef = cls._create(constant_definition)
-                cdef.name = name
+                cdef        = cls._create(constant_definition)
+                cdef.name   = name
                 if not cdef.label:
                     cdef.label = cls.default_label(name) if default_labels else name
 
@@ -260,8 +260,8 @@ class Enum(NamedConstant):
         - a string - just a label
     """
 
-    s_last_value = 0
-    s_step = 1
+    s_last_value    = 0
+    s_step          = 1
 
     def __init_subclass__(cls, seed: int = None, step: int = None, **kwargs):
         if seed is not None:
@@ -323,8 +323,8 @@ class EnumBits(NamedConstant):
         return super().describe_class(**kwargs) | {'combinable': True}     #-- members can be OR-ed: A | B
 
     def __or__(self, other):
-        the_value = self.value
-        value = the_value | other.value
+        the_value   = self.value
+        value       = the_value | other.value
         if value == the_value:
             return self
 
@@ -332,8 +332,8 @@ class EnumBits(NamedConstant):
         return cls.from_int(value)
 
     def __and__(self, other):
-        the_value = self.value
-        value = the_value & other.value
+        the_value   = self.value
+        value       = the_value & other.value
         if value == the_value:
             return self
 
@@ -341,8 +341,8 @@ class EnumBits(NamedConstant):
         return cls.from_int(value)
 
     def __sub__(self, other):
-        the_value = self.value
-        value = the_value & ~other.value
+        the_value   = self.value
+        value       = the_value & ~other.value
         if value == the_value:
             return self
 
@@ -351,8 +351,8 @@ class EnumBits(NamedConstant):
 
     @classmethod
     def names_to_value(cls, cnames: list) -> int:
-        value = 0x0
-        sdir = cls.s_dir
+        value   = 0x0
+        sdir    = cls.s_dir
         for cname in cnames:
             cdef = sdir.get(cname)
             if cdef is None:
@@ -371,8 +371,8 @@ class EnumBits(NamedConstant):
         if found is not None:
             return found
 
-        cnames = s.split('|')
-        value = cls.names_to_value(cnames)
+        cnames  = s.split('|')
+        value   = cls.names_to_value(cnames)
         return cls(s, s, value)
 
     @classmethod
@@ -411,7 +411,7 @@ class EnumBits(NamedConstant):
         return int(self.value)
 
 
-class ErrorCode(Enum, seed=-1, step=-1):
+class ErrorCode(Enum, seed = -1, step = -1):
     def __call__(self, *args, **kwargs):
         return self.label.format(*args, **kwargs)
 
@@ -444,8 +444,8 @@ class NamedConstantValue:
 
         except Exception as e:
             #-- check if it is a name of a constant
-            named_constant_class = self.named_constant_class
-            cdef = named_constant_class.s_dir.get(key)
+            named_constant_class    = self.named_constant_class
+            cdef                    = named_constant_class.s_dir.get(key)
             if not cdef:
                 raise KeyError(f'{named_constant_class}.{key} - unknown named constant') from e
 
@@ -482,8 +482,8 @@ class NamedConstantTable(NamedConstantValue):
     def extend(self, row_nc_subclass: type[NamedConstant], **named_tuple_values) -> NamedConstantTable:
         assert issubclass(row_nc_subclass, self.named_constant_class), f'row_nc_subclass must be a subclass of {self.named_constant_class}'
 
-        res = NamedConstantTable(row_nc_subclass, self.col_named_constant_class, _check_num_values = False)
-        res.data = data = dict(self.data)
+        res         = NamedConstantTable(row_nc_subclass, self.col_named_constant_class, _check_num_values = False)
+        res.data    = data = dict(self.data)
 
         num_values = len(row_nc_subclass.s_dir) - len(self.named_constant_class.s_dir)
         assert len(named_tuple_values) == num_values, f'{row_nc_subclass} - number of named values must be {num_values}'

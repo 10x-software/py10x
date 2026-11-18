@@ -12,13 +12,13 @@ class MethodOptimizationRecord:
         if _kaboom:
             raise AssertionError(f'Must call {self.__class__.__name__}.instance() instead')
 
-        self.original_method = py_method
-        self.optimized_methods: dict[type[TraitableMethodOptimizer], Callable] = {}
-        self.best: type[TraitableMethodOptimizer] = None
+        self.original_method                                                    = py_method
+        self.optimized_methods: dict[type[TraitableMethodOptimizer], Callable]  = {}
+        self.best: type[TraitableMethodOptimizer]                               = None
 
     def add_optimization(self, op_obj: TraitableMethodOptimizer):
-        op_class = op_obj.__class__
-        self.optimized_methods[op_class] = op_obj.optimized_method
+        op_class                            = op_obj.__class__
+        self.optimized_methods[op_class]    = op_obj.optimized_method
 
     def set_best(self, op_class: type[TraitableMethodOptimizer]):
         if not op_class in self.optimized_methods:
@@ -60,27 +60,27 @@ class TraitableMethodData:
             raise AssertionError(f'{traitable_class} - unknown attribute {attr_name}')
 
         if isinstance(attr, Trait):
-            trait = attr
+            trait           = attr
             original_method = attr.custom_f_get()
-            has_params = bool(attr.getter_params)
-            return_type = attr.data_type
+            has_params      = bool(attr.getter_params)
+            return_type     = attr.data_type
         else:   #-- must be a method
             if not callable(attr):
                 raise AssertionError(f'{traitable_class.__name__}.{attr_name} - must be a method')
 
-            trait = None
+            trait           = None
             original_method = attr
-            hints = typing.get_type_hints(original_method)
-            return_type = hints.get('return')
-            n = len(inspect.signature(original_method).parameters)
-            has_params = n > 1  #-- self doesn't count
+            hints           = typing.get_type_hints(original_method)
+            return_type     = hints.get('return')
+            n               = len(inspect.signature(original_method).parameters)
+            has_params      = n > 1  #-- self doesn't count
 
-        self.traitable_class = traitable_class
-        self.name = attr_name
-        self.trait = trait
-        self.original_method = original_method
-        self.has_params = has_params
-        self.return_type = return_type
+        self.traitable_class    = traitable_class
+        self.name               = attr_name
+        self.trait              = trait
+        self.original_method    = original_method
+        self.has_params         = has_params
+        self.return_type        = return_type
 
 class TraitableMethodOptimizer:
     @staticmethod
@@ -94,18 +94,18 @@ class TraitableMethodOptimizer:
         return False
 
     def __init__(self, traitable_class: type[Traitable], attr_name: str):
-        self.data = data = TraitableMethodData.record(traitable_class, attr_name)
-        op_rec = MethodOptimizationRecord.instance(data.original_method)
-        self.optimized_method = op_rec.get_optimization(self.__class__)
+        self.data               = data = TraitableMethodData.record(traitable_class, attr_name)
+        op_rec                  = MethodOptimizationRecord.instance(data.original_method)
+        self.optimized_method   = op_rec.get_optimization(self.__class__)
 
     def optimize(self) -> Callable:
         op_method = self.optimized_method
         if op_method is None:
             original_method = self.data.original_method
             if original_method is not None:
-                op_method = self.generate_optimized_method()
-                self.optimized_method = op_method
-                op_rec = MethodOptimizationRecord.instance(original_method)
+                op_method               = self.generate_optimized_method()
+                self.optimized_method   = op_method
+                op_rec                  = MethodOptimizationRecord.instance(original_method)
                 op_rec.add_optimization(self)
 
         return op_method

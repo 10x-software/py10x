@@ -20,8 +20,8 @@ class PackageRefactoring:
     def register_top_level_packages(cls, *top_level_packages):
         instances = cls.s_instances
         for top_level_package in top_level_packages:
-            pkg_refact = cls(top_level_package)
-            instances[top_level_package] = pkg_refact
+            pkg_refact                      = cls(top_level_package)
+            instances[top_level_package]    = pkg_refact
 
     @staticmethod
     def default_class_id(cls: type = None, canonical_class_name: str = None) -> str:
@@ -34,8 +34,8 @@ class PackageRefactoring:
 
     def __init__(self, top_package_name: str):
         try:
-            pkg_init = importlib.import_module(top_package_name)
-            self.file_name = pkg_init.__file__.replace('__init__', self.__class__.s_module_name)
+            pkg_init        = importlib.import_module(top_package_name)
+            self.file_name  = pkg_init.__file__.replace('__init__', self.__class__.s_module_name)
         except Exception as e:
             raise OSError(f'Unknown top-level package {top_package_name}') from e
 
@@ -73,7 +73,7 @@ class PackageRefactoring:
             text.append(f'\t{cid!r}:\t\t{path!r},')
         text.append('}')
         s = '\n'.join(text)
-        with open(self.file_name, mode='w') as f:
+        with open(self.file_name, mode = 'w') as f:
             f.write(s)
 
     @staticmethod
@@ -108,22 +108,22 @@ class PackageRefactoring:
 
     @staticmethod
     def _find_or_create_instance(canonical_class_name) -> PackageRefactoring:
-        parts = canonical_class_name.split('.', maxsplit=1)
+        parts = canonical_class_name.split('.', maxsplit = 1)
         if len(parts) < 2:
             raise ValueError(f'Invalid canonical class name {canonical_class_name}')
 
-        package_name = parts[0]
-        pkg_refactor: PackageRefactoring = PackageRefactoring.s_instances.get(package_name)
+        package_name                        = parts[0]
+        pkg_refactor: PackageRefactoring    = PackageRefactoring.s_instances.get(package_name)
         if not pkg_refactor:
-            pkg_refactor = PackageRefactoring(package_name)
-            PackageRefactoring.s_instances[package_name] = pkg_refactor
+            pkg_refactor                                    = PackageRefactoring(package_name)
+            PackageRefactoring.s_instances[package_name]    = pkg_refactor
 
         return pkg_refactor
 
     @staticmethod
     def remove_class(canonical_class_name: str, save: bool = True):
-        pkg_refactor = PackageRefactoring._find_or_create_instance(canonical_class_name)
-        cid = pkg_refactor.path_to_cid.get(canonical_class_name)
+        pkg_refactor    = PackageRefactoring._find_or_create_instance(canonical_class_name)
+        cid             = pkg_refactor.path_to_cid.get(canonical_class_name)
         if cid is None:
             raise ValueError(f'Unknown canonical class name {canonical_class_name}')
 
@@ -135,10 +135,10 @@ class PackageRefactoring:
 
     @staticmethod
     def move_class(cur_path: str, new_path: str):
-        refactor1 = PackageRefactoring._find_or_create_instance(cur_path)
-        refactor2 = PackageRefactoring._find_or_create_instance(new_path)
-        the_same = refactor1 is refactor2
-        cid = refactor1.path_to_cid.get(cur_path)
+        refactor1   = PackageRefactoring._find_or_create_instance(cur_path)
+        refactor2   = PackageRefactoring._find_or_create_instance(new_path)
+        the_same    = refactor1 is refactor2
+        cid         = refactor1.path_to_cid.get(cur_path)
         if cid is not None:
             del refactor1.path_to_cid[cur_path]
             del refactor1.cid_to_path[cid]
@@ -146,8 +146,8 @@ class PackageRefactoring:
                 refactor1._save()
 
         else:
-            cid = PackageRefactoring.default_class_id(canonical_class_name=cur_path)
+            cid = PackageRefactoring.default_class_id(canonical_class_name = cur_path)
 
-        refactor2.cid_to_path[cid] = new_path
+        refactor2.cid_to_path[cid]      = new_path
         refactor2.path_to_cid[new_path] = cid
         refactor2._save()

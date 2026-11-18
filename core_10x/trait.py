@@ -28,11 +28,11 @@ class TraitMetaclass(type(BTrait)):
 
 
 class Trait(BTrait, metaclass = TraitMetaclass):
-    __slots__ = ('fmt', 'getter_params', 't_def', 'ui_hint')
-    s_datatype_traitclass_map = {}
-    s_ui_hint = None
-    s_fmt = None
-    s_serialize_to_type = ()
+    __slots__                   = ('fmt', 'getter_params', 't_def', 'ui_hint')
+    s_datatype_traitclass_map   = {}
+    s_ui_hint                   = None
+    s_fmt                       = None
+    s_serialize_to_type         = ()
 
     @staticmethod
     def register_by_datatype(trait_class, data_type):
@@ -85,8 +85,8 @@ class Trait(BTrait, metaclass = TraitMetaclass):
         else:
             super().__init__(btrait)
 
-        self.t_def = t_def
-        self.getter_params = ()
+        self.t_def          = t_def
+        self.getter_params  = ()
         if type(self).shallow_copy is not Trait.shallow_copy:  #-- the kernel calls it only where there is something to copy
             self.set_f_shallow_copy(type(self).shallow_copy)
         if type(self).deep_copy is not Trait.deep_copy:
@@ -121,12 +121,12 @@ class Trait(BTrait, metaclass = TraitMetaclass):
             dt = get_origin(dt)  # get original type, e.g. `list` from `list[int]`
             # TODO: could be useful to also keep get_args(dt) for extra checking?
         trait_class = Trait.real_trait_class(dt)
-        trait = trait_class(t_def)
+        trait       = trait_class(t_def)
         trait.set_name(trait_name)
         trait.data_type = dt
-        trait.flags = t_def.flags.value()
-        trait.default = t_def.default
-        trait.fmt = t_def.fmt or trait.s_fmt
+        trait.flags     = t_def.flags.value()
+        trait.default   = t_def.default
+        trait.fmt       = t_def.fmt or trait.s_fmt
 
         trait.create_proc()
 
@@ -146,19 +146,19 @@ class Trait(BTrait, metaclass = TraitMetaclass):
     @staticmethod
     def pybind_signature(method):
         # pybind11 puts the callable signature on the docstring's first line; exec parses it when inspect cannot.
-        doc = method.__doc__
-        name = method.__name__
-        mod = method.__module__
-        doc_signature, loc = doc.split('\n', 1)[0].replace(f'{mod}.', ''), {}
+        doc                 = method.__doc__
+        name                = method.__name__
+        mod                 = method.__module__
+        doc_signature, loc  = doc.split('\n', 1)[0].replace(f'{mod}.', ''), {}
         exec(f'def {doc_signature}: ...', sys.modules[mod].__dict__, loc)
         return inspect.signature(loc[name])
 
     def set_trait_funcs(self, traitable_cls, rc):
         for method_name, (method_suffix, method_def) in Trait.method_defs(self.name).items():
-            cxx_method = (
+            cxx_method  = (
                 next((getattr(cxx_mixin, method_name, None) for cxx_mixin in traitable_cls.s_cxx_mixins), None) if method_suffix == 'get' else None
             )
-            method = getattr(traitable_cls, method_name, cxx_method)
+            method      = getattr(traitable_cls, method_name, cxx_method)
             if method and method_suffix == 'get' and self.t_def.default is not XNone:  # -- getter and default are defined - figure out which to use
                 for cls in traitable_cls.__mro__:
                     cls_vars = vars(cls)
@@ -173,8 +173,8 @@ class Trait(BTrait, metaclass = TraitMetaclass):
                         continue
                     break
 
-            f_type = '_cxx' if method and method is cxx_method else ''
-            args = [self, method, method_suffix, rc]
+            f_type  = '_cxx' if method and method is cxx_method else ''
+            args    = [self, method, method_suffix, rc]
             if f_type:
                 args.append(True)
             f = method_def.value(*args)
@@ -185,17 +185,17 @@ class Trait(BTrait, metaclass = TraitMetaclass):
         if self.getter_params:
             self.set_getter_has_args()
 
-    def create_f_get(self, f, attr_name: str, rc: RC, pybind=False):
+    def create_f_get(self, f, attr_name: str, rc: RC, pybind = False):
         if not f:  # -- no custom getter, just the default value
-            f = lambda traitable: self.default_value()
-            f.__name__ = 'default_value'
-            params = ()
+            f           = lambda traitable: self.default_value()
+            f.__name__  = 'default_value'
+            params      = ()
 
         else:
             # TODO: if default is defined in a subclass relative to where the getter is defined, override the getter?
 
-            sig = inspect.signature(f) if not pybind else self.pybind_signature(f)
-            params = []
+            sig     = inspect.signature(f) if not pybind else self.pybind_signature(f)
+            params  = []
             param: Parameter
             for pname, param in sig.parameters.items():
                 if pname != 'self':
@@ -217,9 +217,9 @@ class Trait(BTrait, metaclass = TraitMetaclass):
         resolved_hints = get_type_hints(f, sys.modules[f.__module__].__dict__ if f.__module__ in sys.modules else {}, f.__class__.__dict__)
         assert resolved_hints.get('return') is RC, f'{f.__name__} - setter must return RC'
 
-        sig = inspect.signature(f)
-        params = tuple(sig.parameters.values())
-        n = len(params)
+        sig     = inspect.signature(f)
+        params  = tuple(sig.parameters.values())
+        n       = len(params)
         if n < 3:
             rc.add_error(f'{f.__name__} - setter must have at least 3 parameters: self, trait, value')
 
@@ -236,8 +236,8 @@ class Trait(BTrait, metaclass = TraitMetaclass):
         if not f:
             common_f = getattr(cls, attr_name, None)
             if common_f:
-                f = lambda obj_or_cls, trait, value: common_f(trait, value)
-                f.__name__ = f'{cls.__name__}.{common_f.__name__}'
+                f           = lambda obj_or_cls, trait, value: common_f(trait, value)
+                f.__name__  = f'{cls.__name__}.{common_f.__name__}'
 
         return f
 
@@ -254,8 +254,8 @@ class Trait(BTrait, metaclass = TraitMetaclass):
         if not f:
             choices_f = getattr(cls, attr_name, None)
             if choices_f:
-                f = lambda obj, trait: choices_f(trait)
-                f.__name__ = f'{cls.__name__}.{choices_f.__name__}'
+                f           = lambda obj, trait: choices_f(trait)
+                f.__name__  = f'{cls.__name__}.{choices_f.__name__}'
 
         return f
 
@@ -358,10 +358,10 @@ class Trait(BTrait, metaclass = TraitMetaclass):
 
     # TODO: unify XNone/None conversions with object serialization/deserializatoin in c++
     # TODO: call these from c++ directly in place of f_serialize/f_deserialize?
-    def serialize_value(self, value, replace_xnone=False):
+    def serialize_value(self, value, replace_xnone = False):
         return None if replace_xnone and value is XNone else self.f_serialize(self, value)
 
-    def deserialize_value(self, value, replace_none=False):
+    def deserialize_value(self, value, replace_none = False):
         return XNone if replace_none and value is None else self.f_deserialize(self, value)
 
     def serialize_to_types(self) -> type | tuple(type):
@@ -373,14 +373,14 @@ class Trait(BTrait, metaclass = TraitMetaclass):
 
     def describe(self, **kwargs) -> dict:
         #-- a plain, JSON-compatible dict
-        dt = self.data_type
-        flags = self.flags
-        fbits = self.s_flag_bits
+        dt      = self.data_type
+        flags   = self.flags
+        fbits   = self.s_flag_bits
         #-- all bits must be on: flags_on() matches any bit
         on = [name for name, bits in fbits.items() if bits & flags == bits]
         #-- most specific names only: e.g. ID_LIKE includes the ID bit, but an ID_LIKE trait is not an ID trait
-        flags_on = [n for n in on if not any(m != n and fbits[n] & fbits[m] == fbits[n] for m in on)]
-        res = {
+        flags_on    = [n for n in on if not any(m != n and fbits[n] & fbits[m] == fbits[n] for m in on)]
+        res         = {
             'name':     self.name,
             'type':     'any' if dt is XNoneType else dt.__name__,
             'flags':    flags_on,
@@ -427,16 +427,16 @@ class generic_trait(Trait, register = False):
 
 class trait_value:
     def __init__(self, value, *args):
-        self.value = value
-        self.args = args
+        self.value  = value
+        self.args   = args
 
     def __call__(self, *args, **kwargs): ...
 
 
 class BoundTrait:
     def __init__(self, obj, trait: Trait):
-        self.obj = obj
-        self.trait = trait
+        self.obj    = obj
+        self.trait  = trait
         # self.args = ()
 
     def __getattr__(self, attr_name):
@@ -455,8 +455,8 @@ class ClassTrait(NamedCallable):
     def __init__(self, traitable_class, trait: Trait):
         value = lambda traitable: traitable.get_trait_value(trait)
         super().__init__(trait.name, trait.name, value)
-        self.cls = traitable_class
-        self.trait = trait
+        self.cls    = traitable_class
+        self.trait  = trait
 
     def to_str(self) -> str:
         return f'{self.cls}.{self.trait.name}'
@@ -466,7 +466,7 @@ class ClassTrait(NamedCallable):
 
     @classmethod
     def deserialize(cls, serialized_data: list) -> ClassTrait:
-        class_id, trait_name = serialized_data
-        traitable_class = PackageRefactoring.find_class(class_id)
-        trait = traitable_class.trait(trait_name, throw=True)
+        class_id, trait_name    = serialized_data
+        traitable_class         = PackageRefactoring.find_class(class_id)
+        trait                   = traitable_class.trait(trait_name, throw = True)
         return ClassTrait(traitable_class, trait)
