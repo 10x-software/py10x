@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 `py10x-fin-base` / `py10x-fin-base-cxx` version independently and have their own changelog: [`xx_fin/CHANGELOG.md`](xx_fin/CHANGELOG.md).
 
-## [Unreleased]
+## [0.4.1]
 
 ### Fixed
 - **PyPI project page**: the README's relative links and screenshot 404'd on PyPI; the published readme now points them at GitHub `main` (rewritten at build time by `hatch-fancy-pypi-readme`).
