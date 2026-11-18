@@ -48,10 +48,8 @@ class PackageManifest:
         If no association could be found for a subclass of Traitable, the default association will be used: GeneralDomain.GENERAL
     """
 
-    # fmt: off
     SYMBOL      = '_package_manifest.manifest'
     CATEGORY    = '_category'
-    # fmt: on
 
     @staticmethod
     def _resource_requirements(cls) -> ResourceRequirements:

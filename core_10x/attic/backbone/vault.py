@@ -5,14 +5,12 @@ from core_10x.attic.vault import SecKeys
 
 
 class ResourceAccessor(VaultTraitable):
-    # fmt: off
     resource_name: str      = T(T.ID)
     #username: str           = T(T.ID)
 
     login: str              = T()
     password: bytes         = T()
     last_updated: datetime  = T()
-    # fmt: on
 
     def last_updated_get(self) -> datetime:
         return datetime.utcnow()

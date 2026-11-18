@@ -6,7 +6,6 @@ from core_10x.attic.vault.vault_traitable import VaultTraitable, T, RT
 from core_10x.attic.vault.vault_user import VaultUser
 
 class ResourceAccessor(VaultTraitable):
-    # fmt: off
     username: str           = T(T.ID)
     resource_uri: str       = T(T.ID)
 
@@ -17,7 +16,6 @@ class ResourceAccessor(VaultTraitable):
 
     user: VaultUser         = RT(T.EVAL_ONCE)
     resource: Resource      = RT(T.EVAL_ONCE)
-    # fmt: on
 
     def username_get(self) -> str:
         return VaultUser.myname()

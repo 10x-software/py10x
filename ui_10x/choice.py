@@ -218,11 +218,9 @@ class MultiChoice(Choice):
 
         return True
 
-    # fmt: off
     s_select_table = {
         SELECT_MODE.ANY:       lambda self, x,y,z: True,
         SELECT_MODE.LEAF:      _select_leaf,
         SELECT_MODE.SUBDIR:    _select_subdir
     }
-    # fmt: on
 

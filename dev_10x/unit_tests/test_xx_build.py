@@ -54,7 +54,7 @@ def test_init_orders_toolchain_then_kernel_then_everything(tmp_path, uv_calls):
             '--reinstall-package', 'py10x-kernel', '--reinstall-package', 'py10x-infra', '--locked',
         ],
         ['uv', 'sync', '--reinstall-package', 'py10x-fin-base-cxx', '--locked'],
-    ]  # fmt: skip
+    ]
 
 
 @pytest.mark.parametrize('existing', ['.venv', 'build'])

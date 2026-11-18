@@ -4,7 +4,6 @@ from core_10x.attic.vault.vault_traitable import VaultTraitable, T, RT, OsUser, 
 from core_10x.attic.vault.sec_keys import SecKeys
 
 class VaultUser(VaultTraitable):
-    # fmt: off
     user_id: str                    = T(T.ID)   // 'OS login'
     suspended: bool                 = T(False)
 
@@ -12,7 +11,6 @@ class VaultUser(VaultTraitable):
     public_key: bytes               = T()
 
     sec_keys: SecKeys               = RT(T.EVAL_ONCE)
-    # fmt: on
 
     def user_id_get(self) -> str:
         return self.__class__.myname()

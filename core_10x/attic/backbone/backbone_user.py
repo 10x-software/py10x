@@ -10,7 +10,6 @@ from core_10x.trait_filter import f
 
 
 class BackboneUserGroup(BackboneTraitable):
-    # fmt: off
     name: str           = T(T.ID)
     description: str    = T()
     everyone: bool      = T(False)
@@ -20,7 +19,6 @@ class BackboneUserGroup(BackboneTraitable):
     user_ids: list      = T()
 
     users: set          = RT()
-    # fmt: on
 
     def users_get(self) -> set:
         return set(self.user_ids)
@@ -30,7 +28,6 @@ class BackboneUserGroup(BackboneTraitable):
 
 
 class BackboneUser(BackboneTraitable):
-    # fmt: off
     user_id: str        = T(T.ID)   // 'OS login'
     suspended: bool     = T(False)
     public_key: bytes   = T()
@@ -38,7 +35,6 @@ class BackboneUser(BackboneTraitable):
     is_admin: bool      = RT()
     downloaded: bool    = RT(False)
     builtin_roles: list = RT()
-    # fmt: on
 
     def user_id_get(self) -> str:
         return OsUser.me.name()

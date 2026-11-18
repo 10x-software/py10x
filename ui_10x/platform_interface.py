@@ -17,13 +17,11 @@ class ABCMetaSlotted(abc.ABCMeta):
 class Object(abc.ABC, metaclass = ABCMetaSlotted): ...
 
 
-# fmt: off
 QueuedConnection            = None
 AutoConnection              = None
 DirectConnection            = None
 UniqueConnection            = None
 BlockingQueuedConnection    = None
-# fmt: on
 
 
 class BoundSignal(abc.ABC, metaclass = ABCMetaSlotted):
@@ -129,10 +127,8 @@ class Widget(abc.ABC, metaclass = ABCMetaSlotted):
     def font_metrics(self) -> FontMetrics: ...
 
 
-# fmt: off
 Horizontal  = 0
 Vertical    = 1
-# fmt: on
 
 
 class Layout(abc.ABC, metaclass = ABCMetaSlotted):
@@ -441,22 +437,18 @@ class Application(abc.ABC, metaclass = ABCMetaSlotted):
 
 
 class TEXT_ALIGN:
-    # fmt: off
     TOP       = None
     V_CENTER  = None
     BOTTOM    = None
     LEFT      = None
     CENTER    = None
     RIGHT     = None
-    # fmt: on
 
 
 class SCROLL(abc.ABC, metaclass = ABCMetaSlotted):
-    # fmt: off
     OFF         = None
     ON          = None
     AS_NEEDED   = None
-    # fmt: on
 
 
 class ScrollArea(Widget):
@@ -521,11 +513,9 @@ class HeaderView(abc.ABC, metaclass = ABCMetaSlotted):
 
 
 class Palette(abc.ABC, metaclass = ABCMetaSlotted):
-    # fmt: off
     ButtonText  = None
     Button      = None
     Window      = None
-    # fmt: on
 
     @abc.abstractmethod
     def set_brush(self, br_type, brush): ...
@@ -542,10 +532,8 @@ BackgroundRole = None
 class Separator(abc.ABC, metaclass = ABCMetaSlotted): ...
 
 
-# fmt: off
 def init(style = '') -> Application:           raise NotImplementedError
 def to_clipboard(text: str, **kwargs):         raise NotImplementedError
 def from_clipboard(**kwargs) -> str:           raise NotImplementedError
 def separator(horizontal = True) -> Separator: raise NotImplementedError
 def is_ui_thread() -> bool:                    raise NotImplementedError
-# fmt: on

@@ -239,7 +239,6 @@ class TraitEditor:
 
         return cb
 
-    # fmt: off
     s_builtin_callbacks = {
         date_trait:         date_cb,
         list_trait:         list_cb,
@@ -247,4 +246,3 @@ class TraitEditor:
         flags_trait:        flags_cb,
         traitable_trait:    traitable_cb,
     }
-    # fmt: on

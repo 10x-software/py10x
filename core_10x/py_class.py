@@ -19,11 +19,9 @@ class PyClass:
     Module top-level classes ONLY
     """
 
-    # fmt: off
     NO_NAME         = lambda cls: ''
     QUAL_NAME       = lambda cls: cls.__qualname__
     CANONICAL_NAME  = lambda cls: f'{cls.__module__}.{cls.__qualname__}'
-    # fmt: on
 
     @staticmethod
     def name(cls, name_type: Callable[[type], str] = CANONICAL_NAME) -> str:

@@ -24,7 +24,6 @@ class Directory:
         dir_class = Directory._dir_class(value)
         return dir_class(value = value, **kwargs)
 
-    # fmt: off
     def __init__(
         self,
         name: str           = '',
@@ -32,7 +31,6 @@ class Directory:
         members: dict       = None,
         parent: Directory   = None
     ):
-        # fmt: on
         self.check_dir_value(value)
 
         self.name       = name

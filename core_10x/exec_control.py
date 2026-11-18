@@ -55,7 +55,6 @@ class ExecControl:
         return BTP.create_interactive()
 
 
-# fmt: off
 CHANGE_MODE         = ExecControl.change_mode
 DEFAULT_CACHE       = ExecControl.default_cache
 GRAPH_ON            = ExecControl.graph_on
@@ -66,7 +65,6 @@ DEBUG_OFF           = ExecControl.debug_off
 CONVERT_VALUES_ON   = ExecControl.convert_values_on
 CONVERT_VALUES_OFF  = ExecControl.convert_values_off
 INTERACTIVE         = ExecControl.interactive
-# fmt: on
 
 
 # noinspection PyMethodOverriding

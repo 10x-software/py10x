@@ -119,12 +119,10 @@ class TraitWidget:
                 self.set_tool_tip(self.trait.ui_hint.tip)
                 self.style_sheet.restore()
 
-    # fmt: off
     def _create(self):              raise NotImplementedError
     def _set_read_only(self, flag): raise NotImplementedError
     def _value(self):               raise NotImplementedError
     def _set_value(self, value):    raise NotImplementedError
-    # fmt: on
 
 
 class RefreshContext(ux.Object):

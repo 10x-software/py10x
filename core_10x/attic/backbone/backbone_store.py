@@ -18,12 +18,10 @@ class BackboneStore:
 
     """
 
-    # fmt: off
     SIDEKICK_USER       = 'sidekick'
     BACKBONE_DB_NAME    = '_backbone_'
     VAULT_DB_NAME       = '_vault_'
     SHADOW_DB_NAME      = '_shadow_'
-    # fmt: on
 
     @classmethod
     @cache

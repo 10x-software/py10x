@@ -6,14 +6,12 @@ from core_10x.xnone import XNone
 
 
 class ResourceSpec(BackboneTraitable):
-    # fmt: off
     build_area: str         = T(T.ID)
     name: str               = T(T.ID)
     resource_class: type    = T()
     resource_kwargs: dict   = T()
 
     resource: Resource      = RT()
-    # fmt: on
 
     def build_area_get(self) -> str:
         return EnvVars.sdlc_area
@@ -29,11 +27,9 @@ class ResourceSpec(BackboneTraitable):
 
 
 class BoundDataDomain(BackboneTraitable):
-    # fmt: off
     domain: DataDomain.__class__    = T(T.ID)
     build_area: str                 = T(T.ID)
     bound_categories: dict          = T()
-    # fmt: on
 
     def build_area_get(self) -> str:
         return EnvVars.sdlc_area

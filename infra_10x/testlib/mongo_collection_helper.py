@@ -11,7 +11,6 @@ class MongoCollectionHelperStub:
 
         rev_condition = {'$and': [{'$eq': ['$' + name, {'$literal': value}]} for name, value in serialized_traitable.items()]}
 
-        # fmt: off
         update_revision = {
             '$cond': [
                 rev_condition,         #-- if each field is equal to its prev value
@@ -30,7 +29,6 @@ class MongoCollectionHelperStub:
                 }
             }
         )
-        # fmt: on
 
         pipeline.extend(
             {'$replaceWith': {'$setField': {'field': field, 'input': '$$ROOT', 'value': {'$literal': value}}}}

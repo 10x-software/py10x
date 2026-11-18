@@ -67,7 +67,6 @@ class CollectionEditor(Traitable):
 
         left_lay.add_layout(left_top_lay)
 
-        # fmt: off
         self.searchable_list = list_w = UxSearchableList(
             text_widget = line_w,
             title       = f'Instances of {self.coll.cls.__name__}',
@@ -75,7 +74,6 @@ class CollectionEditor(Traitable):
             select_hook = self.on_entity_selection,
             sort        = True,
         )
-        # fmt: on
 
         slw = ux_make_scrollable(list_w, h = ux.SCROLL.OFF)
 

@@ -10,7 +10,6 @@ from xxcommon.xxcalendar import Calendar
 
 # note: keys are bloomberg codes
 class KNOWN_CALENDARS(NamedConstant, data_type = Callable):
-    # fmt: off
     US      = lambda: ql.UnitedStates(ql.UnitedStates.SOFR)
     FD      = lambda: ql.UnitedStates(ql.UnitedStates.FederalReserve)
     GB      = ql.UnitedKingdom
@@ -20,7 +19,6 @@ class KNOWN_CALENDARS(NamedConstant, data_type = Callable):
     AU      = ql.Australia
     NZ      = ql.NewZealand
     CA      = ql.Canada
-    # fmt: on
 
 class FinCalendar(Calendar):
     ql_calendar_name: KNOWN_CALENDARS = T()
