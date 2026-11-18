@@ -1,5 +1,5 @@
 #TODO: delete this file, it is duplicated in ui_10x.utils
-assert False, "use ui_10x.utils"
+assert False, 'use ui_10x.utils'
 # from datetime import date
 # import inspect
 # import platform

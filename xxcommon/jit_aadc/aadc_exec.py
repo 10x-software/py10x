@@ -292,11 +292,11 @@ def raise_uninstrumented_warning(w: dict):
     file, line, kind_name   = w['file'], w['line'], w['kind_name']
     qualname                = DefLocator.find(file, line) or '<unresolved>'
     raise RuntimeError(
-        f"AADC recording hit an uninstrumented passive warning ({kind_name}) "
-        f"at {file}:{line}, in {qualname}.\n"
-        f"Possible reasons:\n"
-        f"  - Traitable subclass not covered by the registered base-class list.\n"
-        f"  - Project module not marked for instrumentation.\n"
-        f"  - Foreign module not listed in the registry.\n"
-        f"Fix: add the relevant class/module to the registry, then rebuild."
+        f'AADC recording hit an uninstrumented passive warning ({kind_name}) '
+        f'at {file}:{line}, in {qualname}.\n'
+        f'Possible reasons:\n'
+        f'  - Traitable subclass not covered by the registered base-class list.\n'
+        f'  - Project module not marked for instrumentation.\n'
+        f'  - Foreign module not listed in the registry.\n'
+        f'Fix: add the relevant class/module to the registry, then rebuild.'
     )

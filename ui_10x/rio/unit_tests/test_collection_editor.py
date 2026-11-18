@@ -99,7 +99,7 @@ async def test_collection_editor(mock_db_ops) -> None:
             await asyncio.sleep(UI_SETTLE_S)
 
             list_item_id = next(li._id_ for li in test_client.get_components(rio.SimpleListItem) if li.text == 'G')
-            await test_client.execute_js(f'''document.querySelector('[dbg-id="{list_item_id}"]').querySelector('.rio-selectable-item').click()''')
+            await test_client.execute_js(f"""document.querySelector('[dbg-id="{list_item_id}"]').querySelector('.rio-selectable-item').click()""")
             await asyncio.sleep(UI_SETTLE_S)
 
             await wait_for_input_values(

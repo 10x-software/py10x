@@ -4,7 +4,7 @@ import sys
 
 import py10x_kernel
 
-if sys.platform == "win32":
+if sys.platform == 'win32':
     os.add_dll_directory(os.path.dirname(py10x_kernel.__file__))
 
 # Promote py10x_kernel to RTLD_GLOBAL so its exported symbols (vtables,

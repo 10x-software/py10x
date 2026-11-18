@@ -57,7 +57,7 @@ class DateCurve(AnonymousTraitable):
     def params_get(self) -> CurveParams:
         return CurveParams()
 
-    def params_set(self,t,params: CurveParams) -> RC:
+    def params_set(self, t, params: CurveParams) -> RC:
         self.raw_set_trait_value(t, params)
         self.apply_curve_params()
         return RC_TRUE
@@ -65,7 +65,7 @@ class DateCurve(AnonymousTraitable):
     def dates_get(self) -> list:
         return self.bcurve.dates
 
-    def beginning_of_time_set(self,t,beginning_of_time) -> RC:
+    def beginning_of_time_set(self, t, beginning_of_time) -> RC:
         self.bcurve.set_beginning_of_time(beginning_of_time)
         return RC_TRUE
 

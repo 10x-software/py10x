@@ -84,7 +84,7 @@ class RateCurve(DateCurve):
         t                       = dc_conv(today, d)
         return compounding_apply(compounding, COMPOUND_TRANSFORM.ACCRUAL_TO_RATE, t, a)
 
-    def rate_to_internal(self, rate: float, d:date, dc_conv: DAY_COUNT_CONVENTION, comp: COMPOUNDING, today: date = None) -> float:
+    def rate_to_internal(self, rate: float, d: date, dc_conv: DAY_COUNT_CONVENTION, comp: COMPOUNDING, today: date = None) -> float:
         today = self._today(today)
         return self.rate_convert(rate, today, d, dc_conv, comp, self.dc_convention, self.compounding)[0]
 

@@ -77,7 +77,7 @@ class TestFxRate:
 
     @pytest.mark.usefixtures('cxx_or_py_zero_rate_curve')
     def test_rate_non_q(self):
-        d       = date(2030,1,1)
+        d       = date(2030, 1, 1)
         split   = [
             {
                 'crs': 'EUR/GBP',
@@ -118,7 +118,7 @@ class TestFxRate:
             assert rc == pytest.approx(rt**t/rb**b)
 
     def test_rate_same_ccy_cross_good(self):
-        d               = date(2030,1,1)
+        d               = date(2030, 1, 1)
         same_ccy_good   = ['USD/USD', 'GBP/GBP']
         for c in same_ccy_good:
             r = FxRate(cross_name = c).rate(d)

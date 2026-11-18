@@ -6,21 +6,21 @@ from xxfin.future_month import FutureMonth
 
 class TestFutureMonth:
     def test_fdate(self):
-        assert FutureMonth('F2026').fdate == date(2026,1,1)
-        assert FutureMonth('F26').fdate == date(2026,1,1)
-        assert FutureMonth('f26').fdate == date(2026,1,1)
-        assert FutureMonth('F60').fdate == date(1960,1,1)
-        assert FutureMonth('F59').fdate == date(2059,1,1)
+        assert FutureMonth('F2026').fdate == date(2026, 1, 1)
+        assert FutureMonth('F26').fdate == date(2026, 1, 1)
+        assert FutureMonth('f26').fdate == date(2026, 1, 1)
+        assert FutureMonth('F60').fdate == date(1960, 1, 1)
+        assert FutureMonth('F59').fdate == date(2059, 1, 1)
 
 
     def test_to_date_good(self):
         f_to_d = {
-            'F26':      date(2026,1,1),
-            'F2026':    date(2026,1,1),
-            'H2030':    date(2030,3,1),
-            'H30':      date(2030,3,1),
-            'H59':      date(2059,3,1),
-            'H60':      date(1960,3,1),
+            'F26':      date(2026, 1, 1),
+            'F2026':    date(2026, 1, 1),
+            'H2030':    date(2030, 3, 1),
+            'H30':      date(2030, 3, 1),
+            'H59':      date(2059, 3, 1),
+            'H60':      date(1960, 3, 1),
         }
 
         for f, d in f_to_d.items():
@@ -80,24 +80,24 @@ class TestFutureMonth:
 
 
     def test_number_of_next_fut_months(self):
-        assert FutureMonth.number_of_next_fut_months('F2026',0) == []
-        assert FutureMonth.number_of_next_fut_months('F2026',0,1) == []
-        assert FutureMonth.number_of_next_fut_months('F2026',0,0) == ['F2026']
-        assert FutureMonth.number_of_next_fut_months('F2026',1) == ['G2026']
-        assert FutureMonth.number_of_next_fut_months('F2026',2) == ['G2026', 'H2026']
-        assert FutureMonth.number_of_next_fut_months('F2026',2, 0) == ['F2026', 'G2026', 'H2026']
-        assert FutureMonth.number_of_next_fut_months('F2026',2, 1) == [         'G2026', 'H2026']
-        assert FutureMonth.number_of_next_fut_months('F2026',2, 2) == [                  'H2026']
-        assert FutureMonth.number_of_next_fut_months('F2026',2, 3) == []
-        assert FutureMonth.number_of_next_fut_months('F2026',2, 10) == []
+        assert FutureMonth.number_of_next_fut_months('F2026', 0) == []
+        assert FutureMonth.number_of_next_fut_months('F2026', 0, 1) == []
+        assert FutureMonth.number_of_next_fut_months('F2026', 0, 0) == ['F2026']
+        assert FutureMonth.number_of_next_fut_months('F2026', 1) == ['G2026']
+        assert FutureMonth.number_of_next_fut_months('F2026', 2) == ['G2026', 'H2026']
+        assert FutureMonth.number_of_next_fut_months('F2026', 2, 0) == ['F2026', 'G2026', 'H2026']
+        assert FutureMonth.number_of_next_fut_months('F2026', 2, 1) == [         'G2026', 'H2026']
+        assert FutureMonth.number_of_next_fut_months('F2026', 2, 2) == [                  'H2026']
+        assert FutureMonth.number_of_next_fut_months('F2026', 2, 3) == []
+        assert FutureMonth.number_of_next_fut_months('F2026', 2, 10) == []
 
-        assert FutureMonth.number_of_next_fut_months('F2026',0, -1) == ['Z2025', 'F2026']
-        assert FutureMonth.number_of_next_fut_months('F2026',-1, -1) == ['Z2025']
-        assert FutureMonth.number_of_next_fut_months('F2026',-1, -2) == ['X2025', 'Z2025']
-        assert FutureMonth.number_of_next_fut_months('F2026',-2, -4) == ['U2025', 'V2025', 'X2025']
+        assert FutureMonth.number_of_next_fut_months('F2026', 0, -1) == ['Z2025', 'F2026']
+        assert FutureMonth.number_of_next_fut_months('F2026', -1, -1) == ['Z2025']
+        assert FutureMonth.number_of_next_fut_months('F2026', -1, -2) == ['X2025', 'Z2025']
+        assert FutureMonth.number_of_next_fut_months('F2026', -2, -4) == ['U2025', 'V2025', 'X2025']
 
         with pytest.raises(AssertionError):
-            FutureMonth.number_of_next_fut_months('A2026',-2, -4)
+            FutureMonth.number_of_next_fut_months('A2026', -2, -4)
 
 
     def test_full_name(self):

@@ -80,7 +80,7 @@ if __name__ == '__main__':
             fv = fx_fwd_curve.value(d)
             print(f'{d} , {fv} , {v} , {fv-v}')
 
-        '''
+        """
         print(f'\nCompare interpolated values of fx fwd curve vs fx simple curve')
         start = md_date
         step = RDate('1M')
@@ -95,7 +95,7 @@ if __name__ == '__main__':
             print(f'{d} , {fv}, {fs}, {diff}')
             d = step.apply(d, FinCalendar.none(), BIZDAY_ROLL_RULE.NO_ROLL)
 
-        '''
+        """
 
     TEST_FxForwardCurveSimple_missing_spot      = True
     TEST_FxForwardCurveSimple_spot_ON_conflict  = True

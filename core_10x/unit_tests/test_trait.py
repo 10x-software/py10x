@@ -171,7 +171,7 @@ def test_pybind_signature_parses_docstring_first_line():
     sys.modules['fake_pybind_mod']  = mod
 
     def fake_get(self, x: int, y: float = 1.0) -> str:
-        """fake_get(self, x: int, y: float = 1.0) -> str\n\nC++ getter."""
+        """fake_get(self, x: int, y: float = 1.0) -> str\n\nC++ getter."""  # noqa: D301 - real newlines, as pybind writes them
         raise AssertionError('must not call')
 
     fake_get.__module__ = 'fake_pybind_mod'

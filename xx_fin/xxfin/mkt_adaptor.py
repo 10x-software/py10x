@@ -62,7 +62,7 @@ class MktDataAdaptor:
 
     @staticmethod
     def adaptor(quotable_class, provider_name):
-        return PyClass.find_related_class(quotable_class, class_name_suffix = f'{provider_name.title()}Adaptor',topic = f'{provider_name.lower()}_adaptors')
+        return PyClass.find_related_class(quotable_class, class_name_suffix = f'{provider_name.title()}Adaptor', topic = f'{provider_name.lower()}_adaptors')
 
 
 class MktDataAdaptorSingleQuote(MktDataAdaptor):

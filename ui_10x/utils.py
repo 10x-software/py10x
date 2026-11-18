@@ -79,21 +79,21 @@ class UxRadioBox(ux.GroupBox):
         i = self.group.checked_id()
         return self.values[i]
 
-def ux_success(text: str, parent = None, title = '', on_close: Callable[[bool],None] = None):
+def ux_success(text: str, parent = None, title = '', on_close: Callable[[bool], None] = None):
     if not title:
         title = 'Success'
     if not parent:
         parent = None
     ux.MessageBox.information(parent, title, text, on_close = on_close)
 
-def ux_warning(text: str, parent = None, title = '',  on_close: Callable[[bool],None] = None):
+def ux_warning(text: str, parent = None, title = '',  on_close: Callable[[bool], None] = None):
     if not title:
         title = 'Warning'
     if not parent:
         parent = None
     ux.MessageBox.warning(parent, title, text, on_close = on_close)
 
-def ux_answer(question: str, parent = None, title = '', on_close: Callable[[bool],None] = None) -> bool | None:
+def ux_answer(question: str, parent = None, title = '', on_close: Callable[[bool], None] = None) -> bool | None:
     if not title:
         title = 'Waiting for your answer...'
     if not parent:
@@ -105,7 +105,7 @@ def ux_answer(question: str, parent = None, title = '', on_close: Callable[[bool
     return None
 
 
-def ux_multi_choice_answer(named_constant_class, parent = None, title = '', default_value: NamedConstant = None,  on_close: Callable[[NamedConstant],None] = None):
+def ux_multi_choice_answer(named_constant_class, parent = None, title = '', default_value: NamedConstant = None,  on_close: Callable[[NamedConstant], None] = None):
     if not title:
         title = 'Pick one of the choices below:'
 
@@ -145,8 +145,8 @@ def ux_push_button(label: str, callback = None, style_icon = None, flat = False)
     return button
 
 class UxDialog(ux.Dialog):
-    __slots__ = ('accept_callback','cancel_callback','open_callback','w_message',)
-    def _create_button(self, ok: bool, button_spec) -> ux.PushButton|None:
+    __slots__ = ('accept_callback', 'cancel_callback', 'open_callback', 'w_message',)
+    def _create_button(self, ok: bool, button_spec) -> ux.PushButton | None:
         if not button_spec:
             return None
 
@@ -196,7 +196,7 @@ class UxDialog(ux.Dialog):
 
         ##self.setWindowFlags(window_flags)
         self.accept_callback    = accept_callback
-        self.cancel_callback    = cancel_callback if cancel_callback else self.reject
+        self.cancel_callback    = cancel_callback or self.reject
         self.open_callback      = open_callback
 
         if ok:
@@ -356,12 +356,12 @@ class UxStyleSheet:
         return cls.bg_color(style_sheet) if background else cls.fg_color(style_sheet)
 
 
-s_verticalAlignmentMap      = { # noqa: N816
+s_verticalAlignmentMap      = {  # noqa: N816
     -1:     ux.TEXT_ALIGN.TOP,
     0:      ux.TEXT_ALIGN.V_CENTER,
     1:      ux.TEXT_ALIGN.BOTTOM,
 }
-s_horizontalAlignmentMap    = { # noqa: N816
+s_horizontalAlignmentMap    = {  # noqa: N816
     -1:     ux.TEXT_ALIGN.LEFT,
     0:      ux.TEXT_ALIGN.CENTER,
     1:      ux.TEXT_ALIGN.RIGHT,

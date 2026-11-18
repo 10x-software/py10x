@@ -80,12 +80,12 @@ def _drain_provisioning_fifo(fd: int, writer_finished: threading.Event, holder: 
 
 
 class FunctionalAccountInitCli(TraitableCli):
-    """Register a functional account end-to-end: run a real, disposable container (real
+    r"""Register a functional account end-to-end: run a real, disposable container (real
     kernel-verified OS identity via docker/entrypoint.sh's rename), then pipe its output to a
     provisioning command running outside the container.
 
     Usage:
-    xx-functional-account-init --functional-account-id xx-myservice \\
+    xx-functional-account-init --functional-account-id xx-myservice \
         --command "docker secret create {secret_name} -"
 
     Image, vault URI, and network mode are auto-resolved -- pass --image-tag only when the

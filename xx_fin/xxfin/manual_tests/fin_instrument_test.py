@@ -1,5 +1,5 @@
 
-if __name__=='__main__':
+if __name__ == '__main__':
     from datetime import date
 
     from xxcommon.rdate import BIZDAY_ROLL_RULE, RDate
@@ -25,9 +25,9 @@ if __name__=='__main__':
     gbp_cu = CcyUnit.existing_instance(denominated = Ccy('GBP'))
     cad_cu = CcyUnit.existing_instance(denominated = Ccy('CAD'))
 
-    usd_cf = CcyForward.existing_instance(denominated = Ccy('USD'), end_date = date(2026,8,4))
-    gbp_cf = CcyForward.existing_instance(denominated = Ccy('GBP'), end_date = date(2026,8,4))
-    cad_cf = CcyForward.existing_instance(denominated = Ccy('CAD'), end_date = date(2026,8,4))
+    usd_cf = CcyForward.existing_instance(denominated = Ccy('USD'), end_date = date(2026, 8, 4))
+    gbp_cf = CcyForward.existing_instance(denominated = Ccy('GBP'), end_date = date(2026, 8, 4))
+    cad_cf = CcyForward.existing_instance(denominated = Ccy('CAD'), end_date = date(2026, 8, 4))
 
     d6m_us      = RDate('6M').apply(pc.md_date, FinCalendar('US'), BIZDAY_ROLL_RULE.FOLLOWING)
     d6y_us      = RDate('6Y').apply(pc.md_date, FinCalendar('US'), BIZDAY_ROLL_RULE.FOLLOWING)
@@ -181,7 +181,7 @@ if __name__=='__main__':
                 ed = cf.max_date()
                 print(f'{cf}: ed = {ed}')
 
-                for ccy_name,ccy_fx_spot, ccy_fx_fwds in ccys:
+                for ccy_name, ccy_fx_spot, ccy_fx_fwds in ccys:
                     fxdeps[FXSpotQuotable].append(ccy_fx_spot)
                     print(f'{ccy_fx_spot} end date = {ccy_fx_spot.end_date}')
 
@@ -195,5 +195,5 @@ if __name__=='__main__':
                     calc_fxdeps = cf.mkt_deps_for_ccy(Ccy(ccy_name))
                     print(f'{cf}/{ccy_name}: MANUAL fxdeps = {fxdeps}')
                     print(f'{cf}/{ccy_name}: CALC   fxdeps = {calc_fxdeps}')
-                    assert fxdeps == calc_fxdeps ##this ccy_name is the "last" in the list
+                    assert fxdeps == calc_fxdeps  ##this ccy_name is the "last" in the list
                     print(f'{cf}/{ccy_name}: *** calc fx deps == manual ***\n')

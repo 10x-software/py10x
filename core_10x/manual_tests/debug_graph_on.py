@@ -9,9 +9,9 @@ if __name__ == '__main__':
 
     with MongoStore.instance(hostname = 'localhost', dbname = 'test', username = '', password = ''):
         p       = Person(first_name = 'Ilya', last_name = 'Pevzner')
-        p.dob   = date(1971,7,1)
+        p.dob   = date(1971, 7, 1)
         p.save()
-        p.dob = date(1971,7,3)
-        assert p.dob== date(1971,7,3)
+        p.dob = date(1971, 7, 3)
+        assert p.dob == date(1971, 7, 3)
         with GRAPH_ON():
-            assert p.dob == date(1971,7,3)  # FIX: fails here!
+            assert p.dob == date(1971, 7, 3)  # FIX: fails here!

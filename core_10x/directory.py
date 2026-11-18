@@ -152,21 +152,13 @@ class Directory:
         if self.value == value:
             return True
 
-        for subdir in self.members.values():
-            if subdir.contains(value):
-                return True
-
-        return False
+        return any(subdir.contains(value) for subdir in self.members.values())
 
     def is_value_contained(self, value, by_other_value) -> bool:
         if self.value == by_other_value:
             return self.contains(value)
 
-        for subdir in self.members.values():
-            if subdir.is_value_contained(value, by_other_value):
-                return True
-
-        return False
+        return any(subdir.is_value_contained(value, by_other_value) for subdir in self.members.values())
 
     def _collect_leaf_values(self, res: set, data_accessor):
         if self.is_leaf():

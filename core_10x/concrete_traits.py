@@ -50,10 +50,10 @@ class bool_trait(primitive_trait, data_type = bool):
     s_ui_hint     = Ui.check()
 
     FORMATS       = [
-        ('yes',''),
-        ('yes','no'),
-        ('true','false'),
-        ('on','off')
+        ('yes', ''),
+        ('yes', 'no'),
+        ('true', 'false'),
+        ('on', 'off')
     ]
     s_fmt         = FORMATS[0]
 

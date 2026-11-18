@@ -39,7 +39,7 @@ def ir_add_curve_point(f: Callable, bracket: tuple = bracket, xtol: float = xtol
             if _DBG: print(f'num iterations: {sol.iterations}, root: {sol.root}')   # pragma: no cover
             return RC_TRUE
 
-        if _DBG: print(f'status: {sol.flag}, num iterations: {sol.iterations}') # pragma: no cover
+        if _DBG: print(f'status: {sol.flag}, num iterations: {sol.iterations}')  # pragma: no cover
         return RC(False, f'No convergence for xtol = {xtol}')
     except Exception as e:
         return RC(False, str(e))

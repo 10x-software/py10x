@@ -57,14 +57,14 @@ async def _open_dialog_and_measure(content_factory = _label_content, content_min
         await asyncio.sleep(UI_SETTLE_S)
 
         open_btn = next(b for b in test_client.get_components(rio.Button) if b.content == 'Open')
-        await test_client.execute_js(f'''document.querySelector('[dbg-id="{open_btn._id_}"]').querySelector('rio-pressable-element').click()''')
+        await test_client.execute_js(f"""document.querySelector('[dbg-id="{open_btn._id_}"]').querySelector('rio-pressable-element').click()""")
         await asyncio.sleep(UI_SETTLE_S)
         # Let the dialog finish laying out before measuring it.
         await asyncio.sleep(0.5)
 
         assert dlg is not None and dlg.component is not None, 'dialog did not open'
         dbg_id  = dlg.component._id_
-        box     = await test_client.execute_js(f'''(() => {{
+        box     = await test_client.execute_js(f"""(() => {{
             const el = document.querySelector('[dbg-id="{dbg_id}"]');
             if (!el) return null;
             const r = el.getBoundingClientRect();
@@ -76,11 +76,11 @@ async def _open_dialog_and_measure(content_factory = _label_content, content_min
                 maxWidth: s.maxWidth, maxHeight: s.maxHeight,
                 scrollsY: scroller ? scroller.scrollHeight > scroller.clientHeight + 1 : null,
             }};
-        }})()''')
+        }})()""")
 
         # Close the dialog and drop references so it doesn't leak into the next test.
         ok_button = next(b for b in test_client.get_components(rio.Button) if b.content == 'Ok')
-        await test_client.execute_js(f'''document.querySelector('[dbg-id="{ok_button._id_}"]').querySelector('rio-pressable-element').click()''')
+        await test_client.execute_js(f"""document.querySelector('[dbg-id="{ok_button._id_}"]').querySelector('rio-pressable-element').click()""")
         await asyncio.sleep(UI_SETTLE_S)
         test_client.get_component(DynamicComponent).session[UserSessionContext].interactive = None
 

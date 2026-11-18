@@ -13,16 +13,16 @@ class TestCcyForward:
         day         = date(2026, 7, 30 )
         self.days   = [chday, nyday, inday, day]
 
-        self.usd_chd    = CcyForward.existing_instance(denominated = Ccy('USD'),end_date = chday)
-        self.usd_nyd    = CcyForward.existing_instance(denominated = Ccy('USD'),end_date = nyday)
-        self.usd_ind    = CcyForward.existing_instance(denominated = Ccy('USD'),end_date = inday)
-        self.usd_d      = CcyForward.existing_instance(denominated = Ccy('USD'),end_date = day)
+        self.usd_chd    = CcyForward.existing_instance(denominated = Ccy('USD'), end_date = chday)
+        self.usd_nyd    = CcyForward.existing_instance(denominated = Ccy('USD'), end_date = nyday)
+        self.usd_ind    = CcyForward.existing_instance(denominated = Ccy('USD'), end_date = inday)
+        self.usd_d      = CcyForward.existing_instance(denominated = Ccy('USD'), end_date = day)
         self.usd_fwds   = [self.usd_chd, self.usd_nyd, self.usd_ind, self.usd_d]
 
-        self.gbp_chd    = CcyForward.existing_instance(denominated = Ccy('GBP'),end_date = chday)
-        self.gbp_nyd    = CcyForward.existing_instance(denominated = Ccy('GBP'),end_date = nyday)
-        self.gbp_ind    = CcyForward.existing_instance(denominated = Ccy('GBP'),end_date = inday)
-        self.gbp_d      = CcyForward.existing_instance(denominated = Ccy('GBP'),end_date = day)
+        self.gbp_chd    = CcyForward.existing_instance(denominated = Ccy('GBP'), end_date = chday)
+        self.gbp_nyd    = CcyForward.existing_instance(denominated = Ccy('GBP'), end_date = nyday)
+        self.gbp_ind    = CcyForward.existing_instance(denominated = Ccy('GBP'), end_date = inday)
+        self.gbp_d      = CcyForward.existing_instance(denominated = Ccy('GBP'), end_date = day)
         self.gbp_fwds   = [self.gbp_chd, self.gbp_nyd, self.gbp_ind, self.gbp_d]
 
         self.fwds = self.usd_fwds + self.gbp_fwds

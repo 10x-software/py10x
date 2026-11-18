@@ -3,7 +3,7 @@ import py10x_kernel
 from core_10x.trait_definition import RT
 from core_10x.traitable import Traitable
 
-print(f"cxxfin: {cxxfin.__version__} (from {cxxfin.__file__})")
+print(f'cxxfin: {cxxfin.__version__} (from {cxxfin.__file__})')
 
 cases = [
     ([2, 3, 5],         30),
@@ -15,8 +15,8 @@ cases = [
 
 for values, expected in cases:
     result = cxxfin.product(values)
-    status = "OK" if result == expected else f"FAIL (expected {expected})"
-    print(f"  product({values}) = {result}  {status}")
+    status = 'OK' if result == expected else f'FAIL (expected {expected})'
+    print(f'  product({values}) = {result}  {status}')
 
 
 class SampleTraitable(Traitable):

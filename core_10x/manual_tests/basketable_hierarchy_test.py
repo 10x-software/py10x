@@ -19,7 +19,7 @@ class FinInstrument(Traitable, Basketable, bucket_shape = BUCKET_SHAPE.DICT):
 
 class FinLeaf(FinInstrument):
     def price(self):
-        mu = random.randint(1,100)
+        mu = random.randint(1, 100)
         return random.gauss(mu = mu, sigma = 10.)
 
 class FiBasket(Basket):
@@ -50,10 +50,10 @@ class Book(Traitable, Basketable, bucket_shape = BUCKET_SHAPE.SET):
     counterparty_trades: BucketDict = RT()
 
     def primary_trades_get(self) -> BucketDict:
-        return BucketDict(data = { trade: 1. for trade in Trade.existing_instances_by_filter(f(book1_name = self.name)) })
+        return BucketDict(data = dict.fromkeys(Trade.existing_instances_by_filter(f(book1_name = self.name)), 1.0))
 
     def counterparty_trades_get(self) -> BucketDict:
-        return BucketDict(data = { trade: -1. for trade in Trade.existing_instances_by_filter(f(book2_name = self.name)) })
+        return BucketDict(data = dict.fromkeys(Trade.existing_instances_by_filter(f(book2_name = self.name)), -1.0))
 
     def members_qtys(self):
         return itertools.chain(self.primary_trades.members_qtys(), self.counterparty_trades.members_qtys())

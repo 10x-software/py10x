@@ -74,5 +74,5 @@ class SpotMktConventions(MktConventions):
         return self.spot_offset.apply(start_date, ccy.bank_calendar, ccy.roll_rule)
 
     def fix_date(self, start_date: date) -> date:
-        return self.fixing_offset.apply(start_date, self.calendar, BIZDAY_ROLL_RULE.PRECEDING) ## explicit PRECEDING here is bcz we go back in time for the fixing
+        return self.fixing_offset.apply(start_date, self.calendar, BIZDAY_ROLL_RULE.PRECEDING)  ## explicit PRECEDING here is bcz we go back in time for the fixing
 

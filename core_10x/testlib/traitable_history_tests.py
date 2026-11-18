@@ -57,7 +57,7 @@ def make_clock_freezer(ts_instance, mocker = None, *, freeze: bool = False):
         frozen_now.append(datetime.now(UTC).replace(tzinfo = None))
 
         # TS_TIME / server_time() both go through _server_time_col_sql_expr.
-        mocker.patch.object(
+        mocker.patch.object(  # noqa: PT008 - the lambda reads frozen_now[0] per call; return_value would freeze it
             DuckDbStore,
             '_server_time_col_sql_expr',
             lambda self: f"CAST('{frozen_now[0].strftime('%Y-%m-%dT%H:%M:%S.%f')}' AS TIMESTAMP)",

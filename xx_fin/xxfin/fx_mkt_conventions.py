@@ -6,7 +6,7 @@ from xxfin.ir_rate_mkt_conventions import DAY_COUNT_CONVENTION, IRRateMktConvent
 
 
 class FXMktConventions(SpotMktConventions):
-    'FX (e.g., GBP/USD) Conventions'
+    "FX (e.g., GBP/USD) Conventions"
 
     ## Thoughts:
     ## 1. ID traits should be cross and funding_rate_mkt_name, e.g., GBP/USD|SOFR or USD/JPY|SOFR or EUR/GBP|SOFR

@@ -216,7 +216,7 @@ class IbisCollection(TsCollection):
         self._store.ensure_table(self._name)
         ts_fields = doc.pop(TS_FIELDS_TAG, None) or {}
         # Promote columns for body keys and declared TS stamp fields.
-        ensure_keys = {**doc, **{f: None for f in ts_fields}}
+        ensure_keys = {**doc, **dict.fromkeys(ts_fields)}
         self._ensure_columns(ensure_keys)
 
         # TS fields are stamped by the SQL server clock, never Python server_time():

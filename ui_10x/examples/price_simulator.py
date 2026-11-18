@@ -44,7 +44,7 @@ class MarketSymbol(Traitable):
         return T.fg_color(c)
 
     def delta_get(self) -> float:
-        mm = self.price # noqa: F841
+        mm = self.price  # noqa: F841
         return random.gauss(self.delta_mean, self.std)
 
     def bid_get(self) -> float:
@@ -79,7 +79,7 @@ class MarketMonitor:
         symbol_data = cls.s_symbol_data
         trait_names = symbol_data[0]
         n           = len(trait_names)
-        ticker      = PyClass.find_symbol("yfinance.Ticker")
+        ticker      = PyClass.find_symbol('yfinance.Ticker')
         for row in range(1, len(symbol_data)):
             sym = MarketSymbol(**{trait_names[i]: symbol_data[row][i] for i in range(n)})
             if ticker:

@@ -43,11 +43,11 @@ class MktQuotable(MktDataBasis):
 
 class SingleMktQuote(MktQuotable, leaf_traits = ('quote', )):
     quote: float         = T(fmt = '.6')
-    override_ref: Bundle = T() # forward ref to QuotableOverride
+    override_ref: Bundle = T()  # forward ref to QuotableOverride
 
-    def quote_verify(self,t,q):
+    def quote_verify(self, t, q):
         if numpy.isnan(q):
-            return RC(False, "quote must not be NaN")
+            return RC(False, 'quote must not be NaN')
         return RC_TRUE
 
 class MktDeps(GraphDeps):
@@ -59,7 +59,7 @@ class MktDeps(GraphDeps):
         super().__init__(graph, bound_trait, inputs_spec)
 
 
-class QuotableOverride(Bundle,MktDataBasis):
+class QuotableOverride(Bundle, MktDataBasis):
     s_id_override_attr                  = 'md_date'
 
     quotable_class: type[MktQuotable]   = T(T.ID)
@@ -109,13 +109,13 @@ class QuotableOverride(Bundle,MktDataBasis):
 
     def quotes(self, quotable, adaptor):
         return [
-            adaptor.fill(self.quotable_class(**self.id_values(quotable)|{self.s_id_override_attr: value})).quote
+            adaptor.fill(self.quotable_class(**self.id_values(quotable) | {self.s_id_override_attr: value})).quote
             for value in self.id_override_attr_values(quotable) if value
         ]
 
     def set_quote(self, quotable: MktQuotable, adaptor: MktDataAdaptor):
         # missing or bad value for date - take an average of the previous date and new one
-        quotes          = self.quotes(quotable,adaptor)
+        quotes          = self.quotes(quotable, adaptor)
         quotable.quote  = sum(quotes)/len(quotes)
 
     def fill(self, quotable: MktQuotable, adaptor: MktDataAdaptor):
@@ -135,12 +135,12 @@ class QuotableOverrideMissingTenor(QuotableOverride):
 
     def set_quote(self, quotable: MktQuotable, adaptor: MktDataAdaptor):
         # missing or bad value for tenor - linear interpolation between previous and next tenor
-        quotes = self.quotes(quotable,adaptor)
+        quotes = self.quotes(quotable, adaptor)
         if not self.next_tenor:
             quotable.quote = quotes[0]
             return
 
-        to_date         = lambda tenor: tenor.apply(quotable.md_date,quotable.mkt_conventions.calendar, BIZDAY_ROLL_RULE.FOLLOWING)
+        to_date         = lambda tenor: tenor.apply(quotable.md_date, quotable.mkt_conventions.calendar, BIZDAY_ROLL_RULE.FOLLOWING)
         quotable.quote  = DateCurve(
             dates               = [to_date(tenor) for tenor in (self.prev_tenor, self.next_tenor)],
             values              = quotes,

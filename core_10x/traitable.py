@@ -1357,10 +1357,10 @@ class AsOfContext:
     """
 
     as_of_time: datetime
-    traitable_classes: list[type[Traitable]]                            = field(default_factory = lambda: [Traitable])
+    traitable_classes: list[type[Traitable]]                                = field(default_factory = lambda: [Traitable])
 
-    _btp: BTraitableProcessor | None                                    = None
-    _saved_helpers: dict[type[Traitable], AbstractStorableHelper|None]  = field(default_factory = dict)
+    _btp: BTraitableProcessor | None                                        = None
+    _saved_helpers: dict[type[Traitable], AbstractStorableHelper | None]    = field(default_factory = dict)
 
     def __post_init__(self):
         invalid_class = next((traitable_class for traitable_class in self.traitable_classes if not traitable_class.s_history_class), None)
@@ -1386,7 +1386,7 @@ class AsOfContext:
     def _save_storage_helpers(self):
         def _visitor(traitable_class):
             current = traitable_class.s_storage_helper_cached
-            if isinstance(current, StorableHelperAsOf): # only save for nested AsOf contexts as others recompute in descriptor
+            if isinstance(current, StorableHelperAsOf):  # only save for nested AsOf contexts as others recompute in descriptor
                 self._saved_helpers[traitable_class] = current
             traitable_class.s_storage_helper_cached = None
         self._visit_storage_helpers(_visitor)
@@ -1467,7 +1467,7 @@ class traitable_trait(concrete_traits.nucleus_trait, data_type = Traitable, base
             if not self.data_type.s_embeddable:
                 rc.add_error(f"{cls.__name__}.{self.name} - class {self.data_type} must be declared 'embeddable'")
         if self.flags_on(T.NOT_EMBEDDABLE) and self.data_type.s_embeddable:
-            rc.add_error(f"{cls.__name__}.{self.name} - may NOT be NOT_EMBEDDABLE: class {self.data_type} is embeddable")
+            rc.add_error(f'{cls.__name__}.{self.name} - may NOT be NOT_EMBEDDABLE: class {self.data_type} is embeddable')
 
     def serialize_to_types(self) -> type | tuple:
         return str if self.flags_on(T.NOT_EMBEDDABLE) else  super().serialize_to_types()
@@ -1491,7 +1491,7 @@ class traitable_trait(concrete_traits.nucleus_trait, data_type = Traitable, base
 
     def serialize(self, value: Traitable) -> dict | str:
         """Pack non-embedded *id* refs to a string; leave embedded / full payloads as dict."""
-        if (embeddable:=value.s_embeddable) and self.flags_on(T.NOT_EMBEDDABLE):
+        if (embeddable := value.s_embeddable) and self.flags_on(T.NOT_EMBEDDABLE):
             raise RuntimeError(f'{self.name} - NOT_EMBEDDABLE trait cannot hold embeddable value type {type(value)}')
         val = super().serialize(value)
         return self._pack_xref(val) if not embeddable else val

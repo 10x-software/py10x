@@ -136,8 +136,8 @@ class TraitableEditor:
         trait_dir           = entity_class.s_dir
         self.trait_hints    = trait_hints = {trait_dir[trait_name]: ui_hint for trait_name, ui_hint in view.ui_hints.items() if not ui_hint.flags_on(Ui.HIDDEN)}
 
-        self.main_w: ux.Widget|None = None
-        self.callbacks_for_traits   = {}
+        self.main_w: ux.Widget | None   = None
+        self.callbacks_for_traits       = {}
         self.init()
 
         callbacks           = self.callbacks_for_traits
@@ -244,7 +244,7 @@ class TraitableEditor:
             min_width       = min_width,
         )
 
-    def dialog(self, layout: ux.Layout = None, copy_entity: bool = True, title: str = '', save: bool = False, accept_hook: Callable[[RC],None] = None, min_width: int = 0, track_changes: bool = False) -> UxDialog:
+    def dialog(self, layout: ux.Layout = None, copy_entity: bool = True, title: str = '', save: bool = False, accept_hook: Callable[[RC], None] = None, min_width: int = 0, track_changes: bool = False) -> UxDialog:
         if title is None:
             title = ''
         elif not title:
@@ -298,7 +298,7 @@ class TraitableEditor:
 
         return self._dialog(layout, title, ok, min_width, on_accept = on_accept)
 
-    def popup(self, layout: ux.Layout = None, copy_entity = True, title: str = '', save: bool = False, accept_hook: Callable[[RC],None] = None, min_width: int = 0, track_changes: bool = False) -> None:
+    def popup(self, layout: ux.Layout = None, copy_entity = True, title: str = '', save: bool = False, accept_hook: Callable[[RC], None] = None, min_width: int = 0, track_changes: bool = False) -> None:
         self.dialog(layout = layout, copy_entity = copy_entity, title = title, save = save, accept_hook = accept_hook, min_width = min_width, track_changes = track_changes).exec()
 
     def warning(self, msg: str, title: str = ''):

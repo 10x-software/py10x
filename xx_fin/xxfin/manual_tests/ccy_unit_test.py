@@ -15,13 +15,13 @@ class EndogenousCcyUnit(SubCcyUnit):
 class CcyUnitHolder(Traitable):
     ccy_unit: CcyUnit = T()
 
-if __name__=='__main__':
+if __name__ == '__main__':
     from xxfin.manual_tests.ccy_unit_test import CcyUnitHolder, EndogenousCcyUnit, SubCcyUnit
 
     u       = CcyUnit.existing_instance(denominated = Ccy.existing_instance(name = 'GBP'))
     u_ser   = u.serialize(False)
     print(u_ser)
-    assert u_ser == {'_id': [{'_id': 'GBP'}]} # id is a list of objects, not strings!
+    assert u_ser == {'_id': [{'_id': 'GBP'}]}  # id is a list of objects, not strings!
 
 
     assert CcyUnitHolder(ccy_unit = u).serialize_object()['ccy_unit'] ==  u_ser
@@ -33,6 +33,6 @@ if __name__=='__main__':
     try:
         h1.serialize_object()
     except TraitMethodError as e:
-        print(e) # as expected!
+        print(e)  # as expected!
     else:
-        assert False, "Expected Exception"
+        assert False, 'Expected Exception'

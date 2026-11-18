@@ -7,16 +7,16 @@ if __name__ == '__main__':
     us_c = Calendar(_replace = True,
         name                = 'US',
         non_working_days    = [
-            date(2025,1,1), date(2025,1,20), date(2025,2,17), date(2025,5,26), date(2025,7,4),
-            date(2025,9,1), date(2025,10,13), date(2025,11,11), date(2025,11,27), date(2025,12, 25)
+            date(2025, 1, 1), date(2025, 1, 20), date(2025, 2, 17), date(2025, 5, 26), date(2025, 7, 4),
+            date(2025, 9, 1), date(2025, 10, 13), date(2025, 11, 11), date(2025, 11, 27), date(2025, 12, 25)
         ]
     )
 
     uk_c = Calendar(_replace = True,
         name                = 'UK',
         non_working_days    = [
-            date(2025,1,1), date(2025,4,18), date(2025,5,5), date(2025,5,26), date(2025,8,25),
-            date(2025,12, 25), date(2025,12, 26)
+            date(2025, 1, 1), date(2025, 4, 18), date(2025, 5, 5), date(2025, 5, 26), date(2025, 8, 25),
+            date(2025, 12, 25), date(2025, 12, 26)
         ]
     )
 

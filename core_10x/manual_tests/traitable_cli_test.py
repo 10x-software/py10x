@@ -38,7 +38,7 @@ def show(args: list) -> None:
 
 
 if __name__ == '__main__':
-    (ctx:=CONVERT_VALUES_ON()).begin_using()
+    (ctx := CONVERT_VALUES_ON()).begin_using()
     # master command, no sub-command (boolean shortcuts + explicit value)
     show(['--verbose'])
     show(['--no-verbose'])

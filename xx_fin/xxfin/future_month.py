@@ -40,7 +40,7 @@ class FutureMonth:
         return date(year, month_index+1, 1)
 
     @classmethod
-    def date_to_fut_month(cls, d: date, two_digit_year:bool = False) -> str:
+    def date_to_fut_month(cls, d: date, two_digit_year: bool = False) -> str:
         return f'{cls.SYMBOLS[d.month-1]}{d.year if not two_digit_year else str(d.year)[2:]}'
         # return f'{cls.__class__.SYMBOLS[d.month-1]}{d.year if not two_digit_year else str(d.year)[2:]}'
 

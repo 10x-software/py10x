@@ -98,7 +98,7 @@ class TEXT_ALIGN(NamedConstant):
 
     @classmethod
     def from_str(cls, s: str) -> TEXT_ALIGN:
-        return super().from_str(s.upper()) # type: ignore[return-value]
+        return super().from_str(s.upper())  # type: ignore[return-value]
 
     def rio_attr(self) -> str:
         return 'align_y' if self.value & self.s_vertical else 'align_x'
@@ -151,7 +151,7 @@ if __name__ == '__main__':
 
     print(A_PROBLEM.REV_CONFLICT(cls = 'XXX', id = '145678', rev = '3'))
 
-    x,y = TEXT_ALIGN.from_str('left'), TEXT_ALIGN.from_str('v_center')
+    x, y = TEXT_ALIGN.from_str('left'), TEXT_ALIGN.from_str('v_center')
     print( x, y, x.rio_attr(), y.rio_attr(), x.value, y.value, x.rio_value(), y.rio_value() )
 
     t1 = TestNamedConstant(count = 2, freq = FREQUENCY.WEEK)

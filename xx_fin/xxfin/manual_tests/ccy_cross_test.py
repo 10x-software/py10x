@@ -53,4 +53,4 @@ if __name__ == '__main__':
 
         for ccy1 in ccys:
             for ccy2 in reversed(ccys):
-                print( f'normal cross for the ccy pair ({ccy1}, {ccy2}) is {CcyCross.normal_cross(ccy1,ccy2)}')
+                print( f'normal cross for the ccy pair ({ccy1}, {ccy2}) is {CcyCross.normal_cross(ccy1, ccy2)}')

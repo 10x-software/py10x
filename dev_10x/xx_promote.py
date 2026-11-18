@@ -483,7 +483,7 @@ class XxPromoteCli(TraitableCli):
         seen: set[tuple[Path, str]] = set()
         for s in self.steps:
             for pushed in (s.tags_to_push, s.isolated_tags_to_push):
-                repo, refs = pushed if pushed else (None, ())
+                repo, refs = pushed or (None, ())
                 for ref in refs:
                     if ref.startswith(':refs/tags/') or (repo, ref) in seen:
                         continue

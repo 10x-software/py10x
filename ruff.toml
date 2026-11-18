@@ -14,7 +14,12 @@ exclude = ["*"]
 # Do not replace `select` with full category letters (e.g. "S", "PL") — that enables
 # non-default rules and silently widens CI. Cap the ruff version in pyproject.toml
 # (`ruff>=0.13,<0.17`) so future default-set expansions do not change the gate unnoticed.
-# E221/E251 (spaces around `=`) are preview-only, so hand alignment and `kw = value` are never flagged.
+# Preview is on, but a preview rule is enabled only by its exact code in extend-select: a prefix ("E")
+# never selects one, so E221/E241/E251 (hand alignment, `kw = value`), E201/E202, E226, E262/E265/E266
+# (`#--`) and the E30x blank-line rules stay off. Preview also widens the default set (see the
+# PLW0108/PT0xx ignores) and may change in any ruff release, uv.lock pins the version.
+preview = true
+explicit-preview-rules = true
 ignore = [
     "RUF012", # Mutable class attributes should be annotated with `typing.ClassVar`
     "RUF013", # PEP 484 prohibits implicit `Optional`
@@ -37,6 +42,10 @@ ignore = [
     "DTZ005", # `datetime.datetime.now()` called without a `tz` argument
     "DTZ007", # Naive datetime constructed using `datetime.datetime.strptime()` without %z
     "DTZ011", # `datetime.date.today()` used
+    # preview default set
+    "PLW0108", # Lambda may be unnecessary: `lambda s: f(s)` rows in aligned tables are house style
+    "PT028",   # Test function parameter with a default: run by hand with other values
+    "PT012",   # `pytest.raises()` around a `with` body (store.transaction(), SaveIfChanged()) is intended
 ]
 extend-select = [
   "TC", # type checking
@@ -52,6 +61,13 @@ extend-select = [
   "E",   # pycodestyle errors
   "W",   # pycodestyle warnings: tabs, trailing whitespace, newline at end of file
   "C90", # complexity
+  "Q",   # quotes: single inline (see lint.flake8-quotes), double for docstrings and multi-line strings
+  # preview rules, by exact code
+  # indentation of code; not E114-E116, which flag comments hand-placed under an inline comment
+  # or beside the line they are an alternative to (`for cd in cash_depos:` / `# for cd in sofr_cash_depos:`)
+  "E111", "E112", "E113", "E117",
+  "E225", "E227", "E231", # missing whitespace around an operator, after `,` / `:`
+  "E261", # two spaces before an inline comment
 ]
 mccabe.max-complexity = 15 # Flag errors (`C901`) whenever the complexity level exceeds this
 future-annotations = true # add "from __future__ import annotations" to enable more aggressive optimizations
@@ -64,6 +80,10 @@ exclude = [
     "ui_10x/qt6/table*.py",
     "xx_fin/xxfin/attic/jit_aadc/*.py",
 ]
+
+[lint.flake8-quotes]
+inline-quotes = "single"
+
 [lint.per-file-ignores]
 "xx_fin/xxfin/manual_tests/*" = [
     "B905", # zip without strict

@@ -180,7 +180,7 @@ class TestDateCurve:
 
         d1          = date(2023, 1, 1)
         d2          = date(2023, 1, 5)
-        dc.dates    = [d1,d2]
+        dc.dates    = [d1, d2]
 
         assert isinstance(dc.times[0], int)
         assert dc.dates == [d1, d2]
@@ -209,7 +209,7 @@ class TestDateCurve:
         d1          = date(2020, 1, 1)
         d2          = date(2020, 12, 31)
         mid         = date(2020, 7, 31)
-        dc          = DateCurve(values = [0.1, 0.2],dates = [d1, d2])
+        dc          = DateCurve(values = [0.1, 0.2], dates = [d1, d2])
 
         assert list(dc.dates) == [d1, d2]
         assert list(dc.values) == pytest.approx([0.1, 0.2])

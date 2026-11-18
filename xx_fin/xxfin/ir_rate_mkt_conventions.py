@@ -13,7 +13,7 @@ class FIXING_CONVENTION(NamedConstant):
 
 ## TODO: should we use spot_date calc-ed off ccy calendar and roll_rule or have its own here?
 class IRRateMktConventions(SpotMktConventions):
-    'IR Rate (e.g., SOFR) Conventions'
+    "IR Rate (e.g., SOFR) Conventions"
 
     dc_convention: DAY_COUNT_CONVENTION                 = T(DAY_COUNT_CONVENTION.ACT360)    // 'Day Count Convention'
     compounding: COMPOUNDING                            = T(COMPOUNDING.SIMPLE)             // 'Rate Compounding'

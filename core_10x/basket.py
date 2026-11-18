@@ -352,10 +352,10 @@ class Basket(Traitable, embeddable = True):
     subclasses_allowed: bool                = T(True)
     reset_members_on_set_bucketizers: bool  = T(True)
     aggregator_class: type[NamedCallable]   = T()
-    bucketizers: list[Bucketizer]           = T(T.EMBEDDED|T.STICKY|T.NOT_A_DEPENDENCY)
+    bucketizers: list[Bucketizer]           = T(T.EMBEDDED | T.STICKY | T.NOT_A_DEPENDENCY)
 
-    the_bucket: Bucket                      = T(T.STICKY|T.NOT_A_DEPENDENCY)       #-- single bucket if there are no bucketizers; internal bookkeeping, never a dependency source (see mkt_deps_design_notes.md)
-    all_buckets: dict                       = T(T.STICKY|T.NOT_A_DEPENDENCY)       #-- tagged buckets WRT bucketizers, i.e.: {(t1_i,t2_i,...): bucket_i}; internal bookkeeping, never a dependency source
+    the_bucket: Bucket                      = T(T.STICKY | T.NOT_A_DEPENDENCY)       #-- single bucket if there are no bucketizers; internal bookkeeping, never a dependency source (see mkt_deps_design_notes.md)
+    all_buckets: dict                       = T(T.STICKY | T.NOT_A_DEPENDENCY)       #-- tagged buckets WRT bucketizers, i.e.: {(t1_i,t2_i,...): bucket_i}; internal bookkeeping, never a dependency source
 
 
     def bucket_shape_get(self) -> BUCKET_SHAPE:
@@ -372,7 +372,7 @@ class Basket(Traitable, embeddable = True):
             return RC(False, 'bucketizers must be a list of instances of Bucketizer')
 
         if not self.reset_members_on_set_bucketizers:
-            return RC(self.add_bucketizers(bucketizers,replace = True))
+            return RC(self.add_bucketizers(bucketizers, replace = True))
 
         self.invalidate_value('the_bucket')
         self.invalidate_value('all_buckets')
@@ -545,7 +545,7 @@ class Basket(Traitable, embeddable = True):
         agg = self.aggregator_class
         if not agg:
             if throw:
-                raise AssertionError("Basket: aggregator_class is not specified")
+                raise AssertionError('Basket: aggregator_class is not specified')
             return None
         f = agg.s_dir.get(method_name.upper())
         if throw and f is None:

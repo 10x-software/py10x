@@ -365,7 +365,7 @@ async def wait_for_input_values(
 async def press_rio_button(test_client, button) -> None:
     """Click a Rio button via its pressable element (for complex layouts)."""
     await test_client.execute_js(
-        f'''document.querySelector('[dbg-id="{button._id_}"]')'''
+        f"""document.querySelector('[dbg-id="{button._id_}"]')"""
         f""".querySelector('rio-pressable-element').click()"""
     )
 
@@ -380,11 +380,11 @@ async def click_client_button(test_client, button = None) -> None:
     if button is None:
         button = test_client.get_component(rio.Button)
     rect = await test_client.execute_js(
-        f'''() => {{
+        f"""() => {{
             const el = document.querySelector('[dbg-id="{button._id_}"]');
             const r = el.getBoundingClientRect();
             return {{x: r.left + r.width / 2, y: r.top + r.height / 2}};
-        }}'''
+        }}"""
     )
     await test_client.click(rect['x'], rect['y'])
     await wait_for_rio_refresh(test_client)

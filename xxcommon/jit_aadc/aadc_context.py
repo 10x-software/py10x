@@ -7,7 +7,7 @@ from xxcommon.curve import CurveParams
 from xxcommon.xxcommon_env_vars import XXCommonEnvVars
 
 try:
-    import xxfin.root_solver as _root_solver #TODO: make this pluggable?
+    import xxfin.root_solver as _root_solver  #TODO: make this pluggable?
 except ImportError:
     _root_solver = None
 

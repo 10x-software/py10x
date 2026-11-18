@@ -1781,7 +1781,7 @@ class TestForwardRefTraitables:
         # forward-ref eval that consults `sys.modules[cls.__module__].__dict__`.
         sys.modules[module_name] = mod
         try:
-            exec(compile(source, f'<{module_name}>', 'exec'), mod.__dict__)  # noqa: S102
+            exec(compile(source, f'<{module_name}>', 'exec'), mod.__dict__)
         except BaseException:
             sys.modules.pop(module_name, None)
             raise

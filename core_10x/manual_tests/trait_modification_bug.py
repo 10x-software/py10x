@@ -9,10 +9,10 @@ class A(Traitable):
         return f'{dt}'
 
 class B(A):
-    funny_message:int   = M()
+    funny_message: int   = M()
 
 class C(A):
-    funny_message:float   = M()
+    funny_message: float   = M()
 
     def funny_message_get(self):
         dt = self.T.funny_message.data_type

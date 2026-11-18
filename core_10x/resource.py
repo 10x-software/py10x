@@ -296,7 +296,7 @@ class Resource(abc.ABC):
     @classmethod
     def spec_from_uri(cls, uri: str) -> ResourceSpec:
         kwargs = cls.parse_uri(uri)
-        kwargs.setdefault(cls.PROTOCOL_TAG, uri.split(':')[0])
+        kwargs.setdefault(cls.PROTOCOL_TAG, uri.split(':', maxsplit = 1)[0])
         return ResourceSpec(cls, kwargs)
 
     @abc.abstractmethod

@@ -174,7 +174,7 @@ class VersionHelpers:
             part = raw.strip()
             if '=' not in part:
                 version = cls.validate_next_version_override(part)
-                overrides.update({name: version for name in default_names})
+                overrides.update(dict.fromkeys(default_names, version))
                 continue
             name, sep, version = part.partition('=')
             if not sep or not name:

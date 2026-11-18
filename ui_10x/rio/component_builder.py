@@ -277,7 +277,7 @@ class ComponentBuilder:
         self.subcomponent   = None
         kw_kids             = self._kwargs.get(self.s_children_attr)
         if self.s_single_child:
-            self._set_children(children if children else [kw_kids])
+            self._set_children(children or [kw_kids])
         else:
             self._set_children([])
             self.add_children(*children)

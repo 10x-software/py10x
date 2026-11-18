@@ -28,7 +28,7 @@ class PreBasket(Traitable):
 
         if add:
             if not isinstance(add, (PreBasket, dict)):
-                raise TypeError("add must be a PreBasket or dict object")
+                raise TypeError('add must be a PreBasket or dict object')
             if isinstance(add, dict):
                 cont_add = add
             else:
@@ -108,12 +108,12 @@ class PreBasket(Traitable):
         return self.apply_func(lambda x: 1)
 
     ## likely non-kosher, but can use this for price (and later for leaves, if change the summation)
-    def get_weighted_value(self, val_name:str, zero_for_value_type = 0.):
+    def get_weighted_value(self, val_name: str, zero_for_value_type = 0.):
         return sum((k.get_value(val_name) * v for k, v in self.contents.items()), zero_for_value_type)
 
     ## to handle price_ccy(ccy)
     def get_weighted_attr(self, attr_name, **kwargs):
         return sum((attr(**kwargs) if callable(attr) else attr) * v for k, v in self.contents.items() for attr in [getattr(k, attr_name)])
 
-    def get_constituent_numeric_values(self, val_name:str):
+    def get_constituent_numeric_values(self, val_name: str):
         return PreBasket() + {k: k.get_value(val_name) * v for k, v in self.contents.items()}

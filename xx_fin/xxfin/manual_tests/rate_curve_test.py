@@ -49,9 +49,9 @@ if __name__ == '__main__':
         COMPOUNDING.CONTINUOUS,
     ]
 
-    dd_2028_decdec  = [date(2027,12,31), date(2028,12,31)]
-    dd_2028_janjan  = [date(2028,1,1),   date(2029,1,1)  ]
-    dd_2028_janfeb  = [date(2028,1,31),  date(2028,2,29) ]
+    dd_2028_decdec  = [date(2027, 12, 31), date(2028, 12, 31)]
+    dd_2028_janjan  = [date(2028, 1, 1),   date(2029, 1, 1)  ]
+    dd_2028_janfeb  = [date(2028, 1, 31),  date(2028, 2, 29) ]
     some_periods    = [dd_2028_janjan, dd_2028_janjan, dd_2028_janfeb]
 
     some_dates = [
@@ -79,7 +79,7 @@ if __name__ == '__main__':
     # test _today()
     if TEST__TODAY:
         bot = c.beginning_of_time_as_date()
-        d   = date(2028,1,1)
+        d   = date(2028, 1, 1)
         assert c._today(None) == bot
         print(f'None --> bot = {bot}')
         # c.beginning_of_time = None
@@ -98,13 +98,13 @@ if __name__ == '__main__':
         print(f'internal dc/comp = {cdc}/{ccmp}')
         inp = [(None, None), (dc, None), (None, cmp), (dc, cmp)]
         out = [(cdc,  ccmp), (dc, ccmp), (cdc,  cmp), (dc, cmp)]
-        for i,o in zip(inp, out):
+        for i, o in zip(inp, out):
             output = c._conventions(*i)
             print(f'input = {i}\n  exp output = {o}\n  act output = {output}')
             assert output == o
 
     if TEST_ACCRUAL:
-        (d,r) = c.dates_values()[-1]
+        (d, r) = c.dates_values()[-1]
         assert c.value(d) == r
 
         save_dc  = c.dc_convention
@@ -151,7 +151,7 @@ if __name__ == '__main__':
 
         # tenor           = RDate('5Y')
         # period_freq     = RDate('1Q')
-        period_cal          = FinCalendar.none,
+        period_cal          = FinCalendar.none
         period_roll_rule    = BIZDAY_ROLL_RULE.NO_ROLL
         pay_delay           = RDate('0C')
         pay_calendar        = FinCalendar.none

@@ -31,15 +31,15 @@ class Ccy(NamedTraitable):
         return self.name == 'USD'
 
     def pay_date(self, end_date: date) -> date:
-        'Payment settlement date corresponding to a given end date'
+        "Payment settlement date corresponding to a given end date"
         return self.settle_offset.apply(end_date, self.bank_calendar, self.roll_rule)
 
     def spot_date(self, start_date: date) -> date:
-        'Spot settlement date corresponding to a given start date'
+        "Spot settlement date corresponding to a given start date"
         return self.spot_offset.apply(start_date, self.bank_calendar, self.roll_rule)
 
     def expiration_date(self, pay_date: date) -> date:
-        'Expiration date corresponding to a given payment settlement date. CAUTION: may not recover the expitation date due to roll'
+        "Expiration date corresponding to a given payment settlement date. CAUTION: may not recover the expitation date due to roll"
         go_back = self.settle_offset * (-1)
         return go_back.apply(pay_date, self.bank_calendar, self.roll_rule)
 

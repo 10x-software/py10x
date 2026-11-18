@@ -127,8 +127,8 @@ CalendarWidget.selected_date    = lambda self:                  self.selectedDat
 
 class Dialog(QDialog):
     s_open_dialogs = set()
-    def __init__(self,parent = None,*args,**kwargs):
-        super().__init__(parent or init().activeModalWidget(),*args,**kwargs)
+    def __init__(self, parent = None, *args, **kwargs):
+        super().__init__(parent or init().activeModalWidget(), *args, **kwargs)
 
     def _on_finished(self):
         open_dialogs    = self.s_open_dialogs
@@ -162,13 +162,13 @@ class Dialog(QDialog):
 
 class MessageBox(QMessageBox):
     s_boxes_by_parent = {}
-    def __init__(self, on_close: Callable[[Any],None] = None, parent: Widget = None):
+    def __init__(self, on_close: Callable[[Any], None] = None, parent: Widget = None):
         super().__init__(parent)
         self._on_close = on_close
         self.finished.connect(self._handle_finished)
 
         # Set the default values for the message box
-        self.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.WindowCloseButtonHint|Qt.WindowType.WindowStaysOnTopHint)
+        self.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.WindowCloseButtonHint | Qt.WindowType.WindowStaysOnTopHint)
         self.setStandardButtons(QMessageBox.StandardButton.Ok)
         self.setDefaultButton(QMessageBox.StandardButton.Ok)
         self.setEscapeButton(QMessageBox.StandardButton.Ok)
@@ -183,15 +183,15 @@ class MessageBox(QMessageBox):
         self.deleteLater()
 
     @classmethod
-    def _create_message_box(cls, parent: Widget, title, message, on_close: Callable[[Any],None], icon) -> MessageBox:
-        msg_box = cls(on_close,parent)
+    def _create_message_box(cls, parent: Widget, title, message, on_close: Callable[[Any], None], icon) -> MessageBox:
+        msg_box = cls(on_close, parent)
         msg_box.setWindowTitle(title)
         msg_box.setText(message)
         msg_box.setIcon(icon)
         return msg_box
 
     @classmethod
-    def question(cls, parent: Widget, title: str, message: str, on_close: Callable[[Any],None]) -> MessageBox.StandardButton:
+    def question(cls, parent: Widget, title: str, message: str, on_close: Callable[[Any], None]) -> MessageBox.StandardButton:
         msg_box = cls._create_message_box(
             parent      = parent,
             title       = title,
@@ -210,7 +210,7 @@ class MessageBox(QMessageBox):
             return msg_box.exec()
 
     @classmethod
-    def warning(cls, parent: Widget, title: str, message: str, on_close: Callable[[Any],None]) -> MessageBox.StandardButton:
+    def warning(cls, parent: Widget, title: str, message: str, on_close: Callable[[Any], None]) -> MessageBox.StandardButton:
         msg_box = cls._create_message_box(
                 parent      = parent,
                 title       = title,
@@ -225,7 +225,7 @@ class MessageBox(QMessageBox):
             return msg_box.exec()
 
     @classmethod
-    def information(cls, parent: Widget, title: str, message: str, on_close: Callable[[Any],None]) -> MessageBox.StandardButton:
+    def information(cls, parent: Widget, title: str, message: str, on_close: Callable[[Any], None]) -> MessageBox.StandardButton:
         msg_box = cls._create_message_box(
                 parent      = parent,
                 title       = title,

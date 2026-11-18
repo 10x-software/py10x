@@ -96,11 +96,11 @@ class TestRateCurve:
 
     def test_accrual_1(self):
         d = date(2028, 1, 1)
-        assert self.rc.accrual(d,d) == 1.
+        assert self.rc.accrual(d, d) == 1.
         assert self.rc.accrual(self.rc.beginning_of_time_as_date()) == 1.
 
     def test_accrual(self):
-        (d,r) = self.rc.dates_values()[-1]
+        (d, r) = self.rc.dates_values()[-1]
         assert self.rc.value(d) == r
 
         ## TODO: need cache layer instead of manual save/restore
@@ -186,7 +186,7 @@ class TestRateCurve:
 
     def test_rate_convert_exp_const(self):
         r_in        = 0.25
-        exp_cmps    = [ COMPOUNDING.CONTINUOUS, COMPOUNDING.ANNUAL, COMPOUNDING.SEMI_ANNUAL,COMPOUNDING.QUARTERLY, COMPOUNDING.MONTHLY]
+        exp_cmps    = [COMPOUNDING.CONTINUOUS, COMPOUNDING.ANNUAL, COMPOUNDING.SEMI_ANNUAL, COMPOUNDING.QUARTERLY, COMPOUNDING.MONTHLY]
         dc          = DAY_COUNT_CONVENTION.BB30360
         dd          = self.some_dates
         for cmp_in in exp_cmps:
@@ -213,7 +213,7 @@ class TestRateCurve:
 
     def test_discount_factor(self):
         d = self.some_dates[0]
-        assert self.rc.discount_factor(d,d) == 1.
+        assert self.rc.discount_factor(d, d) == 1.
         df = self.rc.discount_factor(d)
         assert df == self.rc.discount_factor(d, self.rc.beginning_of_time_as_date())
         acc = self.rc.accrual(d)

@@ -1,5 +1,5 @@
 
-if __name__=='__main__':
+if __name__ == '__main__':
     from datetime import date
 
     from xxcommon.rdate import BIZDAY_ROLL_RULE, RDate
@@ -57,18 +57,18 @@ if __name__=='__main__':
     assert end_dates   == sq.end_dates,   f'{end_dates}   != {sq.end_dates}'
     assert pay_dates   == sq.pay_dates,   f'{pay_dates}   != {sq.pay_dates}'
 
-    incr_dcfs = [dc_conv(sd,ed) for sd,ed in zip(start_dates,end_dates, strict = True)]
+    incr_dcfs = [dc_conv(sd, ed) for sd, ed in zip(start_dates, end_dates, strict = True)]
     print(f'manual incremental dcfs = {incr_dcfs}')
     print(f'swap incremental dcfs = {sq.incremental_dc_fractions}')
     assert incr_dcfs == sq.incremental_dc_fractions, f'{incr_dcfs} != {sq.incremental_dc_fractions}'
 
 
-    assert sq.annuity_calc(zrc) == sq.annuity_calc(zrc,5), 'annuity default num periods is off'
+    assert sq.annuity_calc(zrc) == sq.annuity_calc(zrc, 5), 'annuity default num periods is off'
 
     for num in range(5):
         manual_ann = sum(dcf*df for dcf, df in zip(incr_dcfs[:num+1], zrc.discount_factors(pay_dates, today = md_basis['md_date'])[:num+1]))
         print(f'manual annuity for {num+1} periods: {manual_ann}')
-        assert manual_ann == sq.annuity_calc(zrc,num+1)
+        assert manual_ann == sq.annuity_calc(zrc, num+1)
 
 
 

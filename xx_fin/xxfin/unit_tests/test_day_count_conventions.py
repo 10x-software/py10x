@@ -5,7 +5,7 @@ import pytest
 DAY_COUNT_CONVENTION = None
 
 cases = {
-    (date(2025,1,1), date(2026,1,1)):
+    (date(2025, 1, 1), date(2026, 1, 1)):
     {
         '_name':    'non-leap year Jan 1st to Jan 1st',
         'act360': 365. / 360.,

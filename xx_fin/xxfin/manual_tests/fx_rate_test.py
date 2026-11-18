@@ -66,7 +66,7 @@ if __name__ == '__main__':
                     rates.append(r)
                     print(f'{cross} - {rd}/{d} - quoted: {r}')
                 if SPOT:
-                    rdates.insert(0,'spot')
+                    rdates.insert(0, 'spot')
             print('--------------------------')
 
             quotes[ cross ] = (rdates, dates, rates)
@@ -95,7 +95,7 @@ if __name__ == '__main__':
 
     if TEST_RATE_NON_Q:
         print('\ntesting ==== FxRate(cross).rate() for implied crosses ====\n')
-        d       = date(2030,1,1)
+        d       = date(2030, 1, 1)
         split   = [
             dict(
                 crs = 'EUR/GBP',
@@ -145,7 +145,7 @@ if __name__ == '__main__':
             assert r == 1.
 
 
-        d           = date(2030,1,1)
+        d           = date(2030, 1, 1)
         same_ccy    = ['USD/USD', 'GBP/GBP']
         for c in same_ccy:
             r = FxRate(cross_name = c).rate(d)

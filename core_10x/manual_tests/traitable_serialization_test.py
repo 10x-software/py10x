@@ -34,7 +34,7 @@ class Dict(Traitable):
 if __name__ == '__main__':
     from core_10x.manual_tests.traitable_serialization_test import MARRITAL_STATUS, Address, Person
 
-    address = Address(street = "145 Austin Dr", cszip = "Burlington, VT 05401")
+    address = Address(street = '145 Austin Dr', cszip = 'Burlington, VT 05401')
 
     woman       = Person(ssn = '008-59-6666', name = 'Alice Smith',     dob = date(1972, 8, 21), _replace = True)
     daughter    = Person(ssn = '008-77-7777', name = 'Ann Smith',       dob = date(1997, 6, 17), _replace = True)
@@ -65,7 +65,7 @@ if __name__ == '__main__':
 
     d1 = Dict(
         _replace    = True,
-        payload     = {1: [1,1], 2: [2,2]}
+        payload     = {1: [1, 1], 2: [2, 2]}
     )
     s1 = d1.serialize_object()
 

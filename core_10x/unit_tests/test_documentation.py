@@ -206,7 +206,7 @@ def test_documentation_code_block_execution(
     # Validate syntax (underlined code block on failure)
     validate_python_syntax(code_block)
 
-    doc_file_name       = test_name.split('_block_')[0]
+    doc_file_name       = test_name.split('_block_', maxsplit = 1)[0]
     fake_module_name    = f'__doc_test_{doc_file_name}__'
     if not (fake_module := sys.modules.get(fake_module_name)):
         fake_module = type(sys)('module')
@@ -226,11 +226,11 @@ def test_documentation_code_block_execution(
     _keep = frozenset({'__name__', '__file__', '__builtins__', 'analytics_db_uri', 'main_store'})
 
     if future_annotations:
-        exec('from __future__ import annotations', fake_module.__dict__)  # noqa: S102
+        exec('from __future__ import annotations', fake_module.__dict__)
     sys_path_added, package_names = _setup_doc_test_packages(code_block, tmp_path)
     try:
         try:
-            exec(code_block, fake_module.__dict__)  # noqa: S102
+            exec(code_block, fake_module.__dict__)
         except OSError as e:
             need(False, f'MongoDB reachable for doc block {test_name} ({type(e).__name__})')
         except Exception as e:
