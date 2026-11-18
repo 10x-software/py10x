@@ -19,8 +19,9 @@ Commands (run from the py10x repo root):
                                       pyproject.toml is on PyPI (run before publishing core)
     downstream_build_constraints PYPROJECT OUT
                                       wait_pypi_release for the core version a downstream
-                                      release commit's PYPROJECT ==-pins, then write that core's
-                                      sibling pins to OUT as pip constraints
+                                      release commit's PYPROJECT ==-pins (siblings: until pip
+                                      lists them), then write that core's sibling pins to OUT as
+                                      pip constraints
 """
 
 from __future__ import annotations
@@ -59,11 +60,12 @@ def _sibling(base: Path, name: str) -> tuple[Path, str]:
     return GitHelpers.git_root(src), prefix
 
 
-def wait_pypi_release(base: Path, version: str, *, timeout: float | None = None, poll: float | None = None) -> int:
+def wait_pypi_release(base: Path, version: str, *, timeout: float | None = None, poll: float | None = None, pip: bool = False) -> int:
     """Poll until this repo's own package (name from `[project.name]`) is at `version` on PyPI,
     then poll for each of its exact `==`-pinned first-party siblings (from
     `[tool.dev_10x.siblings]`, resolved via the published release's own `Requires-Dist` - so a
-    sibling bump is picked up automatically, never hand-maintained here)."""
+    sibling bump is picked up automatically, never hand-maintained here). With `pip`, a sibling
+    counts only once this interpreter's pip lists it too."""
     name            = PyProjectHelpers.project_name(base / 'pyproject.toml')
     siblings        = set(_siblings_doc(base))
     deadline, poll  = _pypi_deadline(timeout, poll)
@@ -74,7 +76,7 @@ def wait_pypi_release(base: Path, version: str, *, timeout: float | None = None,
     pins = PyPIHelpers.exact_pins(name, version, siblings)
     if not pins:
         print(f'wait_pypi_release: warning: no == pins for {sorted(siblings)} on {name}=={version}', file = sys.stderr)
-    return _wait_for_pins(pins, deadline, poll)
+    return _wait_for_pins(pins, deadline, poll, pip = pip)
 
 
 def wait_sibling_releases(base: Path, *, timeout: float | None = None, poll: float | None = None) -> int:
@@ -94,9 +96,9 @@ def _pypi_deadline(timeout: float | None, poll: float | None) -> tuple[float, fl
     return time.monotonic() + timeout, poll
 
 
-def _wait_for_pins(pins: dict[str, str], deadline: float, poll: float) -> int:
+def _wait_for_pins(pins: dict[str, str], deadline: float, poll: float, *, pip: bool = False) -> int:
     for name, version in pins.items():
-        if not PyPIHelpers.wait_for_release(name, version, deadline, poll):
+        if not PyPIHelpers.wait_for_release(name, version, deadline, poll, pip = pip):
             return 1
     return 0
 
@@ -136,12 +138,13 @@ def downstream_build_constraints(base: Path, pyproject: Path, out: Path, *, time
     """Write the siblings coordinated with a downstream release (e.g. `py10x-kernel==X`) to `out` as
     pip constraints, once they are on PyPI. A downstream C++ extension (cxxfin) builds in isolation
     against whatever kernel pip resolves; it must be the coordinated one, as pybind11 types do not
-    cross kernels built with different pybind11 internals."""
+    cross kernels built with different pybind11 internals. Waits until pip itself lists them: the
+    build's pip resolves them seconds later, and can get a staler CDN copy than `release_exists`."""
     name    = PyProjectHelpers.project_name(base / 'pyproject.toml')
     version = PyProjectHelpers.exact_pins_from_text(pyproject.read_text(encoding = 'utf-8'), {name}).get(name)
     if version is None:
         raise SystemExit(f'no {name}== pin in {pyproject} - not a release commit?')
-    if rc := wait_pypi_release(base, version, timeout = timeout, poll = poll):
+    if rc := wait_pypi_release(base, version, timeout = timeout, poll = poll, pip = True):
         return rc
     pins = PyPIHelpers.exact_pins(name, version, set(_siblings_doc(base)))
     if not pins:

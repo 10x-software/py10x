@@ -2,9 +2,8 @@
 name = "py10x-fin-base"
 description = "10x Financial Domain Foundation"
 license = { text = "MIT" }
-readme = "README.md"
 requires-python = ">=3.11,<3.14"
-dynamic = ["version"]
+dynamic = ["version", "readme"]  # readme: [tool.hatch.metadata.hooks.fancy-pypi-readme]
 authors = [
     { name = "10X CONCEPTS LLC", email = "py10x@10x-software.org" },
 ]
@@ -45,8 +44,24 @@ dev = ["py10x-core[dev]",
 py10x_fin_base = "xxfin.testlib.cxx_or_py"
 
 [build-system]
-requires = ["hatchling>=1.17.0", "hatch-vcs"]
+requires = ["hatchling>=1.17.0", "hatch-vcs", "hatch-fancy-pypi-readme>=24.1.0"]
 build-backend = "hatchling.build"
+
+# PyPI renders the readme with no base URL, so relative links 404 there; point them at GitHub `main`
+# in the published copy only. Links are relative to xx_fin/, so `../` ones go to the repo root.
+[tool.hatch.metadata.hooks.fancy-pypi-readme]
+content-type = "text/markdown"
+
+[[tool.hatch.metadata.hooks.fancy-pypi-readme.fragments]]
+path = "README.md"
+
+[[tool.hatch.metadata.hooks.fancy-pypi-readme.substitutions]]
+pattern = '\]\(\.\./([^)\s]*)\)'
+replacement = '](https://github.com/10x-software/py10x/blob/main/\1)'
+
+[[tool.hatch.metadata.hooks.fancy-pypi-readme.substitutions]]
+pattern = '\]\((?!https?://|mailto:|#)([^)\s]+)\)'
+replacement = '](https://github.com/10x-software/py10x/blob/main/xx_fin/\1)'
 
 [tool.hatch.build.targets.wheel]
 packages = ["xxfin"]

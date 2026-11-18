@@ -35,7 +35,7 @@ In this README:
 
 ## 🏁 Identity and Dependency, in Nine Lines
 
-By default, the `Traitable` constructor accepts **only ID traits**. For how the framework uses identity and storage to resolve or create instances, see [How Traitables Are Created](https://github.com/10x-software/py10x/blob/main/GETTING_STARTED.md#how-traitables-are-created) in the Getting Started guide.
+By default, the `Traitable` constructor accepts **only ID traits**. For how the framework uses identity and storage to resolve or create instances, see [How Traitables Are Created](GETTING_STARTED.md#how-traitables-are-created) in the Getting Started guide.
 
 ```python
 from core_10x.traitable import Traitable, T, RT

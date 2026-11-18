@@ -86,6 +86,44 @@ def test_wait_for_release_times_out_returns_false_without_sleeping_past_deadline
     assert sleeps == []
 
 
+def test_wait_for_release_with_pip_retries_until_pip_lists_it(monkeypatch):
+    """The 0.4.0 fin-base release failed when urllib saw the new kernel on the simple page and pip did not."""
+    sleeps: list[float] = []
+    _fake_clock(monkeypatch, sleeps)
+    answers = [False, True]
+    monkeypatch.setattr(PyPIHelpers, 'release_exists', classmethod(lambda cls, name, version: True))
+    monkeypatch.setattr(PyPIHelpers, 'pip_finds_release', staticmethod(lambda name, version: answers.pop(0)))
+
+    assert PyPIHelpers.wait_for_release('py10x-kernel', '1.2.3', deadline = 1000.0, poll = 90.0, pip = True) is True
+    assert sleeps == [10.0]
+    assert answers == []
+
+
+@pytest.mark.parametrize(
+    ('stdout', 'expected'),
+    [
+        ('py10x-kernel (1.2.3)\nAvailable versions: 1.2.3, 1.2.3rc7, 1.2.2\n', True),
+        ('py10x-kernel (1.2.3rc7)\nAvailable versions: 1.2.3rc7, 1.2.2\n', False),  # stale index: a prefix match is not enough
+        ('', False),  # pip error, e.g. "No matching distribution found" on stderr
+    ],
+)
+def test_pip_finds_release_reads_pip_index_versions(monkeypatch, stdout, expected):
+    import subprocess
+    import sys
+
+    calls: list[list[str]] = []
+
+    def fake_run(cmd, **kw):
+        calls.append(cmd)
+        return subprocess.CompletedProcess(cmd, 0, stdout = stdout, stderr = '')
+
+    monkeypatch.setattr(subprocess, 'run', fake_run)
+
+    assert PyPIHelpers.pip_finds_release('py10x-kernel', '1.2.3') is expected
+    assert calls[0][:6] == [sys.executable, '-m', 'pip', 'index', 'versions', 'py10x-kernel']
+    assert '--pre' in calls[0]
+
+
 def test_release_json_cached_after_success_so_cdn_404_cannot_break_exact_pins(monkeypatch):
     """A fresh publish's JSON can 404 on a re-fetch right after `release_exists` saw it."""
     PyPIHelpers._release_json.cache_clear()

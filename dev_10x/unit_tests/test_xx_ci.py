@@ -71,13 +71,13 @@ def _release_pyproject(tmp_path: Path, kernel_spec: str) -> Path:
 
 def test_wait_sibling_releases_waits_for_each_exact_pin(tmp_path, monkeypatch):
     seen = []
-    monkeypatch.setattr(PyPIHelpers, 'wait_for_release', lambda name, version, deadline, poll: seen.append((name, version)) or True)
+    monkeypatch.setattr(PyPIHelpers, 'wait_for_release', lambda name, version, deadline, poll, pip = False: seen.append((name, version, pip)) or True)
     assert xx_ci.wait_sibling_releases(_release_pyproject(tmp_path, '==1.4.1rc2')) == 0
-    assert sorted(seen) == [(INFRA, '0.9.0'), (KERNEL, '1.4.1rc2')]
+    assert sorted(seen) == [(INFRA, '0.9.0', False), (KERNEL, '1.4.1rc2', False)]
 
 
 def test_wait_sibling_releases_fails_when_a_sibling_never_lands(tmp_path, monkeypatch):
-    monkeypatch.setattr(PyPIHelpers, 'wait_for_release', lambda name, version, deadline, poll: name != KERNEL)
+    monkeypatch.setattr(PyPIHelpers, 'wait_for_release', lambda name, version, deadline, poll, pip = False: name != KERNEL)
     assert xx_ci.wait_sibling_releases(_release_pyproject(tmp_path, '==1.4.1rc2')) == 1
 
 
@@ -101,18 +101,19 @@ def _downstream_pyproject(tmp_path: Path, core_spec: str) -> Path:
 
 
 def test_downstream_build_constraints_writes_coordinated_sibling_pins(tmp_path, monkeypatch):
+    """The siblings must be listed to pip itself: the cxxfin build's pip resolves them next."""
     seen = []
-    monkeypatch.setattr(PyPIHelpers, 'wait_for_release', lambda name, version, deadline, poll: seen.append((name, version)) or True)
+    monkeypatch.setattr(PyPIHelpers, 'wait_for_release', lambda name, version, deadline, poll, pip = False: seen.append((name, version, pip)) or True)
     monkeypatch.setattr(PyPIHelpers, 'exact_pins', lambda name, version, candidates: {KERNEL: '0.4.0rc1', INFRA: '0.4.0rc1'})
     base    = _release_pyproject(tmp_path, '==1.4.1rc2')
     out     = tmp_path / 'constraints.txt'
     assert xx_ci.downstream_build_constraints(base, _downstream_pyproject(tmp_path, '==0.4.0rc1'), out) == 0
-    assert seen[0] == ('py10x-core', '0.4.0rc1')
+    assert seen == [('py10x-core', '0.4.0rc1', False), (KERNEL, '0.4.0rc1', True), (INFRA, '0.4.0rc1', True)]
     assert out.read_text(encoding = 'utf-8') == f'{INFRA}==0.4.0rc1\n{KERNEL}==0.4.0rc1\n'
 
 
 def test_downstream_build_constraints_fails_when_core_never_lands(tmp_path, monkeypatch):
-    monkeypatch.setattr(PyPIHelpers, 'wait_for_release', lambda name, version, deadline, poll: False)
+    monkeypatch.setattr(PyPIHelpers, 'wait_for_release', lambda name, version, deadline, poll, pip = False: False)
     out = tmp_path / 'constraints.txt'
     assert xx_ci.downstream_build_constraints(_release_pyproject(tmp_path, '==1.4.1rc2'), _downstream_pyproject(tmp_path, '==0.4.0rc1'), out) == 1
     assert not out.exists()

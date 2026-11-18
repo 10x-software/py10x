@@ -32,7 +32,8 @@ jobs:
       # cxxfin builds in isolation against whatever py10x-kernel pip resolves (build-system requires
       # py10x-kernel>=0.0.0rc0), i.e. the newest on PyPI - while this release's own kernel may still
       # be publishing. It must be that kernel: pybind11 types do not cross kernels built with
-      # different pybind11 internals. So wait for it and constrain the build to it.
+      # different pybind11 internals. So wait until pip itself lists it (the CDN can serve pip a
+      # stale index after our urllib check sees it) and constrain the build to it.
       # Untracked, so the setuptools-scm version stays clean.
       - name: Resolve coordinated py10x-kernel
         shell: bash

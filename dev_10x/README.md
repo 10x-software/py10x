@@ -540,9 +540,10 @@ shape as the former domain `finbase_wheel.yml`):
 
 1. cibuildwheel `xx_fin/cxxfin` on ubuntu / macos / windows-2025 → `py10x-fin-base-cxx` wheels.
    The isolated build is constrained (`PIP_CONSTRAINT`) to the siblings coordinated with this
-   release (`xx_ci downstream_build_constraints`, which waits for them on PyPI): cxxfin's own
-   build requirement is just `py10x-kernel>=0.0.0rc0`, and a cxxfin built against a kernel with
-   different pybind11 internals cannot take its types.
+   release (`xx_ci downstream_build_constraints`, which waits until pip itself lists them: the
+   CDN can still serve pip a stale index after a urllib check of the same page sees them):
+   cxxfin's own build requirement is just `py10x-kernel>=0.0.0rc0`, and a cxxfin built against a
+   kernel with different pybind11 internals cannot take its types.
 2. Validate committed co-release pin (`py10x-fin-base-cxx (==<version>)`, written by xx-promote);
    `uv build --directory xx_fin` → `py10x-fin-base` sdist + wheel.
 3. Per-OS clean-venv smoke: install both artifacts → `import xxfin; import cxxfin`, then pass a

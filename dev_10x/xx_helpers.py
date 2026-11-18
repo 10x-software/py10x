@@ -902,6 +902,23 @@ class PyPIHelpers:
         alt     = f'{simple_name}-{version}'
         return needle in listing or alt in listing
 
+    @staticmethod
+    def pip_finds_release(name: str, version: str, timeout: float = 60.0) -> bool:
+        """True when this interpreter's pip lists `name==version`. The simple page also varies on
+        `Accept-Encoding`, so `release_exists` (urllib: identity) can read a fresh CDN copy while pip
+        (gzip) still gets a stale one, for up to its 10-minute max-age."""
+        cmd = [sys.executable, '-m', 'pip', 'index', 'versions', name]
+        cmd += ['--pre', '--ignore-requires-python', '--no-cache-dir', '--disable-pip-version-check']
+        try:
+            out = subprocess.run(cmd, capture_output = True, text = True, timeout = timeout, check = False).stdout
+        except subprocess.TimeoutExpired:
+            return False
+        #-- `--json` is pip>=25.1; this line's format is stable since pip 21.2
+        for line in out.splitlines():
+            if line.startswith('Available versions:'):
+                return Version(version) in {Version(v.strip()) for v in line.split(':', 1)[1].split(',')}
+        return False
+
     @classmethod
     def release_requires_dist(cls, name: str, version: str, timeout: float = 10.0) -> list[str]:
         """`Requires-Dist` entries for an already-published `name==version`."""
@@ -936,9 +953,10 @@ class PyPIHelpers:
         *,
         quick_poll: float = 10.0,
         quick_poll_window: float = 60.0,
+        pip: bool = False,
     ) -> bool:
         """Poll until `name==version` is pip-installable, or `deadline` (a `time.monotonic()`
-        value) passes.
+        value) passes. With `pip`, also until this interpreter's pip lists it (`pip_finds_release`).
 
         Checks quickly at first (every `quick_poll` seconds, for `quick_poll_window` seconds)
         rather than immediately settling into the full `poll` interval: a release that's *about*
@@ -953,14 +971,17 @@ class PyPIHelpers:
 
         start = time.monotonic()
         while True:
+            status = 'not yet available'
             if cls.release_exists(name, version):
-                print(f'{name}=={version} available on PyPI', flush = True)
-                return True
+                if not pip or cls.pip_finds_release(name, version):
+                    print(f'{name}=={version} available on PyPI', flush = True)
+                    return True
+                status = 'on PyPI but not yet listed to pip'
             if time.monotonic() >= deadline:
-                print(f'timed out waiting for {name}=={version} on PyPI', file = sys.stderr)
+                print(f'timed out waiting for {name}=={version} on PyPI ({status})', file = sys.stderr)
                 return False
             interval = quick_poll if time.monotonic() - start < quick_poll_window else poll
-            print(f'{name}=={version} not yet available; retrying in {interval:g}s...', file = sys.stderr)
+            print(f'{name}=={version} {status}; retrying in {interval:g}s...', file = sys.stderr)
             time.sleep(interval)
 
 

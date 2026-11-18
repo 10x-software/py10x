@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **PyPI project page** (py10x-fin-base): the README's relative links 404'd on PyPI; the published readme now points them at GitHub `main` (rewritten at build time by `hatch-fancy-pypi-readme`).
+
 ## [0.2.0] - 2026-11-18
 
 Changes since **0.1.2**. Pinned to py10x-core 0.4.0.

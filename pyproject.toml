@@ -1,12 +1,11 @@
 [project]
 name = "py10x-core"
 description = "10x Platform Core"
-dynamic = ["version"]
+dynamic = ["version", "readme"]  # readme: [tool.hatch.metadata.hooks.fancy-pypi-readme]
 authors = [
     { name = "10X CONCEPTS LLC", email = "py10x@10x-software.org" },
 ]
 license = {text = "MIT"}
-readme = "README.md"
 requires-python = ">=3.11,<3.14"
 dependencies = [
     "py10x-kernel (>=0.4.0,<0.4.1rc1)",
@@ -124,7 +123,7 @@ xx-admin-save-user-credentials  = "core_10x.apps.admin_save_user_credentials:mai
 xx-vault-setup-roles            = "core_10x.apps.vault_setup_roles:VaultSetupRolesCli.main"
 
 [build-system]
-requires = ["hatchling>=1.17.0","hatch-vcs","hatch-build-scripts","playwright>=1.55,<1.63"]
+requires = ["hatchling>=1.17.0","hatch-vcs","hatch-build-scripts","hatch-fancy-pypi-readme>=24.1.0","playwright>=1.55,<1.63"]
 build-backend = "hatchling.build"
 
 # `footprint` (git pathspecs) replaces the default "repo minus other packages' dirs" footprint:
@@ -177,6 +176,22 @@ py10x-fin-base = { path = "xx_fin", editable = true }
 
 [tool.hatch.metadata]
 allow-direct-references = true
+
+# PyPI renders the readme with no base URL, so relative links and images 404 there; point them at
+# GitHub `main` in the published copy only. Images go to raw.githubusercontent (a blob URL is a page).
+[tool.hatch.metadata.hooks.fancy-pypi-readme]
+content-type = "text/markdown"
+
+[[tool.hatch.metadata.hooks.fancy-pypi-readme.fragments]]
+path = "README.md"
+
+[[tool.hatch.metadata.hooks.fancy-pypi-readme.substitutions]]
+pattern = '(<img src="|!\[[^\]]*\]\()(?!https?://)([^)"\s]+)'
+replacement = '\1https://raw.githubusercontent.com/10x-software/py10x/main/\2'
+
+[[tool.hatch.metadata.hooks.fancy-pypi-readme.substitutions]]
+pattern = '\]\((?!https?://|mailto:|#)([^)\s]+)\)'
+replacement = '](https://github.com/10x-software/py10x/blob/main/\1)'
 
 [tool.hatch.build.targets.wheel]
 packages = ["core_10x", "dev_10x", "infra_10x", "ui_10x", "xxcommon"]
