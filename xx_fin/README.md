@@ -63,7 +63,8 @@ assembly. It usually consists of the most liquid contracts that provide the most
 the market (e.g., the most liquid swap or FX forward quotes). Once we ingest the market quotes from the data provider(s)
 into the quotables, we use a market assembly to build/calibrate the forward curve using a chosen calibration procedure.
 The subsequent use of the curves built this way is completely agnostic to the curve calibration choices. Hence, the
-market assembly, as well as the calibration analytics, can be replaced by the user's preferred choices.
+market assembly, as well as the calibration analytics, can be replaced by the user's preferred choices (see
+[Choosing the curve builder](#choosing-the-curve-builder)).
 
 The discount curve for a discount rate in a given currency is built using that currency-denominated standard cash
 deposit and fixed-floating swap market quotes, with that rate as the underlying/reference floating rate for the
@@ -77,13 +78,38 @@ spot and FX USD-collateralized forwards consistent with the funding currency's d
 Such an FX forward curve allows us to calculate the present value, in any given currency, of a cash flow denominated in
 any other currency.
 
+## Choosing the curve builder
+
+Instruments and FX curves never name the discount-curve class: they build `ZeroRateCurve.selected_class()`, the class
+registered for `ZeroRateCurve` in a `SelectableTraitableRecord` (py10x-core's `SelectableTraitableClass`), or
+`ZeroRateCurve` itself, the native bootstrap, when none is. To calibrate your own way, subclass `ZeroRateCurve`,
+override `payload_get()` to return the bootstrapped `RateCurve`, and register the subclass:
+
+```python
+from core_10x.selectable_traitable_class import SelectableTraitableRecord
+from xxfin.ir_zero_rate_curve import ZeroRateCurve
+from xxfin.ir_zero_rate_curve_ql import ZeroRateCurveQL
+
+SelectableTraitableRecord(selectable_base_class = ZeroRateCurve, selected_class = ZeroRateCurveQL, _replace = True).save()
+```
+
+The record is saved to the store, so the choice holds for every process that uses it; no call site changes. An
+unsaved record selects the class for the current process only.
+`ZeroRateCurveQL` ([`ir_zero_rate_curve_ql.py`](xxfin/ir_zero_rate_curve_ql.py)), a QuantLib `PiecewiseLinearZero`
+bootstrap of deposits and OIS swaps, is the worked example of such a subclass, and the tests use it to check the native
+Python and C++ bootstraps against QuantLib.
+
 ## Optional JIT acceleration via AADC
 
 Install the `aadc` extra first -- see [Install](#install). `xxfin`'s curve/valuation code is one
 consumer of `xxcommon`'s generic `AadcExec` JIT-recording facility -- see
 [`xxcommon/README.md`](../xxcommon/README.md#jit_aadc--optional-aadc-based-jit-acceleration) for
-what it is and how it's used. `xxfin` itself works fully without it -- AADC only accelerates the
-JIT-compiled code path, enabled via the `use_cxxfin` setting in `xxfin_env_vars.py`.
+what it is and how it's used. `xxfin` itself works fully without it. `AadcExec` records the Python
+implementations: leave `XXFIN_USE_CXXFIN` off (the default) when recording, since the `cxxfin` C++
+implementations compute on plain doubles and are not recorded on the AADC tape.
+
+The facility used to be `xxfin.jit_aadc`; it is now `xxcommon.jit_aadc` in py10x-core, and the old
+module is archived under [`xxfin/attic/jit_aadc/`](xxfin/attic/jit_aadc/).
 
 ## An easy setup to start playing with xxfin package
 - install mongodb on your machine and run without authentication (default)

@@ -17,7 +17,7 @@ Not legal advice; consider legal review before publishing.
 | **pyproject metadata** | Done | `xx_fin/pyproject.toml` and `xx_fin/cxxfin/pyproject.toml` already declare `license = {text = "MIT"}`, `authors = [{name = "10X CONCEPTS LLC", email = "py10x@10x-software.org"}]` |
 | **Copyright in source** | Root only | No file-level copyright headers in `.py`/`.cpp`/`.h` files, matching the `py10x-core` precedent (optional, not added). |
 | **Third-party code** | None found | No vendored/copied third-party source under `xx_fin/`; `cxxfin/CMakeLists.txt` pulls kernel headers via `FetchContent` from the public `github.com/10x-software/py10x` (`cxx10x/`), not a vendored copy. |
-| **NOTICE** | Done | `xx_fin/NOTICE` covers `xx_fin`'s own direct third-party deps not already in `py10x-core`'s NOTICE — open source (QuantLib, xbbg) and commercial (aadc, blpapi) in separate sections. |
+| **NOTICE** | Done | `xx_fin/NOTICE` covers `xx_fin`'s own direct third-party deps not already in `py10x-core`'s NOTICE — open source (QuantLib, xbbg) and commercial (blpapi) in separate sections. `aadc` moved to py10x-core with `jit_aadc` and is listed in py10x-core's NOTICE. |
 | **Secrets** | Clean | Full-history grep of `git log -p --all -- xx_fin/` found no credentials; only 4 commits touch the path. |
 
 ---
@@ -28,7 +28,7 @@ Not legal advice; consider legal review before publishing.
 |------------|-----------------|-----------------|-------|
 | py10x-core, py10x-kernel, py10x-infra | MIT | Yes | Already public on PyPI. |
 | quantlib-python | BSD-3-Clause-style (QuantLib License) | Yes | |
-| aadc | **Proprietary/commercial** (not open source) | N/A — not distributed under an OSI license | Installable freely from MatLogica's own package index (separate install, not bundled); the published wheel is the Community Edition build — licensed for non-commercial/academic use only, no activation/key/trial period required for that use. Commercial use or advanced features (e.g. AVX-512) require a license obtained by contacting MatLogica; an optional license file (`AADC_NG_LICENSE`), supplied out-of-band, unlocks those — `xxfin` does not depend on it. Listed in `xx_fin/NOTICE`'s commercial-dependencies section; platform-availability detail lives in `README.md`. `xx_fin/pyproject.toml` carries no platform/Python-version marker on `aadc>=2.8.0` — MatLogica's wheels cover every target `xx_fin` supports. |
+| aadc (optional `aadc` extra, forwarded to `py10x-core[aadc]`) | **Proprietary/commercial** (not open source) | N/A — not distributed under an OSI license | Installable freely from PyPI (separate install, not bundled); the published wheel is the Community Edition build — licensed for non-commercial/academic use only, no activation/key/trial period required for that use. Commercial use or advanced features (e.g. AVX-512) require a license obtained by contacting MatLogica; an optional license file (`AADC_NG_LICENSE`), supplied out-of-band, unlocks those — `xxfin` does not depend on it. Listed in py10x-core's `NOTICE`, which owns the `aadc` extra since `jit_aadc` moved to `xxcommon`. py10x-core's `pyproject.toml` carries no platform/Python-version marker on `aadc>=2.22.2` — MatLogica's wheels cover every target `xx_fin` supports. |
 | xbbg (optional `bbg` extra) | Apache 2.0 | Yes | Open source; listed in `xx_fin/NOTICE`'s open-source section. |
 | blpapi (optional `bbg` extra) | **Proprietary/commercial** (not open source) | N/A — not distributed under an OSI license | Bloomberg's own API, distributed only via Bloomberg's dedicated, entitlement-gated package index (`[[tool.uv.index]] name = "bloomberg"` in `xx_fin/pyproject.toml`); requires a valid Bloomberg entitlement/Terminal license. Listed in `xx_fin/NOTICE`'s commercial-dependencies section, not alongside xbbg. |
 
@@ -59,7 +59,7 @@ uv run licensecheck -r xx_fin/pyproject.toml --extras bbg,dev
   `bbg`), `hatchling`, `py10x-kernel` / `py10x-infra`, and `dev` tooling transitives.
 - **Flagged (✖), expected and documented:**
   - **aadc** — no SPDX-recognized license (`License-Expression: LicenseRef-Matlogica-EULA` in its
-    metadata); listed in `NOTICE` commercial section.
+    metadata); listed in py10x-core's `NOTICE`.
   - **blpapi** (`bbg` extra) — `OTHER_PROPRIETARY LICENSE`; listed in `NOTICE` commercial section.
   - **cxxfin**, **`..`** — local path / workspace resolution noise; `cxxfin` is MIT
     (`xx_fin/cxxfin/LICENSE`), not a third-party issue.
@@ -89,7 +89,8 @@ images/logos are shipped under `xx_fin/`.
 - `xx_fin/LICENSE` and `xx_fin/cxxfin/LICENSE` — MIT, copyright
   `10X CONCEPTS LLC, XXFIN LLC and contributors` (keep both in sync).
 - `xx_fin/NOTICE` — open-source third-party attribution (QuantLib, xbbg) plus a separate section
-  disclosing `aadc` and `blpapi` as commercial/proprietary dependencies requiring their own license.
+  disclosing `blpapi` as a commercial/proprietary dependency requiring its own license. `aadc` is
+  disclosed in py10x-core's `NOTICE`, where the `aadc` extra lives.
 - `README.md` ("Optional JIT acceleration via AADC") — brief pointer to `xxcommon/jit_aadc/` and its
   `aadc_exec_summary.md`; the licensing and platform-availability facts live in
   `NOTICE` and `xx_fin/pyproject.toml`, not README.

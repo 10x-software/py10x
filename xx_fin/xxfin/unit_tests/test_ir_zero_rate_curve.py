@@ -1,7 +1,14 @@
+from datetime import date
+
 import pytest
+from core_10x.selectable_traitable_class import SelectableTraitableRecord
 
 from xxfin import cxx_zrc_bootstrap, ir_zero_rate_curve, py_zrc_bootstrap
+from xxfin.ccy import Ccy
+from xxfin.ccy_forward import CcyForward
+from xxfin.fx_forward_curve import FXForwardCurve
 from xxfin.ir_zero_rate_curve import ZeroRateCurve
+from xxfin.ir_zero_rate_curve_ql import ZeroRateCurveQL
 from xxfin.pricing_context import PricingContext
 
 
@@ -52,3 +59,32 @@ def test_zero_rate_curve_vs_quantlib(mkt_name):
     assert native.dates == ql.dates
     for d, v in native.dates_values():
         assert ql.value(d) == pytest.approx(v, abs = 1.e-10), d
+
+
+@pytest.fixture
+def quantlib_selected():
+    record = SelectableTraitableRecord(selectable_base_class = ZeroRateCurve, selected_class = ZeroRateCurveQL, _replace = True)
+    assert record.save()
+    yield
+    #-- the store is shared by the tests that follow; the cached record goes with the per-test cache clear
+    assert record.delete()
+    assert not SelectableTraitableRecord.exists_in_store(record.id())
+
+
+def test_native_bootstrap_is_the_default():
+    assert ZeroRateCurve.selected_class() is ZeroRateCurve
+
+
+@pytest.mark.usefixtures('quantlib_selected')
+def test_selected_curve_builder_reaches_call_sites():
+    pc  = PricingContext.current()
+    cf  = CcyForward.existing_instance(denominated = Ccy('USD'), end_date = date(2026, 8, 4))
+    fxc = FXForwardCurve(mkt_name = 'GBP/USD', **pc.md_basis)
+
+    assert ZeroRateCurve.selected_class() is ZeroRateCurveQL
+    assert type(cf.disc_curve) is ZeroRateCurveQL
+    assert type(fxc.funding_disc_curve) is ZeroRateCurveQL
+
+    #-- QuantLib reproduces the native pillars (test_zero_rate_curve_vs_quantlib), so the price must not move
+    native = ZeroRateCurve(mkt_name = 'SOFR', **pc.md_basis).payload
+    assert cf.price == pytest.approx(native.discount_factor(cf.end_date, pc.md_date), abs = 1.e-10)
