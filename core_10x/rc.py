@@ -102,7 +102,7 @@ class RC:
     def __eq__(self, other) -> bool:
         return isinstance(other, RC) and self.rc == other.rc and self.payload == other.payload
 
-    def unwrap(self) -> tuple:  # -- ( rc, payload)
+    def unwrap(self) -> tuple:  #-- ( rc, payload)
         return (self.rc, self.payload)
 
     def data(self):
@@ -124,7 +124,7 @@ class RC:
                 return self.rc(**data)
             return data
 
-        # -- multiple errors
+        #-- multiple errors
         return '\n'.join(payload)
 
     def add_error(self, err) -> RC:

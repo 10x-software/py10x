@@ -10,7 +10,7 @@ from typing import Self
 
 from core_10x.global_cache import standard_key
 
-# -- TODO: move to attic
+#-- TODO: move to attic
 # class ResourceRequirements:
 #     def __init__(self, resource_type, *args, **kwargs):
 #         self.domain = None
@@ -86,7 +86,7 @@ class ResourceType:
         self.resource_stack.append(resource) if last else self.resource_stack.appendleft(resource)
 
     def end_using(self):
-        self.resource_stack.pop()  # -- will throw if begin_using() hasn't been called
+        self.resource_stack.pop()  #-- will throw if begin_using() hasn't been called
 
     def current_resource(self):
         stack = self.resource_stack
@@ -137,8 +137,8 @@ class ResourceSpec:
             extra = urlencode({k: v if isinstance(v, str) else json.dumps(v) for k, v in kwargs.items()}, doseq = True)
             query = f'{query}&{extra}' if query else extra
 
-        # -- always emit '//' so empty-netloc URIs like duckdb:// or duckdb:///path round-trip correctly;
-        # -- urlunsplit drops '//' for unknown schemes when netloc is empty
+        #-- always emit '//' so empty-netloc URIs like duckdb:// or duckdb:///path round-trip correctly;
+        #-- urlunsplit drops '//' for unknown schemes when netloc is empty
         netloc  = userinfo + (f'{host}:{port}' if port is not None else host)
         path    = f'{"/" if dbname[0] != "/" else ""}{dbname}' if dbname else ''
         url     = f'{protocol}://{netloc}{path}'
@@ -233,13 +233,13 @@ class Resource(abc.ABC):
         return spec.uri()
 
     def __init_subclass__(cls, resource_type: ResourceType = None, resource_name: str = None, **kwargs):
-        if cls.s_resource_type is None:  # -- must be a top class of a particular resource type, e.g. TsStore
+        if cls.s_resource_type is None:  #-- must be a top class of a particular resource type, e.g. TsStore
             assert resource_type and isinstance(resource_type, ResourceType), 'instance of ResourceType is expected'
             assert resource_name is None, f'May not define Resource name for top class of Resource Type: {resource_type}'
             cls.s_resource_type = resource_type
             cls.s_instances     = {}
 
-        else:  # -- a Resource of a particular resource type, or an abstract intermediate
+        else:  #-- a Resource of a particular resource type, or an abstract intermediate
             assert resource_type is None, f'resource_type is already set: {cls.s_resource_type}'
             assert resource_name or _has_abstract_methods(cls), f'{cls.__name__} is a concrete Resource subclass and must declare a resource_name'
             if resource_name:
@@ -324,7 +324,7 @@ class Resource(abc.ABC):
                 if resource := cls.s_instances.get(instance_key):
                     return resource
 
-            if _create_if_needed:  # -- must precede connecting: Postgres refuses an absent database
+            if _create_if_needed:  #-- must precede connecting: Postgres refuses an absent database
                 cls.create_if_needed(ResourceSpec(cls, kwargs))
 
             resource = cls.new_instance(*args, **translated_kwargs)
@@ -351,7 +351,7 @@ class NullResource:
 
 NULL_RESOURCE = NullResource()
 
-# =========== Known Resource Types
+#=========== Known Resource Types
 # fmt: off
 TS_STORE        = ResourceType('TS_STORE')
 REL_DB          = ResourceType('REL_DB')

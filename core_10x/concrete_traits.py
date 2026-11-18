@@ -147,15 +147,15 @@ class datetime_trait(Trait, data_type = datetime):
     # def is_acceptable_type(self, data_type: type) -> bool:
     #     return data_type in self.s_acceptable_types
 
-    # -- NOTES:
-    # -- 1) we believe datetime is mostly acceptable for a storage, e.g., Mongo
-    # -- 2) it is in UTC, so no locale's datetime issues
+    #-- NOTES:
+    #-- 1) we believe datetime is mostly acceptable for a storage, e.g., Mongo
+    #-- 2) it is in UTC, so no locale's datetime issues
 
     def serialize(self, value: datetime):
         return value
 
     def deserialize(self, value):
-        if isinstance(value, str):  # -- traitable store does not support datetime, stores as isoformat by convention
+        if isinstance(value, str):  #-- traitable store does not support datetime, stores as isoformat by convention
             return datetime.fromisoformat(value)
         return value
 
@@ -221,7 +221,7 @@ class bytes_trait(Trait, data_type = bytes):
         return value
 
     def deserialize(self, value):
-        if isinstance(value, str):  # -- traitable store does not support bytest type, stores as base64 by convention
+        if isinstance(value, str):  #-- traitable store does not support bytest type, stores as base64 by convention
             return b64decode(value)
         return value
 
@@ -331,7 +331,7 @@ class dict_trait(Trait, data_type = dict):
         return Nucleus.deserialize_dict(value)
 
 
-class any_trait(Trait, data_type = XNoneType):  # -- any
+class any_trait(Trait, data_type = XNoneType):  #-- any
     s_ui_hint           = Ui.NONE
     s_serialize_to_type = dict
 

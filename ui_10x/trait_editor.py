@@ -146,7 +146,7 @@ class TraitEditor:
 
         return tw
 
-    # ---- Built-in Callbacks
+    #---- Built-in Callbacks
 
     def date_cb(self):
         ux_pick_date(
@@ -220,7 +220,7 @@ class TraitEditor:
         ).show()
 
     def traitable_cb(self):
-        # -- EntityEditor - popup
+        #-- EntityEditor - popup
         # NOTE: if self.traitable_processor is a tracker,
         # open with save=False, track_changes=True and the current tracker.
         # otherwise, open with new tracker and save=True so changes are saved on close.

@@ -43,7 +43,7 @@ def quotes(crosses, md_basis):
 
 class TestFxForwardCurve:
     def setup_method(self):
-        # -- moved here from module level: PricingContext.current() must not run at collection
+        #-- moved here from module level: PricingContext.current() must not run at collection
         # time, since pytest imports test modules before the conftest fixture that sets up the
         # store has had a chance to run.
         self.md_basis                   = PricingContext.current().md_basis

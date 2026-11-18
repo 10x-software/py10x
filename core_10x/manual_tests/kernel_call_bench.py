@@ -29,7 +29,7 @@ def bench(label: str, out_path: str | None):
         p.weight_lbs    = 150.0
         p.dob           = date(1980, 1, 1)
         trait_w         = p.T.weight_lbs
-        letters         = 'abcdefghij'  # -- first_name must be alphabetic
+        letters         = 'abcdefghij'  #-- first_name must be alphabetic
         people          = [Person(first_name = f'N{letters[i % 10]}{letters[i // 10 % 10]}{letters[i // 100]}', last_name = 'Bulk') for i in range(1000)]
         for i, q in enumerate(people):
             q.weight_lbs = float(i)
@@ -50,7 +50,7 @@ def bench(label: str, out_path: str | None):
             p.invalidate_value('full_name')
             return p.full_name
 
-        cases = {  # -- name: (callable, calls per timing loop)
+        cases = {  #-- name: (callable, calls per timing loop)
             'attr get  p.weight_lbs':               (lambda: p.weight_lbs, 200_000),
             'kernel    p.get_value(name)':          (lambda: p.get_value('weight_lbs'), 200_000),
             'kernel    p.get_trait_value(trait)':   (lambda: p.get_trait_value(trait_w), 200_000),
@@ -66,7 +66,7 @@ def bench(label: str, out_path: str | None):
             'bulk      calc_values(1000 objs)':     (lambda: py10x_kernel.BTraitable.calc_values(people, 'weight_lbs'), 1_000),
         }
 
-        for fn, _ in cases.values():  # -- warm-up
+        for fn, _ in cases.values():  #-- warm-up
             fn()
 
         results = {}

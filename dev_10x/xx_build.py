@@ -113,7 +113,7 @@ def _uv_env() -> dict[str, str]:
     return {k: v for k, v in os.environ.items() if k != 'VIRTUAL_ENV'}
 
 
-# ---------------------------------------------------------------------------------- build modes
+#---------------------------------------------------------------------------------- build modes
 
 
 def _modes(root: Path) -> dict:
@@ -198,7 +198,7 @@ def show_mode(root: Path = ROOT) -> int:
     return 0
 
 
-# --------------------------------------------------------------------------------- init / sync
+#--------------------------------------------------------------------------------- init / sync
 
 
 def sync_commands(sync_args: list[str]) -> list[list[str]]:

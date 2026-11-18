@@ -224,7 +224,7 @@ def test_list_with_json_field_raises(collection):
         assert not has_index(collection, 'idx_mixed')
 
 
-# --- hybrid column-vs-blob placement, across every trait wire type ---------------------
+#--- hybrid column-vs-blob placement, across every trait wire type ---------------------
 
 
 class HybridNC(NamedConstant):

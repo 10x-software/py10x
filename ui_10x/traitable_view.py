@@ -106,20 +106,20 @@ class TraitableView:
     def _process_tree(ui_hints: dict, tree: dict) -> dict:
         header = {}
         for subtree_name, subtree in tree.items():
-            if isinstance(subtree, str):  # -- must be a trait name
+            if isinstance(subtree, str):  #-- must be a trait name
                 label   = subtree
                 hint    = ui_hints.get(subtree_name)
-                if not hint:  # -- ignore an unknown or unused trait
+                if not hint:  #-- ignore an unknown or unused trait
                     continue
-                if not label:  # -- no label overwrite
+                if not label:  #-- no label overwrite
                     label = hint.label
                 header[subtree_name] = label
 
-            elif isinstance(subtree, dict):  # -- must be a real subtree
+            elif isinstance(subtree, dict):  #-- must be a real subtree
                 header[subtree_name] = TraitableView._process_tree(ui_hints, subtree)
 
             else:
-                continue  # -- ignore anything else
+                continue  #-- ignore anything else
 
         return header
 

@@ -64,7 +64,7 @@ class SecKeys:
                 f.write(public_key)
                 os.chmod(f.name, 0o600)
 
-            cls.keys.clear()  # -- cls.keys() will then read from the files
+            cls.keys.clear()  #-- cls.keys() will then read from the files
             return (private_key, public_key)
 
         except Exception:

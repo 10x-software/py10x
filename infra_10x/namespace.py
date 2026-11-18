@@ -83,7 +83,7 @@ class CUSTOM_ROLE(NamedConstant):
     """
 
     @classmethod
-    def coll_placeholder(cls, value) -> tuple:  # -- (coll_placeholder, stripped_value)
+    def coll_placeholder(cls, value) -> tuple:  #-- (coll_placeholder, stripped_value)
         cvalue = dict(value)
         return (cvalue.pop(COLL_PLACEHOLDER.TAG, None), value)
 

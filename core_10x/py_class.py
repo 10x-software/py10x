@@ -36,9 +36,9 @@ class PyClass:
     def top_level_package(cls) -> str:
         return cls.__module__.split('.', maxsplit = 1)[0]
 
-    # ===================================================================================================================
+    #===================================================================================================================
     #   Finding classes/symbols in the code base
-    # ===================================================================================================================
+    #===================================================================================================================
     @staticmethod
     @cache
     def dummy_unpickler() -> pickle.Unpickler:
@@ -104,19 +104,19 @@ class PyClass:
         module_name = f'{parts[-1]}'
         class_name  = cls.__name__
 
-        # -- 1) look it up in alternative_packages
+        #-- 1) look it up in alternative_packages
         for alt_package in alternative_packages:
             found = PyClass.find_by_topic_and_suffix(topic, class_name_suffix, alt_package, module_name, class_name)
             if found:
                 return found
 
-        # -- 2) look it up in the cls' package
+        #-- 2) look it up in the cls' package
         package_name    = parts[0]
         found           = PyClass.find_by_topic_and_suffix(topic, class_name_suffix, package_name, module_name, class_name)
         if found:
             return found
 
-        # -- 3) look it up for alternative_parent_class, if any
+        #-- 3) look it up for alternative_parent_class, if any
         if alternative_parent_class:
             assert issubclass(cls, alternative_parent_class), f'{cls} is not a subclass of {alternative_parent_class}'
             found = PyClass.find_related_class(alternative_parent_class, topic, class_name_suffix)
@@ -200,7 +200,7 @@ class PyClass:
 
         return full_ns
 
-    # ---- We may need it to create local vars with particular names and values
+    #---- We may need it to create local vars with particular names and values
     # locals().update( { var_name: var_value } )
 
     @staticmethod
@@ -301,15 +301,15 @@ class PyClass:
         return dir
 
     @staticmethod
-    def own_attribute(cls, attr_name: str) -> tuple:  # -- (exists, value)
+    def own_attribute(cls, attr_name: str) -> tuple:  #-- (exists, value)
         d       = cls.__dict__
         value   = d.get(attr_name, d)
         rc      = value is not d
         return (rc, value if rc else None)
 
-    # ===================================================================================================================
+    #===================================================================================================================
     #   Class mapping to deal with migrations / refactoring class canonical names
-    # ===================================================================================================================
+    #===================================================================================================================
 
 
 #     s_migration_map     = {}

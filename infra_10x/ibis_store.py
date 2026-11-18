@@ -178,7 +178,7 @@ class IbisCollection(TsCollection):
             if k in self.col_trait_dir and k in table_cols:
                 col_vals[k] = fn(v) if v is not None and (fn := self._store.col_serializer_map.get(self.col_trait_dir[k].serialize_to_types())) else v
                 if v is None:
-                    data[k] = None  # -- this way we can tell if the key was present when deserializing
+                    data[k] = None  #-- this way we can tell if the key was present when deserializing
             else:
                 data[k] = v
         data_json = json.dumps(data, separators = (',', ':'), default = self._json_encode_value)

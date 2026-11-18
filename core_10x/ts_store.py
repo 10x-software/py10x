@@ -74,7 +74,7 @@ class TsCollection(abc.ABC):
 
     def intrinsic_trait_dir(self) -> dict:
         """trait dir inferred from the collection"""
-        return {}  # -- no schema by default
+        return {}  #-- no schema by default
 
     def extend_trait_dir(self, trait_dir: dict | None) -> None:
         """Union additional trait metadata into this collection's schema (no-op by default)."""
@@ -90,7 +90,7 @@ class TsCollection(abc.ABC):
                     rc.add_error(f'Failed to save {doc.get(to_coll.s_id_tag)} to {to_coll.collection_name()}')
             except TsDuplicateKeyError:
                 if overwrite:
-                    raise  # -- we do not expect an exception in case of overwrite, so raise
+                    raise  #-- we do not expect an exception in case of overwrite, so raise
 
         return rc
 
@@ -166,8 +166,8 @@ class TsStore(Resource, resource_type = TS_STORE):
         spec = cls.spec_from_uri(uri)
         return spec.resource_class.is_running_with_auth(spec.hostname(), spec.port())
 
-    # -- Database-level operations on this store's server. Backends with no separate databases
-    # -- (DuckDB) or that create them on first write (Mongo) inherit these defaults.
+    #-- Database-level operations on this store's server. Backends with no separate databases
+    #-- (DuckDB) or that create them on first write (Mongo) inherit these defaults.
     def list_databases(self, prefix: str = '') -> list[str]:
         return []
 
@@ -202,7 +202,7 @@ class TsStore(Resource, resource_type = TS_STORE):
         return False
 
     @classmethod
-    def is_running_with_auth(cls, host_name: str, port: int = None) -> tuple:  # -- (is_running, with_auth)
+    def is_running_with_auth(cls, host_name: str, port: int = None) -> tuple:  #-- (is_running, with_auth)
         raise NotImplementedError
 
     def on_enter(self):

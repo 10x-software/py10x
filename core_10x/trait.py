@@ -64,7 +64,7 @@ class Trait(BTrait, metaclass = TraitMetaclass):
                 if issubclass(data_type, base_class):
                     return tmap[base_class]
             except Exception:
-                break  # -- let's try generic trait
+                break  #-- let's try generic trait
 
         return generic_trait
 
@@ -159,15 +159,15 @@ class Trait(BTrait, metaclass = TraitMetaclass):
                 next((getattr(cxx_mixin, method_name, None) for cxx_mixin in traitable_cls.s_cxx_mixins), None) if method_suffix == 'get' else None
             )
             method      = getattr(traitable_cls, method_name, cxx_method)
-            if method and method_suffix == 'get' and self.t_def.default is not XNone:  # -- getter and default are defined - figure out which to use
+            if method and method_suffix == 'get' and self.t_def.default is not XNone:  #-- getter and default are defined - figure out which to use
                 for cls in traitable_cls.__mro__:
                     cls_vars = vars(cls)
-                    if method_name in cls_vars:  # -- found method on cls - use method, unless
-                        if isinstance(cls_vars.get(self.name), TraitDefinition):  # -- default is on same cls then - error
+                    if method_name in cls_vars:  #-- found method on cls - use method, unless
+                        if isinstance(cls_vars.get(self.name), TraitDefinition):  #-- default is on same cls then - error
                             rc.add_error(
                                 f'Ambiguous definition for {method_name} on {cls} - both {self.name}.default and {traitable_cls}.{method_name} are defined.'
                             )
-                    elif isinstance(cls_vars.get(self.name), TraitDefinition):  # -- default found on cls - use default
+                    elif isinstance(cls_vars.get(self.name), TraitDefinition):  #-- default found on cls - use default
                         method = None  # use default
                     else:
                         continue
@@ -186,7 +186,7 @@ class Trait(BTrait, metaclass = TraitMetaclass):
             self.set_getter_has_args()
 
     def create_f_get(self, f, attr_name: str, rc: RC, pybind = False):
-        if not f:  # -- no custom getter, just the default value
+        if not f:  #-- no custom getter, just the default value
             f           = lambda traitable: self.default_value()
             f.__name__  = 'default_value'
             params      = ()
@@ -213,7 +213,7 @@ class Trait(BTrait, metaclass = TraitMetaclass):
         if not f:
             return None
 
-        # -- custom setter
+        #-- custom setter
         resolved_hints = get_type_hints(f, sys.modules[f.__module__].__dict__ if f.__module__ in sys.modules else {}, f.__class__.__dict__)
         assert resolved_hints.get('return') is RC, f'{f.__name__} - setter must return RC'
 

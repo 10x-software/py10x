@@ -41,8 +41,8 @@ class VaultUtils:
             mp  = getpass.getpass('Please create a memorable MasterPassword: ')
             mp2 = getpass.getpass('Please re-enter your MasterPassword: ')
         else:
-            # -- non-interactive (e.g. functional-account bootstrap): the value already came
-            # -- from a secret store, so there's no typo to guard against with a confirmation.
+            #-- non-interactive (e.g. functional-account bootstrap): the value already came
+            #-- from a secret store, so there's no typo to guard against with a confirmation.
             mp = mp2 = master_password
         rc = cls.verify_new_password(mp, mp2)
         if not rc:
@@ -96,14 +96,14 @@ class VaultUtils:
         rc_vl, existing_login, existing_password    = SecKeys.retrieve_vault_login_password(vault_uri)
 
         if not new_machine:
-            # -- a vault login alone is not a seed: the master password opens the private key
+            #-- a vault login alone is not a seed: the master password opens the private key
             if rc_mp and rc_vl:
                 return rc_vl
             if rc_vl:
                 return RC(False, 'Vault login is in the OS keyring but the master password is not. Run: xx-user-init --new-machine')
             return cls._user_init_new_user(vault_uri, login = login, password = password, master_password = master_password)
 
-        # -- new-machine: full no-op only when both keyring entries are present
+        #-- new-machine: full no-op only when both keyring entries are present
         if rc_mp and rc_vl:
             return RC_TRUE
 
@@ -191,7 +191,7 @@ class VaultUtils:
             except Exception:
                 return RC(False, 'MasterPassword does not unlock the vault private key')
 
-        # -- prove succeeded: seed local keyring only (no vault writes)
+        #-- prove succeeded: seed local keyring only (no vault writes)
         SecKeys.change_master_password(master_password, override = True)
         SecKeys.change_vault_login_password(login, password, vault_uri = vault_uri, override = True)
         return RC_TRUE

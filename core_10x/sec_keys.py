@@ -27,7 +27,7 @@ _ACCEPTABLE_KEYRING_BACKENDS = (
     DBusKeyringKWallet4,
     LibSecretKeyring,
     FunctionalAccountKeyring,
-    FailKeyring,  # -- always raises NoKeyringError on use; can never silently store insecurely
+    FailKeyring,  #-- always raises NoKeyringError on use; can never silently store insecurely
 )
 
 PUBLIC_EXP      = 65537

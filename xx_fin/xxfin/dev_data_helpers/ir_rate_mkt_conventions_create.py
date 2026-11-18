@@ -80,11 +80,11 @@ data = (
 
         fixing_frequency    = RDate('1B'),
 
-        # -- floating leg
+        #-- floating leg
         tenor_frequency     = TENOR_FREQUENCY.YEAR,
         fixing_convention   = FIXING_CONVENTION.IN_ARREARS,
 
-        # -- fixed leg
+        #-- fixed leg
         fixed_leg_swap_dc_convention    = DAY_COUNT_CONVENTION.ACT365,
         fixed_leg_swap_compounding      = COMPOUNDING.SIMPLE,
         fixed_leg_swap_tenor_frequency  = TENOR_FREQUENCY.YEAR
@@ -135,11 +135,11 @@ data = (
 
         fixing_frequency = RDate('1B'),
 
-        # -- floating leg
+        #-- floating leg
         tenor_frequency     = TENOR_FREQUENCY.YEAR,
         fixing_convention   = FIXING_CONVENTION.IN_ARREARS,
 
-        # -- fixed leg
+        #-- fixed leg
         fixed_leg_swap_dc_convention    = DAY_COUNT_CONVENTION.ACT365,
         fixed_leg_swap_compounding      = COMPOUNDING.SIMPLE,
         fixed_leg_swap_tenor_frequency  = TENOR_FREQUENCY.YEAR
@@ -163,11 +163,11 @@ data = (
 
         fixing_frequency = RDate('1B'),
 
-        # -- floating leg
+        #-- floating leg
         tenor_frequency     = TENOR_FREQUENCY.YEAR,
         fixing_convention   = FIXING_CONVENTION.IN_ARREARS,
 
-        # -- fixed leg
+        #-- fixed leg
         fixed_leg_swap_dc_convention    = DAY_COUNT_CONVENTION.ACT365,
         fixed_leg_swap_compounding      = COMPOUNDING.SIMPLE,
         fixed_leg_swap_tenor_frequency  = TENOR_FREQUENCY.YEAR

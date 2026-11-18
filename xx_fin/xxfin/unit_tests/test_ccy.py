@@ -6,7 +6,7 @@ from xxfin.ccy_cross import Ccy, CcyCross
 
 class TestCcy:
     def setup_method(self):
-        # -- Ccy instances must be fresh per test, not shared via setup_class: dev_10x's autouse
+        #-- Ccy instances must be fresh per test, not shared via setup_class: dev_10x's autouse
         # test_isolation fixture clears XCache after every test, so objects built once for the
         # whole class go stale (origin cache no longer reachable) after the first test runs.
         self.usd    = Ccy('USD')

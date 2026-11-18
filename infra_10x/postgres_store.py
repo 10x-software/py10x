@@ -95,7 +95,7 @@ class PostgresStore(IbisStore, resource_name = 'POSTGRES_DB'):
     def __init__(self, hostname = None, dbname = None, username = None, password = None, **kwargs):
         # libpq-only; must be set before ``IbisStore.__init__`` opens the connection.
         self.sslmode                = kwargs.get(self.SSLMODE_TAG)
-        self._auth_user: str | None = None  # -- lazily resolved SQL current_user (see auth_user)
+        self._auth_user: str | None = None  #-- lazily resolved SQL current_user (see auth_user)
         super().__init__(hostname = hostname, dbname = dbname, username = username, password = password, **kwargs)
 
     def _ibis_connect(self):
@@ -419,7 +419,7 @@ class PostgresStore(IbisStore, resource_name = 'POSTGRES_DB'):
         this connection is attached to — hence the ``self.dbname`` guard."""
         if not dbname or dbname == self.dbname or not self._execute('SELECT 1 FROM pg_database WHERE datname = ?', [dbname]):
             return False
-        self._execute(f'DROP DATABASE {self._qdb(dbname)} WITH (FORCE)')  # -- autocommit: no transaction block
+        self._execute(f'DROP DATABASE {self._qdb(dbname)} WITH (FORCE)')  #-- autocommit: no transaction block
         return True
 
     @classmethod

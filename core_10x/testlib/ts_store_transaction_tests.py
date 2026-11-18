@@ -456,7 +456,7 @@ class TestSaveIfChanged:
 
             assert list(ctx._tracked()) == [x, y]
 
-    # -- new objects constructed inside the tracker's context (BTraitableProcessor::post_initialize)
+    #-- new objects constructed inside the tracker's context (BTraitableProcessor::post_initialize)
 
     @pytest.fixture
     def fresh(self, ts_instance):

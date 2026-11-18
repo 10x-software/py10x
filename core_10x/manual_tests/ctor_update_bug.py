@@ -27,12 +27,12 @@ class Cross(Traitable):
 if __name__ == '__main__':
     cross = 'A/B'
 
-    # -- Does not complain that non-ID traits can't be set during initialization.
-    # -- Note the T.ID_LIKE declaration!
+    #-- Does not complain that non-ID traits can't be set during initialization.
+    #-- Note the T.ID_LIKE declaration!
     c1 = Cross(base_ccy = 'A', quote_ccy = 'B')
 
-    # -- Apparently, after setting base_ccy and quote_ccy, the cross is correct, but the id is wrong!
-    # -- This is also fixed by the T.ID_LIKE declaration!
+    #-- Apparently, after setting base_ccy and quote_ccy, the cross is correct, but the id is wrong!
+    #-- This is also fixed by the T.ID_LIKE declaration!
     c2 = Cross(_replace = True, base_ccy = 'A', quote_ccy = 'B')
     assert c2.id().value == 'A/B'
 

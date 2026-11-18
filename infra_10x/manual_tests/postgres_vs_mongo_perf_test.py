@@ -82,7 +82,7 @@ if __name__ == '__main__':
             categories  = [f'cat_{i}' for i in range(N_CATEGORIES)]
             ids         = [f'd{i}' for i in range(N_DOCS)]
 
-            # --- write ---------------------------------------------------------------
+            #--- write ---------------------------------------------------------------
             with PerfTimer() as t:
                 for i, doc_id in enumerate(ids):
                     doc = BenchDoc(doc_id = doc_id, _collection_name = doc_coll_name)
@@ -90,7 +90,7 @@ if __name__ == '__main__':
                     doc.save().throw()
             results['write'] = fmt_rate(N_DOCS, t.elapsed)
 
-            # --- bulk load: raw save_new (skips per-object Traitable/kernel overhead),
+            #--- bulk load: raw save_new (skips per-object Traitable/kernel overhead),
             # batched inside one transaction, so the read/search phases below get a
             # realistic-scale dataset fast. See module docstring for why `payload` is a
             # JSON string trait rather than a dict trait (dict-typed traits need the ORM's
@@ -104,21 +104,21 @@ if __name__ == '__main__':
                     )
             results['bulk load'] = fmt_rate(READ_N_DOCS, t.elapsed)
 
-            # --- point read ------------------------------------------------------------
+            #--- point read ------------------------------------------------------------
             sample_ids = random.sample(read_ids, min(SAMPLE_SIZE, READ_N_DOCS))
             with PerfTimer() as t:
                 for doc_id in sample_ids:
                     BenchDoc.load(ID(doc_id, doc_coll_name))
             results['point read'] = fmt_rate(len(sample_ids), t.elapsed)
 
-            # --- search: unindexed -----------------------------------------------------
+            #--- search: unindexed -----------------------------------------------------
             target_category = categories[0]
             with PerfTimer() as t:
                 for _ in range(10):
                     BenchDoc.load_many(f(category = target_category), _coll_name = doc_coll_name)
             results['search (no index)'] = fmt_rate(10, t.elapsed)
 
-            # --- create index, then re-run the same search + a range query -------------
+            #--- create index, then re-run the same search + a range query -------------
             coll = BenchDoc.collection(doc_coll_name)
             coll.create_index('idx_category', 'category')
             coll.create_index('idx_score', 'score')
@@ -133,7 +133,7 @@ if __name__ == '__main__':
                     BenchDoc.load_many(f(score = GT(500.0)), _coll_name = doc_coll_name)
             results['range search (indexed)'] = fmt_rate(10, t.elapsed)
 
-            # --- history: build revisions, then query the auto-indexed history ----------
+            #--- history: build revisions, then query the auto-indexed history ----------
             history_ids = ids[:HISTORY_ENTITIES]
             with PerfTimer() as t:
                 for doc_id in history_ids:

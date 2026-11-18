@@ -225,7 +225,7 @@ def test_prefix_notation_guards_only_list_set_and_any_traits():
 
     td          = Guarded.s_dir
     not_array   = {'$not': {'$type': 'array'}}
-    # -- other traits, and fields with no trait, stay plain
+    #-- other traits, and fields with no trait, stay plain
     assert f(age = 10, trait_dir = td).prefix_notation() == {'age': {'$eq': 10}}
     assert f(age = GT(5), trait_dir = td).prefix_notation() == {'age': {'$gt': 5}}
     assert f(age = BETWEEN(1, 5), trait_dir = td).prefix_notation() == {'age': {'$gte': 1, '$lte': 5}}
@@ -233,12 +233,12 @@ def test_prefix_notation_guards_only_list_set_and_any_traits():
     assert f(_id = 'x', trait_dir = td).prefix_notation() == {'_id': {'$eq': 'x'}}
     assert f(v = 10).prefix_notation() == {'v': {'$eq': 10}}
     assert f(v = GT(5)).prefix_notation() == {'v': {'$gt': 5}}
-    # -- a list trait matches items, unless a str or None could hit the stored class id
+    #-- a list trait matches items, unless a str or None could hit the stored class id
     assert f(lst = 10, trait_dir = td).prefix_notation() == {'lst': {'$eq': 10}}
     assert f(st = 10, trait_dir = td).prefix_notation() == {'st': {'$eq': 10}}
-    # -- any-typed: the whole value
+    #-- any-typed: the whole value
     assert f(v = 10, trait_dir = td).prefix_notation() == {'v': {'$in': [10], **not_array}}
-    # -- ordered operators never look inside an array
+    #-- ordered operators never look inside an array
     for name in ('v', 'lst', 'st'):
         assert f(**{name: GT(5)}, trait_dir = td).prefix_notation() == {name: {'$gt': 5, **not_array}}
     assert f(v = BETWEEN(1, 5), trait_dir = td).prefix_notation() == {'v': {'$gte': 1, '$lte': 5, **not_array}}
@@ -267,7 +267,7 @@ def test_list_trait_item_match_eval_and_prefix():
         assert not NIN([99, 10]).eval(left, 'lst', td)
         assert NOT(EQ(99)).eval(left, 'lst', td)
         assert not BETWEEN(5, 50).eval(left, 'lst', td)
-        # -- no list trait: a scalar compares to the whole value, so it never equals a list
+        #-- no list trait: a scalar compares to the whole value, so it never equals a list
         assert not EQ(10).eval(left)
         assert NE(10).eval(left)
         assert not IN([10]).eval(left)
@@ -776,7 +776,7 @@ class TestCompoundFilters:
             coll.save_new({'_id': 'has_obj', 'marker': 'has_obj', 'v': {'a': 1}})
             coll.save_new({'_id': 'has_str', 'marker': 'has_str', 'v': 'sss'})
             coll.save_new({'_id': 'has_null', 'marker': 'has_null', 'v': None})
-            coll.save_new({'_id': 'missing', 'marker': 'missing'})  # -- v entirely absent
+            coll.save_new({'_id': 'missing', 'marker': 'missing'})  #-- v entirely absent
             assert sorted(r['_id'] for r in coll.find(f(v = op))) == expected
         finally:
             store.delete_collection(coll_name)
@@ -916,7 +916,7 @@ class TestCompoundFilters:
             with pytest.raises(RuntimeError, match = r'NoneSaved\.n - undefined value'):
                 none.save().throw()
 
-            NoneSaved(marker = 'unset').save().throw()  # -- n is XNone, stored as null
+            NoneSaved(marker = 'unset').save().throw()  #-- n is XNone, stored as null
             one             = NoneSaved(marker = 'one')
             one.n, one.lst  = 1, [1]
             one.save().throw()

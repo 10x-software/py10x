@@ -228,7 +228,7 @@ class DxTraitable(Directory):
         assert isinstance(value, Traitable), f'Traitable is expected ({value})'
 
     def show_value(self) -> str:
-        return self.value.id()  # -- TODO: id_repr()
+        return self.value.id()  #-- TODO: id_repr()
 
 
 class DxClass(Directory):

@@ -101,19 +101,19 @@ class TraitDefinition:
         while n:
             arg = the_args.pop(0)
             dt  = type(arg)
-            if dt is Ui:  # -- only Ui hint is given, no more args
+            if dt is Ui:  #-- only Ui hint is given, no more args
                 assert not already_processed[UI_HINT_TAG], f'Duplicated Ui hint: {args}'
                 assert n == 1, f'No positional args after Ui hint: {args}'
                 kwargs[UI_HINT_TAG]             = arg
                 already_processed[UI_HINT_TAG]  = True
 
-            elif issubclass(dt, BFlags):  # -- no default value => n <=2
+            elif issubclass(dt, BFlags):  #-- no default value => n <=2
                 assert not already_processed[FLAGS_TAG], f'Duplicated T.flags: {args}'
                 assert n <= 2, f'Too many positional args after T.flags: {args}'
                 kwargs[FLAGS_TAG]               = BFlags(arg.value())  # copy: RT(T.STICKY) must not mutate T.STICKY
                 already_processed[FLAGS_TAG]    = True
 
-            else:  # -- must be a default value
+            else:  #-- must be a default value
                 assert not already_processed[DEFAULT_TAG], f'Duplicated default value: {args}'
                 kwargs[DEFAULT_TAG]             = arg
                 already_processed[DEFAULT_TAG]  = True

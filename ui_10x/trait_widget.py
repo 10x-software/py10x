@@ -87,7 +87,7 @@ class TraitWidget:
         self.program_edit = True
         try:
             self._set_value(value)
-        except Exception:  # -- the real widget is gone (so far, has encountered this only in Qt on Mac OS)
+        except Exception:  #-- the real widget is gone (so far, has encountered this only in Qt on Mac OS)
             # self.clean()   #-- TODO: fix!
             self.program_edit = False
             return False

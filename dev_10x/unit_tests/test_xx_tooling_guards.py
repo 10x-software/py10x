@@ -119,7 +119,7 @@ def _exit_code(repo: Path, *args: str) -> int:
     return subprocess.run(['git', *args], cwd = repo, capture_output = True, text = True, check = False).returncode
 
 
-# --------------------------------------------------------------- #1 setuptools-scm version stamping
+#--------------------------------------------------------------- #1 setuptools-scm version stamping
 # Locks "tag on the committed HEAD with a clean, non-shallow tree stamps the tag version; dirty /
 # shallow fall back to a dev version" - the assumption the whole release model rests on, and the
 # traps README "setuptools-scm / hatch-vcs gotchas" enumerates.
@@ -207,7 +207,7 @@ def test_scm_shallow_checkout_falls_back_absolutely(tmp_path):
     assert v.startswith('0.1.dev')
 
 
-# --------------------------------------------------------------- #3 git plumbing the Guard relies on
+#--------------------------------------------------------------- #3 git plumbing the Guard relies on
 # Stage-1 primitives only (Stage 2 markers/CAS excluded): locks that git's exit codes / pointer
 # semantics match what the reachability guard and branch update assume.
 @requires_git
@@ -259,7 +259,7 @@ def test_tag_at_commit_resolves_back(tmp_path):
     assert GitHelpers.tag_commit(repo, 'py10x-kernel-v0.2.1rc1') == c1
 
 
-# ------------------------------------------------------------- #2 uv resolver backtracking (real uv)
+#------------------------------------------------------------- #2 uv resolver backtracking (real uv)
 # Locks the live half of "reverse `>=` is self-correcting via the forward `==`": the floor admits a
 # too-new core, but core's exact `==` cross-pin makes the resolver backtrack to the coordinated one
 # rather than hard-erroring. The PEP 440 intersection half is guarded in test_xx_utils.py.

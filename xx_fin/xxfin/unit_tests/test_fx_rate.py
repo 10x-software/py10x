@@ -51,7 +51,7 @@ def quotes(crosses, provider, md_date, snapshot):
 class TestFxRate:
     @classmethod
     def setup_class(cls):
-        # -- moved here from module level: PricingContext.current() must not run at collection
+        #-- moved here from module level: PricingContext.current() must not run at collection
         # time, since pytest imports test modules before the conftest fixture that sets up the
         # store has had a chance to run.
         pc              = PricingContext.current()

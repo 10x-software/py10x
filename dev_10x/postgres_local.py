@@ -44,7 +44,7 @@ DOCKER_VOLUME_NAME      = 'py10x-postgres-auth-local-data'
 DOCKER_PG_VERSION       = '15'  # matches .github/actions/setup-postgres default
 
 
-# --- Docker backend --------------------------------------------------------------------
+#--- Docker backend --------------------------------------------------------------------
 
 
 def _docker_bin() -> str | None:
@@ -159,7 +159,7 @@ def _docker_status(docker: str, port: int) -> int:
     return 0 if running else 1
 
 
-# --- Homebrew fallback -------------------------------------------------------------------
+#--- Homebrew fallback -------------------------------------------------------------------
 
 
 def _brew_pg_bin() -> Path | None:
@@ -319,7 +319,7 @@ def _homebrew_status(data_dir: Path, port: int) -> int:
     return 0 if running else 1
 
 
-# --- CLI --------------------------------------------------------------------------------
+#--- CLI --------------------------------------------------------------------------------
 
 
 class PostgresAuthCli(TraitableCli):

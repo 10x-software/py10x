@@ -17,17 +17,17 @@ from py10x_kernel import BTraitableProcessor
 class Conventions(TraitableHeir):
     mkt_name: str       = T(T.ID)
 
-    days_to_settle: int = T()  # -- heir trait
-    exchange: str       = T()  # -- heir trait
-    settlement: str     = T('CASH')  # -- has a default: not inherited
-    lot_size: float     = T()  # -- has a getter: not inherited
+    days_to_settle: int = T()  #-- heir trait
+    exchange: str       = T()  #-- heir trait
+    settlement: str     = T('CASH')  #-- has a default: not inherited
+    lot_size: float     = T()  #-- has a getter: not inherited
 
     def lot_size_get(self):
         return 1000.0
 
 
 class XConventions(Conventions):
-    tick_size: float            = T()  # -- heir trait added by a subclass
+    tick_size: float            = T()  #-- heir trait added by a subclass
     days_to_settle_twice: int   = RT()
 
     def days_to_settle_twice_get(self):
@@ -35,7 +35,7 @@ class XConventions(Conventions):
 
 
 class PinnedConventions(Conventions):
-    days_to_settle: int = M(T.RUNTIME)  # -- stored on the grantor, runtime here: the heir can never save its own
+    days_to_settle: int = M(T.RUNTIME)  #-- stored on the grantor, runtime here: the heir can never save its own
 
 
 class Venue(Traitable):
@@ -132,14 +132,14 @@ class TestInheritance:
         heir    = Conventions(mkt_name = 'WTI CME', _grantor = venue, _replace = True)
 
         assert heir.days_to_settle == 7
-        assert heir.exchange is XNone  # -- Venue has no `exchange` trait
+        assert heir.exchange is XNone  #-- Venue has no `exchange` trait
 
     def test_subclass_heir_from_base_class_grantor(self, cache_only):
         grantor = make_grantor()
         heir    = XConventions(mkt_name = 'WTI ICE', _grantor = grantor, _replace = True)
 
         assert heir.days_to_settle_twice == 4
-        assert heir.tick_size is XNone  # -- grantor's class has no `tick_size` trait
+        assert heir.tick_size is XNone  #-- grantor's class has no `tick_size` trait
 
 
 class TestSerialization:
@@ -178,7 +178,7 @@ class TestRuntimeHeirTrait:
         assert heir.days_to_settle == 2
         assert 'days_to_settle' not in heir.serialize_object()
 
-        heir.days_to_settle = 5  # -- an in-memory override only
+        heir.days_to_settle = 5  #-- an in-memory override only
         assert heir.days_to_settle == 5
         assert 'days_to_settle' not in heir.serialize_object()
 

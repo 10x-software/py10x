@@ -152,7 +152,7 @@ class MongoCollection(TsCollection):
         pipeline.extend({'$set': {field: '$$NOW'}} for field, kind in ts_fields.items() if kind == _TS_TIME)
         result, matched = self._apply_update(filter, pipeline, upsert = False, rev = revision, ts_fields = ts_fields)
 
-        if not matched:  # -- e.g. restore from deleted
+        if not matched:  #-- e.g. restore from deleted
             raise AssertionError(f'{self.coll} {id_value} has been most probably inappropriately restored from deleted')
 
         return result
@@ -227,7 +227,7 @@ class MongoStore(TsStore, resource_name = 'MONGO_DB'):
 
         def _do_commit(self) -> None:
             if self.store.current_transaction():
-                return  # -- no nested transactions supported
+                return  #-- no nested transactions supported
             try:
                 self.session.commit_transaction()
             finally:
@@ -243,7 +243,7 @@ class MongoStore(TsStore, resource_name = 'MONGO_DB'):
 
         def _do_abort(self) -> None:
             if self.store.current_transaction():
-                return  # -- no nested transactions supported
+                return  #-- no nested transactions supported
             try:
                 self.session.abort_transaction()
             finally:
@@ -344,18 +344,18 @@ class MongoStore(TsStore, resource_name = 'MONGO_DB'):
 
     @classmethod
     @cache
-    def is_running_with_auth(cls, host_name: str, port: int = None) -> tuple:  # -- (is_running, with_auth)
+    def is_running_with_auth(cls, host_name: str, port: int = None) -> tuple:  #-- (is_running, with_auth)
         port    = port or cls.s_instance_kwargs_map['port'][1]
         client  = MongoClient(host = host_name, port = port, serverSelectionTimeoutMS = 10000, directConnection = True)
         try:
-            # -- 'hello' works without credentials — confirms the server is reachable
+            #-- 'hello' works without credentials — confirms the server is reachable
             client.admin.command('hello')
         except (ConnectionFailure, ServerSelectionTimeoutError):
             client.close()
             return (False, False)
 
         try:
-            # -- 'listDatabases' requires auth; if it succeeds unauthenticated, auth is off
+            #-- 'listDatabases' requires auth; if it succeeds unauthenticated, auth is off
             client.admin.command('listDatabases')
             return (True, False)
 

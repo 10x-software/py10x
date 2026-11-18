@@ -24,7 +24,9 @@ Implementation: `dev_10x/uv_sync.py`, `dev_10x/xx_promote.py`,
 
 `xx-style` enforces what Black-style formatters can't keep: `kw = value` in calls and
 parameter defaults, and `=` aligned in groups of consecutive assignments (trait definitions
-included) and of one-per-line kwargs in multi-line calls. The rules are in the module docstring.
+included) and of one-per-line kwargs in multi-line calls. It also writes comment leaders `#--` /
+`#==` (`#-- note`, `#====`), which Black-style formatters turn into `# --`. The rules are in the
+module docstring.
 It only adds spaces around `=`, never removes them (hand alignment such as a table survives), and
 refuses to write a file whose AST would change.
 

@@ -82,11 +82,11 @@ class Package(Traitable):
         return not self.is_core and not self.is_downstream
 
 
-# --------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------
 # Steps - one side-effecting action each. Subclasses hold the declarative inputs as traits and put
 # the value logic in *sticky* getters (`summary`, `tags_to_push`, …); `apply()` performs the
 # mutation. `run_steps` applies every step, then pushes (remotes last).
-# --------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------
 class Step(Traitable):
     summary: str                    = RT(T.STICKY)
     tags_to_push: tuple             = RT(T.STICKY)
@@ -401,9 +401,9 @@ class ResetRepoStep(Step):
                 GitHelpers.git(repo, 'fetch', '-q', 'origin', 'tag', t)
 
 
-# --------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------
 # CLI surface - a core_10x.traitable_cli tree. Commands are positional; options are --option value.
-# --------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------
 class XxPromoteCli(TraitableCli):
     """Release promotion for the 10x packages.
 

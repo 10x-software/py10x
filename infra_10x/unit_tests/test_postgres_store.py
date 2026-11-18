@@ -233,7 +233,7 @@ def test_fresh_connection_sees_existing_collections(postgres_store):
     long_name   = 'core_10x/testlib/ts_tests/Catalog#' + 'a' * 40
     assert len(long_name.encode()) > 63
     for name in (short_name, long_name):
-        store.delete_collection(name)  # -- leftover from an interrupted earlier run
+        store.delete_collection(name)  #-- leftover from an interrupted earlier run
         store.collection(name, Pad.s_dir).save_new({'_id': 'a', 'pad': 1})
 
     fresh = _short_lived_postgres(test_databases.test_uri(TEST_TS_STORE.POSTGRESQL.name))

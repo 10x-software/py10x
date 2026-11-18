@@ -58,7 +58,7 @@ class PackageManifest:
         module  = cls.__module__
         parts   = module.split('.')
         if len(parts) < 2:
-            return None  # -- should be at least package.module, so it's most probably '__main__.Class'
+            return None  #-- should be at least package.module, so it's most probably '__main__.Class'
 
         package         = '.'.join(parts[:-1])
         man_def: dict   = PyClass.find_symbol(f'{package}.{PackageManifest.SYMBOL}')
@@ -82,4 +82,4 @@ class PackageManifest:
         assert rr.resource_type is TS_STORE, f'{cls} - invalid category in the _package_manifest'
         return rr
 
-    # -- TODO: handle parent classes, if ResourceRequirements for the class in not found
+    #-- TODO: handle parent classes, if ResourceRequirements for the class in not found

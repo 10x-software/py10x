@@ -50,7 +50,7 @@ def _assert_store_clean():
     assert Traitable.main_store.value[0] is XNone
     assert Traitable.vault_store.value[0] is XNone
     assert not TsStore.s_instances
-    # -- clears revert to the env var, which the host (or live_store, for the vault) may set for the whole session
+    #-- clears revert to the env var, which the host (or live_store, for the vault) may set for the whole session
     assert EnvVars.main_ts_store_uri == _from_env('main_ts_store_uri')
     assert EnvVars.main_vault_uri == _from_env('main_vault_uri')
     assert not _pin_stack
@@ -66,9 +66,9 @@ def _simulate_test_isolation():
     restore_pinned_ts_stores()
 
 
-# ---------------------------------------------------------------------------
+#---------------------------------------------------------------------------
 # Direct API
-# ---------------------------------------------------------------------------
+#---------------------------------------------------------------------------
 
 
 def test_clear_traitable_store_state_wipes_bindings():
@@ -78,7 +78,7 @@ def test_clear_traitable_store_state_wipes_bindings():
     EnvVars.use_ts_store_transactions = True  # also pollutes a non-URI classproperty
 
     clear_traitable_store_state()
-    _clear_all_caches()  # -- where clear_traitable_store_state leaves off: assigned EnvVars values live in the getter memos
+    _clear_all_caches()  #-- where clear_traitable_store_state leaves off: assigned EnvVars values live in the getter memos
 
     _assert_store_clean()
     assert EnvVars.use_ts_store_transactions is False
@@ -106,7 +106,7 @@ def test_pin_survives_isolation_clear_and_restore():
 
 
 def test_unpin_leaves_process_store_clean(monkeypatch):
-    monkeypatch.delenv(EnvVars.var_name('main_ts_store_uri'), raising = False)  # -- a host-set main store would satisfy main_store()
+    monkeypatch.delenv(EnvVars.var_name('main_ts_store_uri'), raising = False)  #-- a host-set main store would satisfy main_store()
     store = _make_main('duckdb://localhost/iso_unpin')
     pin_current_ts_stores()
     assert Traitable.main_store.value[0] is store
@@ -265,7 +265,7 @@ def test_pinned_env_vars_are_reapplied_after_isolation():
     finally:
         unpin_ts_stores()
 
-    _clear_all_caches()  # -- unpin's restore re-applied the outer frame, not the defaults
+    _clear_all_caches()  #-- unpin's restore re-applied the outer frame, not the defaults
     assert EnvVars.use_ts_store_transactions is False
     assert EnvVars.functional_account_prefix == 'xx'
 
@@ -280,9 +280,9 @@ def test_unpinned_env_vars_do_not_survive_isolation():
         unpin_ts_stores()
 
 
-# ---------------------------------------------------------------------------
+#---------------------------------------------------------------------------
 # Real pytest module scope
-# ---------------------------------------------------------------------------
+#---------------------------------------------------------------------------
 
 
 @pytest.fixture(scope = 'module')

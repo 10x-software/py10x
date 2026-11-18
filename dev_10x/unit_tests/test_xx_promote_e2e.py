@@ -146,7 +146,7 @@ def _test_group_at(repo, ref, rel_path):
 def test_pre_from_main_cuts_coordinated_first_rc(repo):
     _run_pre(repo)
 
-    # --- core: pre branch + tag, with exact forward == pins on both siblings ---
+    #--- core: pre branch + tag, with exact forward == pins on both siblings ---
     assert set(GitHelpers.list_tags(repo, 'v*')) == {'v0.0.1rc1', 'v0.0.1rc2.dev'}
     assert GitHelpers.git(repo, 'rev-parse', 'pre') == GitHelpers.tag_commit(repo, 'v0.0.1rc1')
     main = GitHelpers.git(repo, 'rev-parse', 'main')
@@ -156,7 +156,7 @@ def test_pre_from_main_cuts_coordinated_first_rc(repo):
     assert core_deps['py10x-infra'] == '==0.0.1rc1'
     assert core_deps['numpy'] == '<2.5.0,>=2.2.2'  # untouched third-party dep
 
-    # --- siblings: `pre-{name}` branch + tag on a release commit of its own; no reverse pin ---
+    #--- siblings: `pre-{name}` branch + tag on a release commit of its own; no reverse pin ---
     for name, sub in SIBLINGS:
         tag = f'{name}-v0.0.1rc1'
         assert set(GitHelpers.list_tags(repo, f'{name}-v*')) == {tag, f'{name}-v0.0.1rc2.dev'}
@@ -166,7 +166,7 @@ def test_pre_from_main_cuts_coordinated_first_rc(repo):
         assert GitHelpers.is_ancestor(repo, f'{tag}^', 'main')
         assert _test_group_at(repo, tag, f'{sub}/pyproject.toml') == []
 
-    # --- the cut forks from main and leaves main + the working tree untouched ---
+    #--- the cut forks from main and leaves main + the working tree untouched ---
     assert GitHelpers.git(repo, 'rev-parse', '--abbrev-ref', 'HEAD') == 'main'
     assert GitHelpers.git(repo, 'status', '--porcelain') == ''
     fork = GitHelpers.git(repo, 'merge-base', 'main', 'pre')
@@ -227,7 +227,7 @@ def test_prod_stacks_final_on_rc_and_floors_main(repo):
     _run_pre(repo)  # rc1 across the board
     _run_prod(repo)
 
-    # --- core: prod branch + final tag, exact == on the released sibling finals ---
+    #--- core: prod branch + final tag, exact == on the released sibling finals ---
     assert 'v0.0.1' in GitHelpers.list_tags(repo, 'v*')
     assert GitHelpers.git(repo, 'rev-parse', 'prod') == GitHelpers.tag_commit(repo, 'v0.0.1')
     core_final = _dep_specs_at(repo, 'v0.0.1', 'pyproject.toml')
@@ -236,20 +236,20 @@ def test_prod_stacks_final_on_rc_and_floors_main(repo):
     # released source == rc source: the final commit is stacked directly on the rc commit
     assert GitHelpers.git(repo, 'rev-parse', 'v0.0.1^') == GitHelpers.tag_commit(repo, 'v0.0.1rc1')
 
-    # --- siblings: `prod-{name}` branch + final tag stacked on (not sharing) the rc commit ---
+    #--- siblings: `prod-{name}` branch + final tag stacked on (not sharing) the rc commit ---
     for name, _sub in SIBLINGS:
         final = f'{name}-v0.0.1'
         assert final in GitHelpers.list_tags(repo, f'{name}-v*')
         assert GitHelpers.git(repo, 'rev-parse', f'prod-{name}') == GitHelpers.tag_commit(repo, final)
         assert GitHelpers.git(repo, 'rev-parse', f'{final}^') == GitHelpers.tag_commit(repo, f'{name}-v0.0.1rc1')
 
-    # --- main epilogue: post-final window pins ---
+    #--- main epilogue: post-final window pins ---
     main_core = _dep_specs_at(repo, 'main', 'pyproject.toml')
     assert SpecifierSet(main_core['py10x-kernel']) == SpecifierSet(VersionHelpers.post_final_window_pin('0.0.1'))
     assert GitHelpers.git(repo, 'rev-parse', '--abbrev-ref', 'HEAD') == 'main'
     assert GitHelpers.git(repo, 'status', '--porcelain') == ''
 
-    # --- main dev markers: rc-line replaced with post-final `{next_micro}rc0.dev` above the release ---
+    #--- main dev markers: rc-line replaced with post-final `{next_micro}rc0.dev` above the release ---
     assert GitHelpers.list_tags(repo, 'v*') == ['v0.0.1', 'v0.0.1rc1', 'v0.0.2rc0.dev']
     for name, _sub in SIBLINGS:
         assert GitHelpers.list_tags(repo, f'{name}-v*') == [f'{name}-v0.0.1', f'{name}-v0.0.1rc1', f'{name}-v0.0.2rc0.dev']

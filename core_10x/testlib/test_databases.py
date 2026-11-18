@@ -34,22 +34,22 @@ from core_10x.ts_store import TsStore
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
 
-# -- Every database this suite creates starts with this, so ``xx-test-db-clean`` can find the
-# -- ones a killed session never got to drop. Keep in sync with ``dev_10x/db_clean.py``.
+#-- Every database this suite creates starts with this, so ``xx-test-db-clean`` can find the
+#-- ones a killed session never got to drop. Keep in sync with ``dev_10x/db_clean.py``.
 TEST_DB_PREFIX = 'py10x_test'
 
-# -- One database name per pytest process (module import happens once per process). Timestamp
-# -- first so a leftover is obviously old at a glance and names sort chronologically; pid makes
-# -- it traceable to the run that made it. The tail is uuid7's *random* end, not its leading
-# -- millisecond timestamp — two processes starting in the same millisecond share that exactly.
+#-- One database name per pytest process (module import happens once per process). Timestamp
+#-- first so a leftover is obviously old at a glance and names sort chronologically; pid makes
+#-- it traceable to the run that made it. The tail is uuid7's *random* end, not its leading
+#-- millisecond timestamp — two processes starting in the same millisecond share that exactly.
 SESSION_DB: str = os.environ.get('XX_TEST_DB') or f'{TEST_DB_PREFIX}_{datetime.now():%Y%m%d_%H%M%S}_{os.getpid()}_{uuid6.uuid7().hex[-4:]}'
 
-# -- True when the name was pinned by the caller, who then owns its lifecycle.
+#-- True when the name was pinned by the caller, who then owns its lifecycle.
 SESSION_DB_IS_PINNED: bool = bool(os.environ.get('XX_TEST_DB'))
 
 
-# -- Fallback vault for password-auth servers; an explicit XX_MAIN_VAULT_URI wins. Only applied once a
-# -- test server demands auth, so open servers (CI) never see it.
+#-- Fallback vault for password-auth servers; an explicit XX_MAIN_VAULT_URI wins. Only applied once a
+#-- test server demands auth, so open servers (CI) never see it.
 DEFAULT_TEST_VAULT_URI = 'mongodb://localhost:27018/_vault_'
 
 

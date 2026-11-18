@@ -41,7 +41,7 @@ def parsed():
     return VersionHelpers.parse_pkg_tags(TAGS, KERNEL)
 
 
-# --------------------------------------------------------------------------- tag parsing/selection
+#--------------------------------------------------------------------------- tag parsing/selection
 def test_parse_drops_unmatched_and_unparseable():
     got = {t for t, _ in parsed()}
     assert got == {f'{KERNEL}0.1.16', f'{KERNEL}0.2.0', f'{KERNEL}0.2.1rc1', f'{KERNEL}0.2.1rc2'}
@@ -290,7 +290,7 @@ def test_latest_matching_tag_none_when_no_match():
     assert VersionHelpers.latest_matching_tag(parsed(), '>=9.9.9') is None
 
 
-# ------------------------------------------------------------------------------------ pin builders
+#------------------------------------------------------------------------------------ pin builders
 def test_pin_strings():
     assert VersionHelpers.rc_window_pin('0.2.1rc19') == '>=0.2.1rc19,<0.2.1rc20'
     assert VersionHelpers.post_final_window_pin('0.2.1') == '>=0.2.1,<0.2.2rc1'
@@ -328,7 +328,7 @@ def test_forward_pin_edits_targets_only_named_and_preserves_format():
     ]
 
 
-# --------------------------------------------------------------------------- pyproject rewrites I/O
+#--------------------------------------------------------------------------- pyproject rewrites I/O
 def test_write_forward_pins_preserves_multiline_and_comments(tmp_path):
     """Pin edits touch only the changed dependency lines; layout and trailing comments stay put."""
     p = tmp_path / 'pyproject.toml'
@@ -455,7 +455,7 @@ def test_write_test_group_merges_list_by_name(tmp_path):
     assert set(doc['dependency-groups']['test']) == {'py10x-fin-base>=0.1.1rc1', 'py10x-other>=1.0'}
 
 
-# ------------------------------------------------------------- PEP 440 / resolver assumption guards
+#------------------------------------------------------------- PEP 440 / resolver assumption guards
 ADMIT_MATRIX = ['0.2.0', '0.2.1.dev1', '0.2.1a1', '0.2.1b1', '0.2.1rc1', '0.2.1rc2', '0.2.1', '0.2.1.post1', '0.2.2.dev0', '0.2.2']
 
 
@@ -541,7 +541,7 @@ def test_post_final_window_upper_matches_main_post_final_marker():
     assert VersionHelpers.post_final_window_exclusive_upper('0.2.1') == '0.2.2rc1'
 
 
-# ---------------------------------------- rc-branch-promotion coordination pin forms (design note)
+#---------------------------------------- rc-branch-promotion coordination pin forms (design note)
 #
 # Assumption guards for the cross-repo coordination pins proposed in
 # `dev_10x/README.md` (Pin model):
@@ -613,7 +613,7 @@ def test_reverse_floor_self_corrects_via_forward_exact_pin():
     assert coordinated == {'1.4.0'}
 
 
-# --------------------------------------------------------------------------- installed-source helpers
+#--------------------------------------------------------------------------- installed-source helpers
 class TestParseUvPipShow:
     def test_editable(self):
         out     = """\
@@ -666,7 +666,7 @@ class TestInstalledSourceIntegration:
             assert path is not None and path.is_dir()
 
 
-# ------------------------------------------------------------------ PyPI / GitHub status helpers
+#------------------------------------------------------------------ PyPI / GitHub status helpers
 class TestPyPIHelpers:
     def test_parse_released_versions_drops_unparseable(self):
         body    = '{"releases": {"0.2.0": [], "0.2.1rc1": [], "0.2.1": [], "garbage": []}}'

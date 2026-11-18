@@ -14,8 +14,8 @@ from infra_10x.testlib.mongo_collection_helper import MongoCollectionHelperStub
 
 
 class Backend(NamedTuple):
-    helper_flags: tuple[bool, ...]  # -- one fixture param per flag; True → patch in the py MongoCollectionHelper
-    hard_require: bool  # -- True → fail (not skip) when the server is unreachable
+    helper_flags: tuple[bool, ...]  #-- one fixture param per flag; True → patch in the py MongoCollectionHelper
+    hard_require: bool  #-- True → fail (not skip) when the server is unreachable
 
 
 class TEST_TS_STORE(NamedConstant):

@@ -140,7 +140,7 @@ class CythonCompiler(TraitableMethodOptimizer):
         result      = ctypes.CFUNCTYPE(ctypes.py_object)(init_ptr)()
 
         if isinstance(result, types.ModuleType):
-            result.__tcc_binary__   = binary  # -- keep TCC memory alive as long as the module lives
+            result.__tcc_binary__   = binary  #-- keep TCC memory alive as long as the module lives
             self.compiled_module    = result
             return  getattr(self.compiled_module, self.unique_name) #-- single-phase init, done
 
@@ -159,7 +159,7 @@ class CythonCompiler(TraitableMethodOptimizer):
         api.PyModule_ExecDef.restype            = ctypes.c_int
         api.PyModule_ExecDef.argtypes           = [ctypes.py_object, ctypes.c_void_p]
 
-        def_ptr = id(result)  # -- PyModuleDef* == id() of the wrapped object
+        def_ptr = id(result)  #-- PyModuleDef* == id() of the wrapped object
         module  = api.PyModule_FromDefAndSpec2(def_ptr, spec, sys.api_version)
         rc      = api.PyModule_ExecDef(module, def_ptr)
         if rc != 0:

@@ -94,7 +94,7 @@ class TestCopyTo:
         """
 
         class Blobby(Traitable, custom_collection = True, keep_history = False):
-            tags: list = T()  # -- non-scalar wire type: never promoted to an SQL column
+            tags: list = T()  #-- non-scalar wire type: never promoted to an SQL column
 
         src, dst    = DuckDbStore(), DuckDbStore()
         name        = f'blobonly_{uuid6.uuid7().hex}'

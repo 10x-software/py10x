@@ -32,9 +32,9 @@ from core_10x.exec_control import CACHE_ONLY
 from core_10x.package_refactoring import PackageRefactoring
 from core_10x.traitable import RT, Bundle, BundleHistory, NotStorableHelper, StorableHelperAsOf, T, Traitable
 
-# ---------------------------------------------------------------------------
+#---------------------------------------------------------------------------
 # Bundle with members_known=True - short-name registry
-# ---------------------------------------------------------------------------
+#---------------------------------------------------------------------------
 
 
 class Animals(Bundle, members_known = True):
@@ -94,9 +94,9 @@ class TestBundleMembersKnown:
         assert Dog.serialize_class_id.__func__ is not Traitable.serialize_class_id.__func__
 
 
-# ---------------------------------------------------------------------------
+#---------------------------------------------------------------------------
 # Bundle with members_known=False (default) - full class-id form
-# ---------------------------------------------------------------------------
+#---------------------------------------------------------------------------
 
 
 class Vehicles(Bundle):
@@ -137,9 +137,9 @@ class TestBundleMembersUnknown:
         assert Car.is_bundle()
 
 
-# ---------------------------------------------------------------------------
+#---------------------------------------------------------------------------
 # Bundle vs. plain Traitable
-# ---------------------------------------------------------------------------
+#---------------------------------------------------------------------------
 
 
 class TestIsBundleDistinguishesPlainTraitable:
@@ -159,9 +159,9 @@ class TestIsBundleDistinguishesPlainTraitable:
         assert not self._PlainTraitable.is_bundle()
 
 
-# ---------------------------------------------------------------------------
+#---------------------------------------------------------------------------
 # Storable requirement for direct (non-base) members
-# ---------------------------------------------------------------------------
+#---------------------------------------------------------------------------
 
 
 class TestBundleStorableRequirement:
@@ -200,10 +200,10 @@ class TestBundleStorableRequirement:
         assert _AbstractBundle2.s_bundle_members['_StorableMember'] is _StorableMember
 
 
-# ---------------------------------------------------------------------------
+#---------------------------------------------------------------------------
 # Non-storable bundle base + storable members - history classes must STILL
 # share a single history collection (lazily created on the bundle base).
-# ---------------------------------------------------------------------------
+#---------------------------------------------------------------------------
 
 
 class AbstractAnimals(Bundle, members_known = True):
@@ -389,9 +389,9 @@ class TestBundleHistoryWithNonStorableBase:
         assert w.id().value not in bear_ids
 
 
-# ---------------------------------------------------------------------------
+#---------------------------------------------------------------------------
 # Round-trip behavior with CACHE_ONLY context
-# ---------------------------------------------------------------------------
+#---------------------------------------------------------------------------
 
 
 class TestBundleInstancesRoundTrip:
@@ -419,9 +419,9 @@ class TestBundleInstancesRoundTrip:
             assert recovered_cls is Dog
 
 
-# ---------------------------------------------------------------------------
+#---------------------------------------------------------------------------
 # Bundle + TraitableHistory
-# ---------------------------------------------------------------------------
+#---------------------------------------------------------------------------
 #
 # Bundle members share the bundle base's collection via ``Bundle.collection``
 # (base open + member ``s_dir``).  History classes mirror the same structure:
@@ -431,7 +431,7 @@ class TestBundleInstancesRoundTrip:
 # `StorableHelperWithHistory._find`) ensures that querying via a member's
 # history class returns only that member's records, even though they all live
 # in the shared collection.
-# ---------------------------------------------------------------------------
+#---------------------------------------------------------------------------
 
 
 class TestBundleHistoryStaticWiring:
@@ -484,9 +484,9 @@ class TestBundleHistoryStaticWiring:
         assert animals_hist.s_bundle_members['Cat#history'] is cat_hist
 
 
-# ---------------------------------------------------------------------------
+#---------------------------------------------------------------------------
 # Empirical save/history tests against the in-memory DuckDbStore
-# ---------------------------------------------------------------------------
+#---------------------------------------------------------------------------
 
 
 @pytest.fixture

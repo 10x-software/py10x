@@ -34,7 +34,7 @@ class R:
             ref = R.SYMBOL_TABLE[symbol]
             v   = ref.VALUE
 
-            # -- Rules
+            #-- Rules
             repeat          = ref.REPEAT
             over_repeated   = all(v == prev_values[i] for i in range(repeat))
             assert not over_repeated, f"'{symbol}' is repeated more than {repeat} times"

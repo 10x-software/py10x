@@ -24,7 +24,7 @@ Main Traitable Store is not specified, thus you must explicitly instantiate and 
         ...
 """
         )
-        # -- there is nothing more to do
+        #-- there is nothing more to do
         return
 
     print(

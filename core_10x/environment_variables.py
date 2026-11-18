@@ -89,7 +89,7 @@ class _EnvVars(metaclass = _EnvVarsMeta):
             try:
                 value = f_get(cls)
             except Exception as e:
-                rc = RC(False)  # -- capture the exc
+                rc = RC(False)  #-- capture the exc
                 raise RuntimeError(f'{cls}.{var_name} - failed while getting a value\n{rc.error()}') from e
 
         if f_apply:
@@ -129,16 +129,16 @@ class _EnvVars(metaclass = _EnvVarsMeta):
         cls_dict = cls.__dict__
         for name, data_type in annotations.items():
             default_value = cls_dict.get(name)
-            if default_value is None:  # -- no default value, let's locate the getter
+            if default_value is None:  #-- no default value, let's locate the getter
                 f_get_name  = f'{name}_get'
                 f_get       = cls_dict.get(f_get_name)
                 assert f_get, f'Variable {name} must define either a default value or a getter {f_get_name}(cls)'
-                # -- TODO: check signature: f_get(cls)
+                #-- TODO: check signature: f_get(cls)
             else:
                 f_get = lambda cls, def_value = default_value: def_value
 
             f_apply_name    = f'{name}_apply'
-            f_apply         = cls_dict.get(f_apply_name)  # -- f(cls, value)
+            f_apply         = cls_dict.get(f_apply_name)  #-- f(cls, value)
 
             var_name        = cls.create_var_name(env_name, name)
             full_getter     = cls.full_getter(data_type, var_name, f_get, f_apply)

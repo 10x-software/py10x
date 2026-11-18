@@ -37,7 +37,7 @@ class SubTraitable(Traitable):
     trait1: int = RT(T.ID)
     trait2: str = RT()
 
-    x           = '123'  # -- not in slots
+    x           = '123'  #-- not in slots
 
 
 class SubTraitable2(SubTraitable):
@@ -340,7 +340,7 @@ def test_declarative_indices():
 
     assert any(ix.name == '_at_idx' for ix in XXEvent.s_indices)
 
-    # --- Exercise _ensure_indices + caching (triggered from save path, but we invoke directly here
+    #--- Exercise _ensure_indices + caching (triggered from save path, but we invoke directly here
     #     to keep the test isolated from full storage helper requirements for inline classes).
     create_calls = []
 
@@ -1725,9 +1725,9 @@ class TestClassTrait:
             assert not isinstance(item.price, ClassTrait)
 
 
-# =====================================================================================
+#=====================================================================================
 #   Forward references between Traitable classes (analogous to typing.Self)
-# =====================================================================================
+#=====================================================================================
 
 
 class _ResolveKeyModuleLevelStub(Traitable):
@@ -1934,9 +1934,9 @@ class TestForwardRefTraitables:
             sys.modules.pop('test_traitable_missing_date_ann', None)
 
 
-# =====================================================================================
+#=====================================================================================
 #   TS_TIME / TS_USER store-side trait flags
-# =====================================================================================
+#=====================================================================================
 
 
 def test_ts_flag_values_and_common_bit():
@@ -2202,9 +2202,9 @@ def test_runtime_subclass_of_storable_hides_reserved_traits():
                 setattr(t, trait_name, 'x')
 
 
-# ---------------------------------------------------------------------------
+#---------------------------------------------------------------------------
 #   describe_class
-# ---------------------------------------------------------------------------
+#---------------------------------------------------------------------------
 
 
 class _DescribeBase(Traitable):

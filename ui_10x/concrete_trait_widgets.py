@@ -30,7 +30,7 @@ class LineEditWidget(TraitWidget, ux.LineEdit, widget_type = Ui.WIDGET_TYPE.LINE
         if self.was_edited:
             self.was_edited = False
             str_value       = self.text()
-            if not str_value:  # -- user cleared the field, let's get the value back!
+            if not str_value:  #-- user cleared the field, let's get the value back!
                 self.update_trait_value(invalidate = True)
             else:
                 ##value = self.trait.from_str(str_value)
@@ -127,7 +127,7 @@ class ChoiceWidget(TraitWidget, ux.Widget, widget_type = Ui.WIDGET_TYPE.CHOICE):
         lay.set_contents_margins(0, 0, 0, 0)
         self.set_layout(lay)
 
-        # -- Line edit
+        #-- Line edit
         self.line_edit = le = ux.LineEdit()
         if self.trait_editor.is_read_only():
             le.set_read_only(True)
@@ -135,7 +135,7 @@ class ChoiceWidget(TraitWidget, ux.Widget, widget_type = Ui.WIDGET_TYPE.CHOICE):
         le.editing_finished_connect(self.on_editing_finished)
         lay.add_widget(le)
 
-        # -- Arrow down button
+        #-- Arrow down button
         self.button = ux_push_button('', callback = self.show_popup, style_icon = 'ArrowDown')
         lay.add_widget(self.button)
 

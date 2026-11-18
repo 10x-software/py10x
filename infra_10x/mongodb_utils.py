@@ -83,7 +83,7 @@ def create_users(hostname, port = 27017, users = None):
     for xx_user in users or all_git_users():
         if (
             not VaultUser.is_functional_account(xx_user) and (xx_admin := get_xx_admin(xx_user)) != admin.username
-        ):  # -- do not break current working account!
+        ):  #-- do not break current working account!
             create_xx_admin(admin, xx_admin, generate_password())
         create_xx_user(admin, xx_user, generate_password())
 
@@ -92,7 +92,7 @@ def clear_vault():
     for xx_user in all_git_users():
         if keyring.get_password('xxuser', xx_user):
             keyring.delete_password('xxuser', xx_user)
-        if xx_user != git_user():  # -- do not break own admin account!
+        if xx_user != git_user():  #-- do not break own admin account!
             xx_admin = get_xx_admin(xx_user)
             if keyring.get_password('xxadmin', xx_admin):
                 keyring.delete_password('xxadmin', xx_admin)
@@ -102,7 +102,7 @@ def drop_users(hostname):
     admin = MongodbAdmin(hostname = hostname, **get_credentials('xxadmin', hostname))
     for xx_user in chain(all_git_users(), all_git_users(login = False)):
         xx_admin = get_xx_admin(xx_user)
-        if xx_admin != admin.username:  # -- do not break current working account!
+        if xx_admin != admin.username:  #-- do not break current working account!
             admin.delete_user(xx_admin)
         admin.delete_user(xx_user)
 

@@ -59,7 +59,7 @@ class HeaderModel(ux.StandardItemModel):
         return prev_index
 
     @staticmethod
-    def find_leaf(current_index: ux.ModelIndex, section_index: int, current_leaf_index: int) -> tuple:  # -- ( index, current_leaf_index )
+    def find_leaf(current_index: ux.ModelIndex, section_index: int, current_leaf_index: int) -> tuple:  #-- ( index, current_leaf_index )
         if current_index.is_valid():
             child_count = current_index.model().column_count(current_index)
             if child_count:

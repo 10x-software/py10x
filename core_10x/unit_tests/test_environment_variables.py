@@ -17,7 +17,7 @@ def test_env_vars_date_format_applies_to_xdatetime(monkeypatch):
 
 
 def test_env_vars_direct_reassignment_applies_to_xdatetime():
-    # -- EnvVars.date_format = value (no env var, no monkeypatch) must still fire date_format_apply,
+    #-- EnvVars.date_format = value (no env var, no monkeypatch) must still fire date_format_apply,
     #    not just silently replace the classproperty
     object.__getattribute__(EnvVars, 'date_format').fget.clear()
     EnvVars.date_format = '%Y.%m.%d'
@@ -28,7 +28,7 @@ def test_env_vars_direct_reassignment_applies_to_xdatetime():
 
 
 def test_env_vars_direct_reassignment_without_apply_still_works(monkeypatch):
-    # -- vars with no *_apply hook keep behaving exactly as before: plain overwrite, no special handling
+    #-- vars with no *_apply hook keep behaving exactly as before: plain overwrite, no special handling
     monkeypatch.delenv('XX_MAIN_TS_STORE_URI', raising = False)
     object.__getattribute__(EnvVars, 'main_ts_store_uri').fget.clear()
     EnvVars.main_ts_store_uri = 'duckdb://localhost/reassigned'
@@ -48,9 +48,9 @@ def test_env_vars_converts_bool_true(monkeypatch, truth, values):
                 assert EnvVars.use_ts_store_transactions is truth, f'Expected {v} to convert to {truth}'
 
 
-# ---------------------------------------------------------------------------
+#---------------------------------------------------------------------------
 # EnvVars.var accessor and Var.check()
-# ---------------------------------------------------------------------------
+#---------------------------------------------------------------------------
 
 
 class TestEnvVarsVarAccessor:

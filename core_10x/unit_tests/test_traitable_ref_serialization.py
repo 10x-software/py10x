@@ -26,9 +26,9 @@ from core_10x.trait_definition import T
 from core_10x.traitable import NamedTraitable, Traitable
 from core_10x.traitable_id import ID
 
-# ---------------------------------------------------------------------------
+#---------------------------------------------------------------------------
 # Default collection (no custom_collection)
-# ---------------------------------------------------------------------------
+#---------------------------------------------------------------------------
 
 
 class RefBase(Traitable, keep_history = False):
@@ -44,9 +44,9 @@ class Holder(Traitable, keep_history = False):
     peer: RefBase   = T()  # non-embedded Traitable ref
 
 
-# ---------------------------------------------------------------------------
+#---------------------------------------------------------------------------
 # custom_collection
-# ---------------------------------------------------------------------------
+#---------------------------------------------------------------------------
 
 
 class CRefBase(Traitable, custom_collection = True, keep_history = False):
@@ -78,7 +78,7 @@ def _roundtrip_packed(trait, value):
     return ser, back
 
 
-# --- nucleus_trait dict form -------------------------------------------------
+#--- nucleus_trait dict form -------------------------------------------------
 
 
 def test_nucleus_exact_class_serializes_id_dict():
@@ -146,7 +146,7 @@ def test_nucleus_custom_collection_subclass_nx_obj_includes_coll():
         }
 
 
-# --- traitable_trait string pack ---------------------------------------------
+#--- traitable_trait string pack ---------------------------------------------
 
 
 def test_pack_exact_class_to_id_string():
@@ -241,9 +241,9 @@ def test_legacy_dict_wire_still_deserializes():
         assert back2.id_value() == 'legacy_sub'
 
 
-# ---------------------------------------------------------------------------
+#---------------------------------------------------------------------------
 # NamedTraitable (+ multi-part ID) as non-embedded ref target
-# ---------------------------------------------------------------------------
+#---------------------------------------------------------------------------
 # C++ uses Traitable.from_id(id); NamedTraitable positional first arg is name only.
 
 

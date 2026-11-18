@@ -2,7 +2,7 @@ import inspect
 
 from core_10x.xnone import XNone
 
-# ===================================================================================================================================
+#===================================================================================================================================
 #   @cache must be used to cache results of function calls globally (at the process level)
 #
 #   Notes:
@@ -14,7 +14,7 @@ from core_10x.xnone import XNone
 #   - keep_value=True (default): normal caching - value is retained and returned on hits
 #   - keep_value=False: side-effect only - function runs at most once; first call returns its value,
 #     subsequent calls return None without re-executing (avoids retaining heavy return values)
-# ===================================================================================================================================
+#===================================================================================================================================
 ARGS_KWARGS = (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD)
 
 _CLEARABLES = []
@@ -68,8 +68,8 @@ def _cache_single_arg(f, keep_value = True):
     the_cache = {}
 
     def getter(arg):
-        value = the_cache.get(arg, the_cache)  # -- will throw if arg is not hashable!
-        if value is the_cache:  # -- i.e., arg is seen for the first time
+        value = the_cache.get(arg, the_cache)  #-- will throw if arg is not hashable!
+        if value is the_cache:  #-- i.e., arg is seen for the first time
             value           = f(arg)
             the_cache[arg]  = value if keep_value else None
 
@@ -87,8 +87,8 @@ def _cache_with_args(f, keep_value = True):
 
     def getter(*args, **kwargs):
         key     = *args, *tuple(kwargs.items())
-        value   = the_cache.get(key, the_cache)  # -- will throw if key is not hashable!
-        if value is the_cache:  # -- i.e., key is seen for the first time
+        value   = the_cache.get(key, the_cache)  #-- will throw if key is not hashable!
+        if value is the_cache:  #-- i.e., key is seen for the first time
             value           = f(*args, **kwargs)
             the_cache[key]  = value if keep_value else None
 
@@ -106,7 +106,7 @@ def standard_key(args: tuple, kwargs: dict) -> tuple:
     return *args, *sorted_kwargs
 
 
-# ========= The singleton
+#========= The singleton
 
 
 def ___operator_new(cls, *args, **kwargs):

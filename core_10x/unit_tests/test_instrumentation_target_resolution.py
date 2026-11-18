@@ -34,7 +34,7 @@ def registry():
 
 
 def test_subclass_imported_while_resolving_an_earlier_target(modules, registry):
-    # -- resolving 'a.BaseA' imports d (a subclass of the not-yet-resolved BaseB); d is neither target's module
+    #-- resolving 'a.BaseA' imports d (a subclass of the not-yet-resolved BaseB); d is neither target's module
     names = modules(
         {
             'b': 'class BaseB:\n    def m(self):\n        return 1\n',
@@ -48,7 +48,7 @@ def test_subclass_imported_while_resolving_an_earlier_target(modules, registry):
 
 
 def test_subclass_imported_while_resolving_a_later_target(modules, registry):
-    # -- resolving 'b.BaseB' imports c (a subclass of the already-resolved BaseA)
+    #-- resolving 'b.BaseB' imports c (a subclass of the already-resolved BaseA)
     names = modules(
         {
             'a': 'class BaseA:\n    def m(self):\n        return 1\n',
@@ -71,7 +71,7 @@ def test_targets_own_modules_still_rewalked(modules, registry):
 
 @pytest.mark.parametrize('by_name', [False, True])
 def test_target_module_imported_before_the_call(modules, registry, by_name):
-    # -- the target's module is already in sys.modules, so nothing is imported while resolving it
+    #-- the target's module is already in sys.modules, so nothing is imported while resolving it
     names   = modules({'a': 'class BaseA:\n    def m(self):\n        return 1\n\nclass ChildA(BaseA):\n    def m(self):\n        return 2\n'})
     module  = importlib.import_module(names['a'])
     registry.set_target_base_classes(f'{names["a"]}.BaseA' if by_name else module.BaseA)

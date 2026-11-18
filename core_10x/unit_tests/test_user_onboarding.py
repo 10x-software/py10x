@@ -33,7 +33,7 @@ from core_10x.traitable import Traitable, VaultResourceAccessor, VaultUser
 from core_10x.vault_utils import VaultUtils
 from infra_10x.duckdb_store import DuckDbStore
 
-# -- URIs and credentials specific to the user-onboarding scenario ---------
+#-- URIs and credentials specific to the user-onboarding scenario ---------
 # (The ``vault_env`` fixture itself lives in ``core_10x.testlib.vault_env``
 # and uses its own internal ``VAULT_URI`` matching the host below.)
 
@@ -46,28 +46,28 @@ ALICE, ALICE_VAULT_PWD, ALICE_MASTER    = 'alice', 'AliceVault7!', 'AliceMaster9
 PG_PWD                                  = 'PgWorker3!'
 
 
-# -- The scenario ---------------------------------------------------------
+#-- The scenario ---------------------------------------------------------
 
 
 def test_admin_user_onboarding_information_flow(vault_env):  # noqa: F811  (pytest fixture)
     env = vault_env
 
-    # ----------------------------------------------------------------- 0
+    #----------------------------------------------------------------- 0
     # Sysadmin (out of band) created vault DB accounts for the admin and
     # alice, with vault passwords. We just declare them here; the
     # ``MongodbAdmin.update_user(...)`` call that produces them in
     # production is exercised by infra_10x tests.
 
-    # ----------------------------------------------------------------- 1
+    #----------------------------------------------------------------- 1
     # ADMIN bootstraps themselves.
     env.switch_os_user(ADMIN)
     env.run_user_init(vault_login = ADMIN, vault_pwd = ADMIN_VAULT_PWD, master_pwd = ADMIN_MASTER)
 
-    # ----------------------------------------------------------------- 2
+    #----------------------------------------------------------------- 2
     # Admin transmits (vault_login=ALICE, vault_pwd=ALICE_VAULT_PWD) to
     # alice out of band.
 
-    # ----------------------------------------------------------------- 3
+    #----------------------------------------------------------------- 3
     # ALICE self-registers.
     env.switch_os_user(ALICE)
     env.run_user_init(vault_login = ALICE, vault_pwd = ALICE_VAULT_PWD, master_pwd = ALICE_MASTER)
@@ -87,7 +87,7 @@ def test_admin_user_onboarding_information_flow(vault_env):  # noqa: F811  (pyte
         assert host_ra.login == ALICE
         assert me.sec_keys.decrypt_text(host_ra.password) == ALICE_VAULT_PWD
 
-    # ----------------------------------------------------------------- 4/5
+    #----------------------------------------------------------------- 4/5
     # ADMIN grants using the vault login issued in step 2 (same as OS user_id).
     env.switch_os_user(ADMIN)
     rel_db_idx = CONCRETE_RESOURCE.all_names().index('REL_DB')
@@ -104,7 +104,7 @@ def test_admin_user_onboarding_information_flow(vault_env):  # noqa: F811  (pyte
     VaultUtils.admin_save_user_credentials().throw()
     assert not env.text_q and not env.secret_q
 
-    # ----------------------------------------------------------------- 6
+    #----------------------------------------------------------------- 6
     # ALICE retrieves credentials and confirms decryption.
     env.switch_os_user(ALICE)
     with Traitable.vault_store():
@@ -238,7 +238,7 @@ def test_suspended_account_cannot_decrypt(vault_env):  # noqa: F811
     env.switch_os_user(ALICE)
     with Traitable.vault_store():
         me = VaultUser.existing_instance(user_id = ALICE)
-        # -- property-getter exceptions get wrapped by the framework -- TraitMethodError, same as
+        #-- property-getter exceptions get wrapped by the framework -- TraitMethodError, same as
         # test_admin_cannot_decrypt_alice_credentials's analogous case above.
         with pytest.raises(TraitMethodError, match = 'suspended'):
             _ = me.sec_keys
@@ -292,9 +292,9 @@ def test_admin_save_user_credentials_refuses_suspended_account(vault_env):  # no
     assert 'suspended' in rc.error()
 
 
-# ---------------------------------------------------------------------------
+#---------------------------------------------------------------------------
 # --new-user / --new-machine
-# ---------------------------------------------------------------------------
+#---------------------------------------------------------------------------
 
 
 def test_new_machine_seeds_keyring_without_changing_vault_keys(vault_env):  # noqa: F811
@@ -377,9 +377,9 @@ def test_new_user_when_vault_user_exists_points_to_new_machine(vault_env):  # no
     assert '--new-machine' in rc.error()
 
 
-# ---------------------------------------------------------------------------
+#---------------------------------------------------------------------------
 # URI canonicalization tests — no vault required
-# ---------------------------------------------------------------------------
+#---------------------------------------------------------------------------
 
 
 class TestCanonicalUri:

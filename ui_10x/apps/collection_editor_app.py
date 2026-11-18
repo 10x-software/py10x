@@ -79,7 +79,7 @@ class CEApp(Traitable):
 
         sp.add_widget(ux.Widget())
         sp.set_stretch_factor(0, 1)
-        sp.set_stretch_factor(1, 2)  # -- TODO: set it for extra panes as needed
+        sp.set_stretch_factor(1, 2)  #-- TODO: set it for extra panes as needed
 
         self.main_w = sp
 

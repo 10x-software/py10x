@@ -71,7 +71,7 @@ def functional_account_env(monkeypatch, tmp_path):
 
     container_account_id = os.environ.get('FUNCTIONAL_ACCOUNT_ID')
     if container_account_id:
-        # -- Tier 2: inside docker/entrypoint.sh's container. Identity and the keyring backend
+        #-- Tier 2: inside docker/entrypoint.sh's container. Identity and the keyring backend
         #    are already real; nothing here to fake.
         assert VaultUser.myname() == container_account_id, (
             'entrypoint.sh should have renamed the OS account to FUNCTIONAL_ACCOUNT_ID before this test ran'
@@ -84,7 +84,7 @@ def functional_account_env(monkeypatch, tmp_path):
         _drop_session_db()
         return
 
-    # -- Tier 1: plain pytest run (dev machine / normal CI matrix).
+    #-- Tier 1: plain pytest run (dev machine / normal CI matrix).
     user_id = FUNCTIONAL_ACCOUNT_USER_ID
 
     secrets_file = tmp_path / 'keyring.json'
@@ -121,7 +121,7 @@ def test_functional_account_self_registers_against_real_vault(functional_account
     assert VaultUser.is_functional_account(user_id), 'test user_id must look like a functional account (xx- prefix)'
     assert not VaultUser.is_functional_account('alice')
 
-    # -- Self-registration: what a container's entrypoint runs, as the (really) renamed OS
+    #-- Self-registration: what a container's entrypoint runs, as the (really) renamed OS
     #    account, right after materializing its secrets file. No getpass/input prompts.
     VaultUtils.user_init(
         login           = functional_account_env.vault_login,
@@ -133,7 +133,7 @@ def test_functional_account_self_registers_against_real_vault(functional_account
     # negative result before registration wrote the real value. Invalidate it, same as vault_env.
     clear_caches_keeping(EnvVars.var.main_vault_uri)
 
-    # -- Prove the *real* keyring backend (not a dict monkeypatch) actually received the
+    #-- Prove the *real* keyring backend (not a dict monkeypatch) actually received the
     #    secrets that SecKeys.change_master_password / change_vault_login_password wrote.
     assert keyring.get_password(EnvVars.master_password_key, user_id) == MASTER_PASSWORD
     login_pwd = keyring.get_password(VAULT_URI, user_id)
@@ -144,7 +144,7 @@ def test_functional_account_self_registers_against_real_vault(functional_account
         assert me.user_id == user_id
         assert me.public_key and me.private_key_encrypted
 
-        # -- Server-wide RA created during self-registration: resolves against the *real*
+        #-- Server-wide RA created during self-registration: resolves against the *real*
         #    authenticated Postgres instance and connects for real.
         ra = VaultResourceAccessor.retrieve_ra(CONCRETE_RESOURCE.TS_STORE, VAULT_URI)
         assert ra.login == functional_account_env.vault_login

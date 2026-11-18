@@ -28,8 +28,8 @@ def test_share_makes_a_staged_object_exportable():
     (``make_permanent``), so that export_nodes can see them at all."""
     with INTERACTIVE() as i:
         staged          = P()
-        staged.value    = 42  # -- set while the ID is still invalid
-        staged.name     = 'fresh'  # -- names an entity, but does not yet establish the ID
+        staged.value    = 42  #-- set while the ID is still invalid
+        staged.name     = 'fresh'  #-- names an entity, but does not yet establish the ID
         assert staged.id().value is None
 
         assert staged.share(False)
@@ -65,8 +65,8 @@ def test_share_targets_the_entity_named_by_the_latest_id():
     with INTERACTIVE() as i:
         staged          = P()
         staged.value    = 7
-        staged.name     = 'first'  # -- names `first`...
-        staged.name     = 'second'  # -- ...then re-pointed, still allowed pre-share
+        staged.name     = 'first'  #-- names `first`...
+        staged.name     = 'second'  #-- ...then re-pointed, still allowed pre-share
         assert staged.share(False)
         assert staged.id().value == 'second'
 

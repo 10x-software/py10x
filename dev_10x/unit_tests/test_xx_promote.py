@@ -10,7 +10,7 @@ import pytest
 from dev_10x import xx_promote as xp
 
 
-# ---------------------------------------------------------------- CLI routing (core_10x.traitable_cli)
+#---------------------------------------------------------------- CLI routing (core_10x.traitable_cli)
 @pytest.mark.parametrize(
     'argv,cls,dry_run,push,publish,publish_only',
     [

@@ -46,7 +46,7 @@ class NamedConstant(Nucleus):
     def __deepcopy__(self, memo = None):
         return self
 
-    # -- Makes sense only for NamedConstants with Callable values
+    #-- Makes sense only for NamedConstants with Callable values
     def __call__(self, *args, **kwargs):
         return self.value(*args, **kwargs)
 

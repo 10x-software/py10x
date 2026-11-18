@@ -132,7 +132,7 @@ class TsUnion(TsStore, resource_name = 'TS_UNION'):
         raise NotImplementedError('TsUnion does not support URI parsing')
 
     @classmethod
-    def is_running_with_auth(cls, host_name: str, port: int = None) -> tuple:  # -- (is_running, with_auth)
+    def is_running_with_auth(cls, host_name: str, port: int = None) -> tuple:  #-- (is_running, with_auth)
         raise NotImplementedError
 
     @classmethod

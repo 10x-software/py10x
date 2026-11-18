@@ -173,7 +173,7 @@ def test_rmtree_retries_a_failed_removal_after_making_it_writable(tmp_path, monk
     assert attempts and not target.exists() and not tmp_path.exists()
 
 
-# ------------------------------------------------------------------------------------- build modes
+#------------------------------------------------------------------------------------- build modes
 
 PYPROJECT = """
 [project]

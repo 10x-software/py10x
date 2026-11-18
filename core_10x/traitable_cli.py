@@ -10,10 +10,10 @@ class TraitableCli(Traitable):
 
     def __init_subclass__(cls, _command: str = None, **kwargs):
         cls.s_switch = {}
-        if cls.s_master is None:  # -- master parser
+        if cls.s_master is None:  #-- master parser
             assert _command is None, 'master may not have a command'
             cls.s_master = cls
-        else:  # -- subordinate parser
+        else:  #-- subordinate parser
             assert _command and _command.isidentifier(), 'command must be a valid identifier'
             cls.s_master.s_switch[_command] = cls
             cls.s_master                    = cls
@@ -28,8 +28,8 @@ class TraitableCli(Traitable):
         """
         rc, inst = cls.from_command_line()
         if rc and not hasattr(inst, 'run'):
-            # -- no positional word, so the *master* class was instantiated; it has no command
-            # -- to run. Its docstring is the usage text.
+            #-- no positional word, so the *master* class was instantiated; it has no command
+            #-- to run. Its docstring is the usage text.
             rc = RC(False, cls.__doc__ or f'{cls.__name__}: no command given')
         if not rc:
             print(rc.error())
@@ -68,12 +68,12 @@ class TraitableCli(Traitable):
         if not rc:
             return rc, None
 
-        # -- CLI tokens are always strings, so convert them to the target trait types.
+        #-- CLI tokens are always strings, so convert them to the target trait types.
         with CONVERT_VALUES_ON():
             return cls.instantiate(args, trait_values)
 
     @classmethod
-    def instantiate(cls, args, trait_values: dict) -> tuple:  # -- (RC, target_traitable)
+    def instantiate(cls, args, trait_values: dict) -> tuple:  #-- (RC, target_traitable)
         if not args:
             try:
                 res = cls()
@@ -121,7 +121,7 @@ class TraitableCli(Traitable):
         i, n = 0, len(input_args)
         while i < n:
             arg = input_args[i]
-            if not arg.startswith('--'):  # -- positional command word
+            if not arg.startswith('--'):  #-- positional command word
                 args.append(arg)
                 i += 1
                 continue
@@ -130,14 +130,14 @@ class TraitableCli(Traitable):
             if not name:
                 return RC(False, 'Option name is missing after "--"')
 
-            # -- --no-option / --no_option: boolean negation shortcut (== --option false)
+            #-- --no-option / --no_option: boolean negation shortcut (== --option false)
             if (name.startswith(('no-', 'no_'))) and len(name) > 3:
                 trait_values[name[3:].replace('-', '_')] = 'false'
                 i += 1
                 continue
 
             name = name.replace('-', '_')
-            # -- a following non-option token is the value; otherwise this is a boolean --option (== true)
+            #-- a following non-option token is the value; otherwise this is a boolean --option (== true)
             if i + 1 < n and not input_args[i + 1].startswith('--'):
                 trait_values[name] = input_args[i + 1]
                 i += 2

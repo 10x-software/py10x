@@ -33,7 +33,7 @@ def _restore_keyring():
 
 def test_functional_account_keyring_is_accepted():
     keyring.set_keyring(FunctionalAccountKeyring())
-    SecKeys._verify_keyring_backend()  # -- must not raise
+    SecKeys._verify_keyring_backend()  #-- must not raise
 
 
 def test_unrecognized_backend_is_rejected():

@@ -86,7 +86,7 @@ class CollectionEditor(Traitable):
         sp.add_widget(left_w)
         sp.add_widget(ux.Widget())
         sp.set_stretch_factor(0, 1)
-        sp.set_stretch_factor(1, 2)  # -- TODO: set it for extra panes as needed
+        sp.set_stretch_factor(1, 2)  #-- TODO: set it for extra panes as needed
 
         self.main_w = sp
         return sp
@@ -121,7 +121,7 @@ class CollectionEditor(Traitable):
             def accept_hook(rc: RC):
                 if not rc:
                     ux_warning(rc.error(), parent = self.main_w, on_close = lambda ctx: None)
-                    # -- TODO: should we "merge" values from the existing instance?
+                    #-- TODO: should we "merge" values from the existing instance?
 
                 else:
                     self.searchable_list.add_choice(new_entity)

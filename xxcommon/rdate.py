@@ -114,7 +114,7 @@ class RDate(Nucleus):
 
     # s_spot_tenors = { 'ON', 'TN', 'SN' }
 
-    # -- RDate('3M') or RDate(TENOR_FREQUENCY.MONTH, 3)
+    #-- RDate('3M') or RDate(TENOR_FREQUENCY.MONTH, 3)
     # def __init__(self, symbol_or_frequency = None, count: int = None):
     def __init__(self, symbol: str = None, freq: TENOR_FREQUENCY = None, count: int = None):
         cls = self.__class__
@@ -211,7 +211,7 @@ class RDate(Nucleus):
         if self.freq is other.freq:
             return (self, other)
 
-        mult    = self.conversion_freq_multiplier(other.freq)  # -- either int or 1/int
+        mult    = self.conversion_freq_multiplier(other.freq)  #-- either int or 1/int
         mult_i  = int(mult)
         if mult_i >= 1:
             return (RDate(freq = other.freq, count = self.count * mult_i), other)

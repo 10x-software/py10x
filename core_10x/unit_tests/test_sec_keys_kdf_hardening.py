@@ -26,9 +26,9 @@ def _wrap_legacy(private_key_pem: bytes, password: str) -> bytes:
     )
 
 
-# ----------------------------------------------------------------------------
+#----------------------------------------------------------------------------
 #   SecKeys-level: new scheme, legacy compatibility, wrong password
-# ----------------------------------------------------------------------------
+#----------------------------------------------------------------------------
 
 
 def test_new_scheme_round_trips():
@@ -46,7 +46,7 @@ def test_new_scheme_rejects_wrong_password():
     salt                        = SecKeys.generate_salt()
     wrapped                     = SecKeys.encrypt_private_key(private_pem, MASTER_PASSWORD, salt)
 
-    with pytest.raises(ValueError):  # -- cryptography's own decrypt-failure exception
+    with pytest.raises(ValueError):  #-- cryptography's own decrypt-failure exception
         SecKeys.decrypt_private_key(wrapped, 'WrongPassword', salt)
 
 
@@ -69,9 +69,9 @@ def test_sec_keys_init_handles_both_schemes():
     SecKeys(legacy_wrapped, public_pem, MASTER_PASSWORD, b'')
 
 
-# ----------------------------------------------------------------------------
+#----------------------------------------------------------------------------
 #   VaultUser-level: post_verify() enforces the salt on every new write
-# ----------------------------------------------------------------------------
+#----------------------------------------------------------------------------
 
 
 def test_post_verify_rejects_encrypted_private_key_without_salt():

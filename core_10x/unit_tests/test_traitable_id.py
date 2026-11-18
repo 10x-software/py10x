@@ -5,9 +5,9 @@ from core_10x.traitable_id import ID
 from core_10x.ts_store import TsStore
 from py10x_kernel import BSaveRefs
 
-# ----------------------------------------------------------------------------
+#----------------------------------------------------------------------------
 #   Construction & basic attributes
-# ----------------------------------------------------------------------------
+#----------------------------------------------------------------------------
 
 
 def test_id_default_construction():
@@ -28,9 +28,9 @@ def test_id_with_value_and_collection():
     assert i.collection_name == 'col'
 
 
-# ----------------------------------------------------------------------------
+#----------------------------------------------------------------------------
 #   __bool__
-# ----------------------------------------------------------------------------
+#----------------------------------------------------------------------------
 
 
 def test_id_bool_truthy_with_value():
@@ -44,9 +44,9 @@ def test_id_bool_falsy_without_value():
     assert not ID('')
 
 
-# ----------------------------------------------------------------------------
+#----------------------------------------------------------------------------
 #   __repr__
-# ----------------------------------------------------------------------------
+#----------------------------------------------------------------------------
 
 
 def test_id_repr_without_collection():
@@ -61,9 +61,9 @@ def test_id_repr_none_value():
     assert repr(ID()) == 'None'
 
 
-# ----------------------------------------------------------------------------
+#----------------------------------------------------------------------------
 #   __eq__ and __hash__
-# ----------------------------------------------------------------------------
+#----------------------------------------------------------------------------
 
 
 def test_id_equality_same_value_and_collection():
@@ -97,9 +97,9 @@ def test_id_usable_as_dict_key():
     assert d[ID('k', 'c')] == 'value'
 
 
-# ----------------------------------------------------------------------------
+#----------------------------------------------------------------------------
 #   __lt__ and ordering (total_ordering)
-# ----------------------------------------------------------------------------
+#----------------------------------------------------------------------------
 
 
 def test_id_lt_compares_collection_first():
@@ -144,9 +144,9 @@ def test_id_eq_returns_not_implemented_for_non_id():
     assert result is NotImplemented
 
 
-# ---------------------------------------------------------------------------
+#---------------------------------------------------------------------------
 # Unshared IDs, and agreement with the kernel's TID
-# ---------------------------------------------------------------------------
+#---------------------------------------------------------------------------
 
 
 def test_unshared_ids_are_distinct():
@@ -249,7 +249,7 @@ def test_saving_reference_to_unshared_endogenous_names_the_problem():
     with TsStore.instance_from_uri('duckdb://'), INTERACTIVE():
         pending     = _PendingRef()
         pending.a   = 1
-        holder      = _PendingRef(a = 2, b = 2)  # -- serialize_object() returns None without an ID value, so go through a holder
+        holder      = _PendingRef(a = 2, b = 2)  #-- serialize_object() returns None without an ID value, so go through a holder
         holder.peer = pending
         with pytest.raises(Exception, match = 'cannot copy the TID of an unshared endogenous traitable'):
             holder.serialize_object(BSaveRefs.ALL)

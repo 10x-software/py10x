@@ -3,7 +3,7 @@ from core_10x.oidc_secret import OidcSecret
 from core_10x.rel_db import RelDb
 from core_10x.ts_store import TsStore
 
-# -- ... more concrete Resource subclasses
+#-- ... more concrete Resource subclasses
 
 
 class CONCRETE_RESOURCE(NamedConstant):

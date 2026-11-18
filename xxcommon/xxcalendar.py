@@ -63,7 +63,7 @@ class CalendarNameParser:
         stack               = parser.stack
 
         operation_repr_list = name.split(cls.OP_CHAR)
-        if len(operation_repr_list) == 1:  # -- regular (stored) calendar
+        if len(operation_repr_list) == 1:  #-- regular (stored) calendar
             cal = calendar_cls.existing_instance(name = name)
             return cal._non_working_days
 
@@ -72,7 +72,7 @@ class CalendarNameParser:
                 continue
 
             name_list_op_num_args = operation_repr.split(cls.MORE_CHAR)
-            if len(name_list_op_num_args) > 1:  # -- name list followed by op with num_args
+            if len(name_list_op_num_args) > 1:  #-- name list followed by op with num_args
                 for cname in name_list_op_num_args[:-1]:
                     if cname:
                         cal = calendar_cls.existing_instance(name = cname)
@@ -97,7 +97,7 @@ class CalendarNameParser:
                 else:
                     op(non_working_days, _non_working_days)
 
-            stack.append(non_working_days)  # -- push set of non_working_days of an intermediate calendar
+            stack.append(non_working_days)  #-- push set of non_working_days of an intermediate calendar
 
         return non_working_days
 
@@ -215,7 +215,7 @@ class Calendar(NamedTraitable):
         while not self.is_bizday(d):
             d += dt
 
-        return d  # -- TODO: if the cal has ALL days as holidays... :-)
+        return d  #-- TODO: if the cal has ALL days as holidays... :-)
 
     def advance_bizdays(self, d: date, biz_days: int) -> date:
         if not biz_days:

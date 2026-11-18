@@ -24,7 +24,7 @@ class TraitableHeir(Traitable):
         for trait in cls.traits():
             if trait is grantor_trait or trait.flags_on(T.RESERVED):
                 continue
-            if not trait.has_custom_getter() and trait.default is XNone:  # -- trait has neither getter nor default value
+            if not trait.has_custom_getter() and trait.default is XNone:  #-- trait has neither getter nor default value
                 trait.set_f_get(lambda self, trait_name = trait.name: self.heir_getter(trait_name), False)
                 dir[trait.name] = trait
 
@@ -42,6 +42,6 @@ class TraitableHeir(Traitable):
 
         for name, trait in self.__class__.s_grantor_traits.items():
             if not self.is_set(trait):
-                serialized_data.pop(name, None)  # -- runtime heir traits are never serialized
+                serialized_data.pop(name, None)  #-- runtime heir traits are never serialized
 
         return serialized_data

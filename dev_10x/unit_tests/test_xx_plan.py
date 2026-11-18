@@ -35,7 +35,7 @@ def _inp(name, is_core, prefix, tags, changed = False, current_forward = None, g
     )
 
 
-# ------------------------------------------------------------------------------- PrePlan.create_batch
+#------------------------------------------------------------------------------- PrePlan.create_batch
 def test_first_rc_for_all_packages_coordinates():
     """No tags anywhere, everything changed -> rc1 for each, cross-pinned to each other's rc1."""
     plans   = PrePlan.create_batch(
@@ -215,7 +215,7 @@ def test_version_override_on_sibling_forces_its_recut_without_forcing_core():
     assert plans['py10x-core'].forward_pins == {'py10x-kernel': '==2.0.0rc1'}
 
 
-# ------------------------------------------------------------------------------ ProdPlan.create_batch
+#------------------------------------------------------------------------------ ProdPlan.create_batch
 def test_prod_promotes_rcs_to_finals_and_coordinates():
     """Each package whose latest tag is an rc finalizes; core `==`-pins the released sibling finals."""
     plans   = ProdPlan.create_batch(
@@ -274,7 +274,7 @@ def test_prod_nothing_to_promote_skips_all():
     assert all(not p.act for p in plans.values())
 
 
-# ------------------------------------------------------------------------------- downstream role
+#------------------------------------------------------------------------------- downstream role
 def test_downstream_only_footprint_skips_core_version_but_refreshes_test_group():
     """Fin-base-only change: core does not re-cut; core main gets test-group pin via target=core."""
     plans = PrePlan.create_batch(

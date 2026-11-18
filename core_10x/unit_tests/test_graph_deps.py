@@ -29,9 +29,9 @@ class TestGraphDeps:
             quote_cls = TestGraphDeps.Quote
             return quote_cls(symbol = self.q1_symbol).price + quote_cls(symbol = self.q2_symbol).price
 
-    # ------------------------------------------------------------------
+    #------------------------------------------------------------------
     # Fixtures
-    # ------------------------------------------------------------------
+    #------------------------------------------------------------------
 
     @pytest.fixture
     def gp(self):
@@ -56,9 +56,9 @@ class TestGraphDeps:
         pf.q2_symbol    = 'MSFT'
         yield
 
-    # ------------------------------------------------------------------
+    #------------------------------------------------------------------
     # Tests
-    # ------------------------------------------------------------------
+    #------------------------------------------------------------------
 
     def test_discovers_dependencies(self, gp, portfolio):
         """GraphDeps finds exactly the two Quote nodes that feed portfolio.value."""
