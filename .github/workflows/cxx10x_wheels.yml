@@ -142,11 +142,12 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@v7
 
+      #-- --no-config: the root pyproject's no-build-isolation-package (for editable dev builds) must not apply
       - name: Build the sdist, then a wheel from it
         shell: bash
         run: |
-          uv build --sdist --directory "${{ needs.resolve.outputs.package-dir }}" --out-dir "$GITHUB_WORKSPACE/sdist"
-          uv build --python 3.12 --wheel sdist/*.tar.gz --out-dir "$RUNNER_TEMP/wheel-from-sdist"
+          uv build --no-config --sdist --directory "${{ needs.resolve.outputs.package-dir }}" --out-dir "$GITHUB_WORKSPACE/sdist"
+          uv build --no-config --python 3.12 --wheel sdist/*.tar.gz --out-dir "$RUNNER_TEMP/wheel-from-sdist"
 
       - uses: actions/upload-artifact@v7
         with:
