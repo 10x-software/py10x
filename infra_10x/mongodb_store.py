@@ -288,18 +288,16 @@ class MongoStore(TsStore, resource_name = 'MONGO_DB'):
             aliases = { short: real for short, (real, _) in cls.s_instance_kwargs_map.items() if short != real }
             for short, real in aliases.items():  # aliases are not valid uri params for mongo, so rewrite them
                 uri = uri.replace(f'?{short}=', f'?{real}=').replace(f'&{short}=', f'&{real}=')
-            params = pymongo_parse_uri(uri)
-            # fmt: off
-            hostname, port        = params['nodelist'][0]
-            kwargs                = params['options']
-            kwargs[cls.PORT_TAG]  = port
-            args = {
+            params                  = pymongo_parse_uri(uri)
+            hostname, port          = params['nodelist'][0]
+            kwargs                  = params['options']
+            kwargs[cls.PORT_TAG]    = port
+            args                    = {
                 cls.HOSTNAME_TAG:   hostname,
                 cls.DBNAME_TAG:     params['database'],
                 cls.USERNAME_TAG:   params['username'],
                 cls.PASSWORD_TAG:   params['password'],
             }
-            # fmt: on
             # pymongo_parse_uri converts *MS timeouts to seconds. MongoClient expects
             # milliseconds, and a URI round-trip requires them, so convert back.
             for key, value in list(kwargs.items()):

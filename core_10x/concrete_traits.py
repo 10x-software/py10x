@@ -47,17 +47,15 @@ class primitive_trait(Trait, register = False):
 
 
 class bool_trait(primitive_trait, data_type = bool):
-    s_ui_hint = Ui.check()
+    s_ui_hint     = Ui.check()
 
-    # fmt: off
-    FORMATS     = [
+    FORMATS       = [
         ('yes',''),
         ('yes','no'),
         ('true','false'),
         ('on','off')
     ]
     s_fmt         = FORMATS[0]
-    # fmt: on
 
     def to_id(self, value: bool) -> str:
         return '0' if value else '1'

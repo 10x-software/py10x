@@ -21,13 +21,11 @@ if __name__ == '__main__':
 
     eps = 1.e-10
 
-    # fmt: off
-    c = RateCurve(
+    c                   = RateCurve(
         dates   = [date(2019, 12, 31),    date(2020, 12, 31)  ],
-        values  = [0.10,                0.20                ]
+        values  = [0.10,                  0.20                ]
     )
     c.beginning_of_time = date(2019, 12, 1)
-    # fmt: on
 
 
     additive_dcs = [

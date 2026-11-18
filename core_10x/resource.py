@@ -166,25 +166,23 @@ def _has_abstract_methods(cls) -> bool:
 
 
 class Resource(abc.ABC):
-    # fmt: off
-    PROTOCOL_TAG    = 'protocol'
-    HOSTNAME_TAG    = 'hostname'
-    PORT_TAG        = 'port'
-    USERNAME_TAG    = 'username'
-    DBNAME_TAG      = 'dbname'
-    PASSWORD_TAG    = 'password'
-    QUERY_TAG       = 'query'
-    FRAGMENT_TAG    = 'fragment'
-    SSL_TAG         = 'ssl'
-    s_instances     = {}
-    s_instance_kwargs_map = {
+    PROTOCOL_TAG                    = 'protocol'
+    HOSTNAME_TAG                    = 'hostname'
+    PORT_TAG                        = 'port'
+    USERNAME_TAG                    = 'username'
+    DBNAME_TAG                      = 'dbname'
+    PASSWORD_TAG                    = 'password'
+    QUERY_TAG                       = 'query'
+    FRAGMENT_TAG                    = 'fragment'
+    SSL_TAG                         = 'ssl'
+    s_instances                     = {}
+    s_instance_kwargs_map           = {
         HOSTNAME_TAG:  (HOSTNAME_TAG, None),
         USERNAME_TAG:  (USERNAME_TAG, None),
         PASSWORD_TAG:  (PASSWORD_TAG, None),
         DBNAME_TAG:    (DBNAME_TAG,   None),
         PORT_TAG:      (PORT_TAG,     None),
     }
-    # fmt: on
     s_resource_type: ResourceType   = None
     s_driver_name: str              = None
     s_login_label                   = 'login name'
@@ -352,9 +350,7 @@ class NullResource:
 NULL_RESOURCE = NullResource()
 
 #=========== Known Resource Types
-# fmt: off
 TS_STORE        = ResourceType('TS_STORE')
 REL_DB          = ResourceType('REL_DB')
 OIDC            = ResourceType('OIDC')
 CLOUD_CLUSTER   = ResourceType('CLOUD_CLUSTER')
-# fmt: on

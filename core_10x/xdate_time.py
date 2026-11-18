@@ -32,12 +32,10 @@ class XDateTime:
     def date_to_int(v: date, ordinal: bool = True) -> int:
         return v.toordinal() if ordinal else (10000 * v.year + 100 * v.month + v.day)
 
-    # fmt: off
-    FORMAT_X10  = '%Y%m%d'
-    FORMAT_ISO  = '%Y-%m-%d'
-    FORMAT_US   = '%m/%d/%Y'
-    FORMAT_EU   = '%d.%m.%Y'
-    # fmt: on
+    FORMAT_X10          = '%Y%m%d'
+    FORMAT_ISO          = '%Y-%m-%d'
+    FORMAT_US           = '%m/%d/%Y'
+    FORMAT_EU           = '%d.%m.%Y'
 
     s_default_format    = FORMAT_X10
     formats             = [s_default_format, FORMAT_X10, FORMAT_ISO, FORMAT_US, FORMAT_EU]
@@ -82,14 +80,12 @@ class XDateTime:
             format = XDateTime.formats[0]
         return v.strftime(format)
 
-    # fmt: off
     date_converters = {
         date:       lambda v:   v,
         datetime:   lambda v:   date(v.year, v.month, v.day),
         int:        int_to_date,
         str:        str_to_date,
     }
-    # fmt: on
     @classmethod
     def to_date(cls, v) -> date | None:
         fn = cls.date_converters.get(type(v))
@@ -121,14 +117,12 @@ class XDateTime:
     def date_to_datetime(d: date) -> datetime:
         return datetime(year = d.year, month = d.month, day = d.day)
 
-    # fmt: off
     datetime_converters = {
         datetime:   lambda v:   v,
         date:       lambda v:   datetime(year = v.year, month = v.month, day = v.day),
         int:        lambda v:   XDateTime.date_to_datetime(XDateTime.int_to_date(v)),
         str:        str_to_datetime,
     }
-    # fmt: on
 
     @classmethod
     def to_datetime(cls, v) -> datetime:

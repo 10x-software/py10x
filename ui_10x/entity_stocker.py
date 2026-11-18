@@ -9,13 +9,11 @@ from ui_10x.utils import ux, ux_answer, ux_push_button, ux_warning
 
 class StockerPlug(Traitable):
     master: Traitable
-    # fmt: off
-    current_class_trait_name: str   = RT('current_class')
-    current_entity_trait_name: str  = RT('current_entity')
-    changed_entity_cb_name: str     = RT('on_changed_entity')        #-- f(ce: Traitable) - after accepting edits and reloading
-    deleted_entity_cb_name: str     = RT('on_deleted_entity')        #-- f(de: Traitable)
+    current_class_trait_name: str     = RT('current_class')
+    current_entity_trait_name: str    = RT('current_entity')
+    changed_entity_cb_name: str       = RT('on_changed_entity')        #-- f(ce: Traitable) - after accepting edits and reloading
+    deleted_entity_cb_name: str       = RT('on_deleted_entity')        #-- f(de: Traitable)
     track_changes_trait_name: str     = RT('track_changes')
-    # fmt: on
 
     new_entity_cb: Any
     changed_entity_cb: Any
@@ -35,10 +33,8 @@ class StockerPlug(Traitable):
 
         return lambda e: None
 
-    # fmt: off
     def changed_entity_cb_get(self):    return self._cb(self.changed_entity_cb_name)
     def deleted_entity_cb_get(self):    return self._cb(self.deleted_entity_cb_name)
-    # fmt: on
 
     def current_class_get(self) -> type:
         m = self.master
@@ -179,7 +175,6 @@ class EntityStocker(Traitable):
             ux_answer(f'Please confirm deletion of {ce.__class__}/{ce.id()}', parent = None, on_close = on_close)
 
     def buttons_spec_get(self) -> dict:
-        # fmt: off
         return {
             #'new':   (self.on_new_entity,        'FileIcon'),
             'edit':   (self.on_edit_entity,       'FileDialogDetailedView'),
@@ -187,4 +182,3 @@ class EntityStocker(Traitable):
             'save':   (self.on_save_entity,       'DriveNetIcon'),
             'delete': (self.on_delete_entity,     'DialogDiscardButton')
         }
-        # fmt: on

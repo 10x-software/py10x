@@ -196,16 +196,14 @@ class TestRDate:
         assert result == expected
 
     def test_apply_no_roll(self):
-        start_date = date(2023, 1, 12)
-        # fmt: off
-        cases = (
+        start_date  = date(2023, 1, 12)
+        cases       = (
             ('2C',   date(2023, 1, 14)),
             ('1M',   date(2023, 2, 12)),
             ('2Y',   date(2025, 1, 12)),
             ('1SOM', date(2023, 2, 1)),
             ('2EOM', date(2023, 3, 31)),
         )
-        # fmt: on
         for rd, exp_d in cases:
             assert RDate(rd).apply_no_roll(start_date) == exp_d, f'calculated date {RDate(rd).apply_no_roll(start_date)} != expected date {exp_d}'
 

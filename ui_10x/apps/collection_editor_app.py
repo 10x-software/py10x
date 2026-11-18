@@ -11,18 +11,16 @@ from ui_10x.utils import UxDialog, ux
 
 
 class CEApp(Traitable):
-    s_exclude_packages = ('manual_tests', 'unit_tests')
+    s_exclude_packages              = ('manual_tests', 'unit_tests')
 
-    # fmt: off
-    main_store_uri: str     = RT()
-    top_package: str        = RT()
-    exclude_packages: list  = RT(Ui(flags = Ui.HIDDEN))
-    current_class: type     = RT(Ui.choice(stretch = 1))
+    main_store_uri: str             = RT()
+    top_package: str                = RT()
+    exclude_packages: list          = RT(Ui(flags = Ui.HIDDEN))
+    current_class: type             = RT(Ui.choice(stretch = 1))
 
-    my_editor: TraitableEditor  = RT()
-    col_editor: CollectionEditor = RT()
-    main_w: ux.Splitter         = RT()
-    # fmt: on
+    my_editor: TraitableEditor      = RT()
+    col_editor: CollectionEditor    = RT()
+    main_w: ux.Splitter             = RT()
 
     def main_store_uri_get(self) -> str:
         return EnvVars.main_ts_store_uri

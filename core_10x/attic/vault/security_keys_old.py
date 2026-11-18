@@ -12,14 +12,12 @@ from cryptography.hazmat.primitives.serialization import (
 
 from core_10x.global_cache import cache
 
-# fmt: off
 ROOT                = '.xx'
 PUBLIC_EXP          = 65537
 KEY_SIZE            = 2048
 PRIVATE_KEY_FILE    = 'private.pem'
 PUBLIC_KEY_FILE     = 'public.pem'
 ENCODING            = 'utf-8'
-# fmt: on
 
 
 class SecKeys:
@@ -101,7 +99,6 @@ class SecKeys:
                 return None
 
         public_key = load_pem_public_key(public_key)
-        # fmt: off
         return public_key.encrypt(
             message,
             padding.OAEP(
@@ -110,7 +107,6 @@ class SecKeys:
                 label       = None
             )
         )
-        # fmt: on
 
     @classmethod
     def decrypt(cls, encrypted_message: bytes, to_str = True):
@@ -119,8 +115,7 @@ class SecKeys:
             return None
 
         private_key = load_pem_private_key(private_key, password = None)
-        # fmt: off
-        res = private_key.decrypt(
+        res         = private_key.decrypt(
             encrypted_message,
             padding.OAEP(
                 mgf         = padding.MGF1(algorithm = hashes.SHA256()),
@@ -128,7 +123,6 @@ class SecKeys:
                 label       = None
             )
         )
-        # fmt: on
 
         if to_str:
             res = res.decode(encoding = ENCODING)
@@ -145,13 +139,11 @@ class SecKeys:
             return None
 
         private_key = load_pem_private_key(private_key, password = None)
-        # fmt: off
         return private_key.private_bytes(
             encoding                = serialization.Encoding.PEM,
             format                  = serialization.PrivateFormat.PKCS8,
             encryption_algorithm    = serialization.BestAvailableEncryption(password),
         )
-        # fmt: on
 
     @classmethod
     def decrypt_private_key(cls, private_key_with_password, password) -> bytes:
@@ -159,10 +151,8 @@ class SecKeys:
             password = bytes(password, encoding = ENCODING)
 
         pk = load_pem_private_key(private_key_with_password, password = password)
-        # fmt: off
         return pk.private_bytes(
             encoding                = serialization.Encoding.PEM,
             format                  = serialization.PrivateFormat.TraditionalOpenSSL,
             encryption_algorithm    = serialization.NoEncryption(),
         )
-        # fmt: on

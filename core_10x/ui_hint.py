@@ -7,12 +7,11 @@ from core_10x.named_constant import Enum
 
 
 class UiHint:
-    # fmt: off
     #-- Flags
-    HIDDEN      = 0x1
-    READ_ONLY   = 0x2
-    SELECT_ONLY = 0x4
-    SEPARATOR   = 0x8
+    HIDDEN          = 0x1
+    READ_ONLY       = 0x2
+    SELECT_ONLY     = 0x4
+    SEPARATOR       = 0x8
 
     #-- Stylesheet Attributes
     FG_COLOR        = 'color'
@@ -36,7 +35,6 @@ class UiHint:
         PIXMAP      = ()
         PUSH        = ()
         FILE        = ()
-    # fmt: on
     @staticmethod
     def partial(widget_type_fn, **params):
         return functools.partial(widget_type_fn, **params)
@@ -114,7 +112,6 @@ class UiHint:
 
 
 class UiHintModification(UiHint):
-    # fmt: off
     def __init__(
         self,
         label: str                      = None,
@@ -123,7 +120,6 @@ class UiHintModification(UiHint):
         widget_type: UiHint.WIDGET_TYPE = None,
         **params,
     ):
-        # fmt: on
         super().__init__(label, flags = flags, tip = tip, widget_type = widget_type, **params)
 
     def apply(self, ui_hint: UiHint) -> UiHint:
@@ -149,8 +145,6 @@ class UiHintModification(UiHint):
         return hint
 
 
-# fmt: off
 UiHint.NONE = UiHint(widget_type = UiHint.WIDGET_TYPE.NONE)
 Ui          = UiHint
 UiMod       = UiHintModification
-# fmt: on

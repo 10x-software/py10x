@@ -16,17 +16,15 @@ class CalendarNameParser:
     op                      := OR_CHAR | AND_CHAR
     """
 
-    # fmt: off
     MORE_CHAR   = ','
     OR_CHAR     = '|'
     AND_CHAR    = '&'
     OP_CHAR     = '\n'
 
-    s_ops = {
+    s_ops       = {
         OR_CHAR:    set.update,
         AND_CHAR:   set.intersection_update
     }
-    # fmt: on
 
     @classmethod
     def combo_name(cls, name: str) -> bool:

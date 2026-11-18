@@ -9,22 +9,19 @@ from typing import Never
 from core_10x.ui_hint import Ui, UiHintModification
 from core_10x.xnone import XNone, XNoneType
 
-# fmt: off
 #---- Attribute Tags
-NAME_TAG        = 'name'
-DATATYPE_TAG    = 'data_type'
-FLAGS_TAG       = 'flags'
-DEFAULT_TAG     = 'default'
-FORMAT_TAG      = 'fmt'
-PARAMS_TAG      = 'params'
-GETTER_PARAMS_TAG = 'getter_params'
-UI_HINT_TAG     = 'ui_hint'
-# fmt: on
+NAME_TAG            = 'name'
+DATATYPE_TAG        = 'data_type'
+FLAGS_TAG           = 'flags'
+DEFAULT_TAG         = 'default'
+FORMAT_TAG          = 'fmt'
+PARAMS_TAG          = 'params'
+GETTER_PARAMS_TAG   = 'getter_params'
+UI_HINT_TAG         = 'ui_hint'
 
 
 class TraitDefinition:
-    # fmt: off
-    __slots__ = (
+    __slots__           = (
         NAME_TAG,
         DATATYPE_TAG,
         FLAGS_TAG,
@@ -34,14 +31,13 @@ class TraitDefinition:
         UI_HINT_TAG,
     )
 
-    s_known_attributes = {
+    s_known_attributes  = {
         DATATYPE_TAG:   lambda: XNoneType,
         FLAGS_TAG:      lambda: BFlags(0x0),
         DEFAULT_TAG:    lambda: XNone,
         FORMAT_TAG:     lambda: '',
         UI_HINT_TAG:    lambda: Ui(),
     }
-    # fmt: on
 
     def __init__(self, *args, **kwargs):
         """
@@ -122,19 +118,17 @@ class TraitDefinition:
 
 
 class TraitModification(TraitDefinition):
-    # fmt: off
-    s_known_attributes = {
+    s_known_attributes  = {
         FLAGS_TAG:      lambda: Never,
         DEFAULT_TAG:    lambda: Never,
         FORMAT_TAG:     lambda: Never,
         UI_HINT_TAG:    UiHintModification
     }
 
-    s_modifiers = {
+    s_modifiers         = {
         FLAGS_TAG:      lambda self, flags_modification: self.flags_change(flags_modification),
         UI_HINT_TAG:    lambda self, ui_hint_modification: setattr(self,UI_HINT_TAG,ui_hint_modification.apply(self.ui_hint))
     }
-    # fmt: on
     def apply(self, trait_def: TraitDefinition) -> TraitDefinition:
         res         = trait_def.copy()
         modifiers   = self.__class__.s_modifiers

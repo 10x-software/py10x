@@ -10,11 +10,9 @@ CLASS_ID_DELIMITER = '/'
 
 
 class PackageRefactoring:
-    # fmt: off
     s_module_name   = '_refactoring'
     s_records_name  = '_records'
-    # fmt: on
-    s_instances = {}
+    s_instances     = {}
 
     @classmethod
     def register_top_level_packages(cls, *top_level_packages):

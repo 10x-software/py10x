@@ -1293,16 +1293,14 @@ class TraitableHistory(EventBase):
         """Inverse of :meth:`history_collection_name` (unchanged if not a history collection)."""
         return collection_name.rsplit('#', 1)[0] if collection_name else collection_name
 
-    # fmt: off
     traitable: Traitable        = RT() // 'original traitable'
     serialized_traitable: dict  = RT()
 
 
     _traitable_id: str          = T() // 'original traitable id'
     _traitable_rev: int         = T() // 'original traitable rev'
-    # fmt: on
 
-    s_indices = [Index('idx_by_traitable_id_time', [('_traitable_id', 1), ('_at', -1)])]
+    s_indices                   = [Index('idx_by_traitable_id_time', [('_traitable_id', 1), ('_at', -1)])]
 
     def _traitable_id_get(self) -> str:
         return self.serialized_traitable['_id']
