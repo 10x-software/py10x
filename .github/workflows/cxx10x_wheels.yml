@@ -129,9 +129,33 @@ jobs:
           artifact-name: wheels-${{ needs.resolve.outputs.package }}-${{ matrix.os }}
           linux-arch: ${{ matrix.linux-arch }}
 
+  # pip's fallback where no wheel matches. Building a wheel from it checks that it is self-contained: CMake
+  # copies in what it needs from outside the package directory when the sdist is built.
+  build_sdist:
+    needs: resolve
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0   # full history (0 = unlimited; default 1 is shallow): setuptools-scm needs the release tag
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Build the sdist, then a wheel from it
+        shell: bash
+        run: |
+          uv build --sdist --directory "${{ needs.resolve.outputs.package-dir }}" --out-dir "$GITHUB_WORKSPACE/sdist"
+          uv build --python 3.12 --wheel sdist/*.tar.gz --out-dir "$RUNNER_TEMP/wheel-from-sdist"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: sdist-${{ needs.resolve.outputs.package }}
+          path: sdist/*.tar.gz
+
   upload:
     if: github.ref_type == 'tag'
-    needs: [test, build_wheels]
+    needs: [test, build_wheels, build_sdist]
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -140,12 +164,12 @@ jobs:
         with:
           path: dist
 
-      - name: Flatten wheels
+      - name: Flatten wheels and the sdist
         run: |
           mkdir -p upload
-          find dist -name "*.whl" -exec cp {} upload/ \;
+          find dist \( -name "*.whl" -o -name "*.tar.gz" \) -exec cp {} upload/ \;
 
-      - name: Upload wheels to PyPI
+      - name: Upload to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: upload

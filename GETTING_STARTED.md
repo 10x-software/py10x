@@ -2140,18 +2140,13 @@ with MongoStore.instance(hostname='localhost', dbname='test'):
 
 ### Framework Selection
 
-The UI framework is automatically selected based on available packages:
+`UI_PLATFORM` selects the backend, `'Qt6'` or `'Rio'`; any other value raises `ImportError`. When it is unset, the
+backend is Rio if `rio` is already imported and Qt6 otherwise. It is read once, on the first import of a UI module such
+as `ui_10x.utils`:
 
 ```python
-# Rio backend (if rio-ui is installed)
 import os
-os.environ['UI_PLATFORM'] = 'Rio'
-
-# Qt6 backend (if PyQt6 is installed)  
-os.environ['UI_PLATFORM'] = 'Qt'
-
-# Or let the framework auto-detect
-# (default behavior)
+os.environ['UI_PLATFORM'] = 'Rio'    # or 'Qt6'
 ```
 
 

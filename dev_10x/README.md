@@ -510,7 +510,11 @@ package comes from the tag; `workflow_dispatch` builds one package without uploa
    previous rc window); assert the built version equals the tag; run core's suite with the same
    services as `build.yml` (Mongo replica set, Postgres, Playwright; `XX_TEST_STRICT=1`).
 2. **build_wheels**: cibuildwheel on ubuntu x86_64 / aarch64, macOS universal2, windows-2025.
-3. **upload**: trusted PyPI publish (OIDC). The PyPI trusted publishers for `py10x-kernel` and
+3. **build_sdist**: `uv build --sdist`, then a wheel from it. The sdist-state CMake configure
+   (`sdist.cmake`) copies in what the package takes from outside its directory (`cxx10x/cmake/`,
+   and the kernel's `py_linkage.h` for infra); building from the sdist is Release in a throwaway
+   build dir, like cibuildwheel.
+4. **upload**: trusted PyPI publish (OIDC) of the wheels and the sdist. The PyPI trusted publishers for `py10x-kernel` and
    `py10x-infra` point at `10x-software/py10x`, workflow `cxx10x_wheels.yml`.
 
 PR / push CI additionally runs the `cxx10x/tests` harness suites (`ci.yml` job `cxx10x-tests`).

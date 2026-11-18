@@ -77,7 +77,7 @@ Authentication follows the same shape. A user registers once: an RSA keypair is 
 
 ### Traitable Store
 
-A Traitable Store is the Resource that persists objects. `Traitable.store_from_uri` opens it by URI and fills in credentials from the vault when the server requires them — no passwords in application code. MongoDB, PostgreSQL, and DuckDB are the same pattern:
+A Traitable Store is the Resource that persists objects. `Traitable.store_from_uri` opens it by URI and fills in credentials from the vault when the server requires them — no passwords in application code. MongoDB and PostgreSQL follow the same pattern; the DuckDB store is in-memory, for tests:
 
 ```python
 from datetime import date

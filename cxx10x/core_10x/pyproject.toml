@@ -44,6 +44,10 @@ build-dir = "../../build/py10x-build/py10x-kernel/{build_type}/{wheel_tag}"
 cmake.build-type = "Debug"
 editable.rebuild = true
 editable.verbose = false
+#-- the sdist ships copies of what CMakeLists.txt takes from outside this directory, made by its sdist-state configure
+sdist.cmake = true
+sdist.include = ["cmake/"]
+sdist.exclude = [".idea/", "cmake-build-*/"]
 
 [tool.scikit-build.cmake.define]
 XX_CXX_SANITIZERS = {env = "XX_CXX_SANITIZERS", default = "OFF"}
@@ -51,6 +55,15 @@ XX_CXX_SANITIZERS = {env = "XX_CXX_SANITIZERS", default = "OFF"}
 [[tool.scikit-build.overrides]]
 if.platform-system = "^win"
 cmake.args = ["-T", "v143,version=14.44"]
+
+#-- building the sdist (a configure that only copies files) and a wheel from it (pip's fallback where no wheel
+#-- matches): a throwaway build dir, not the editable one, and Release like the published wheels
+[[tool.scikit-build.overrides]]
+if.any.state = "sdist"
+if.any.from-sdist = true
+build-dir = ""
+cmake.build-type = "Release"
+editable.rebuild = false
 
 # cibuildwheel builds in isolation: throwaway build dir, no rebuild (it needs a persistent one).
 # Published wheels are always Release, whatever the local default above is.

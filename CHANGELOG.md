@@ -28,6 +28,7 @@ Changes since **0.3.0**. Coordinated with **py10x-kernel** and **py10x-infra** a
 - **Vault**: `OidcSecret` / `NamedOidc` resource for OIDC client secrets; functional accounts (`xx-functional-account-init`); new CLIs `xx-vault-setup-roles` and `xx-user-save-credentials`; suspended users. The master password key is now salted scrypt (existing records still load) and is stored only in OS-native keyrings or the functional-account keyring. See `docs/VAULT_SECURITY_DESIGN.md`.
 - **Docker image**: each release publishes the functional-account runtime image (`docker/Dockerfile`, linux/amd64 and linux/arm64) as `ghcr.io/10x-software/py10x-core:<version>`; `:latest` / `:prod` follow final releases and `:pre` release candidates.
 - **Linux aarch64 wheels** for py10x-kernel and py10x-infra.
+- **sdists** for py10x-kernel and py10x-infra: where no wheel matches, pip builds a Release wheel from source. This needs a C++20 compiler, `git` and network access; see [INSTALLATION.md](INSTALLATION.md#optional-building-native-dependencies-from-source).
 - **MongoDB URI**: `directConnection` and short parameter aliases.
 - **UI** (`ui_10x/`): table view on both Qt and Rio; dialog `on_open` callback; optional `parent` for trait edit dialogs and the date picker; traitable editor tracks changes across editors and sizes widgets to content; choices may be selected by label or value.
 

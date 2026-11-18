@@ -27,6 +27,10 @@ If either applies, install one of:
 - **macOS**: Xcode Command Line Tools (Clang) or GCC 10+
 - **Windows**: MSVC 2022+ (Visual Studio 2022 Build Tools or full IDE) with the *Desktop development with C++* workload
 
+The build also fetches pybind11 and backward-cpp from GitHub, so it needs `git` and network access. On Windows it
+uses the MSVC 14.44 toolset (`v143,version=14.44`), which must be installed: py10x extension modules built with
+different MSVC versions are not ABI-compatible.
+
 ### Optional Database Dependencies
 
 **Traitable Store backends** (for persistence examples and optional full test coverage):
@@ -310,26 +314,25 @@ Check: `psql -h localhost -d postgres -c "SELECT current_user"` prints your user
 
 ## Build System
 
-`py10x-core` uses the `ux` abstraction layer that provides unified APIs across different UI backends (Rio and Qt6). The `ux` layer automatically:
-
-- Detects available UI frameworks
-- Selects the appropriate backend based on installed packages
-- Falls back gracefully when dependencies are missing
+`py10x-core` uses the `ux` abstraction layer that provides unified APIs across different UI backends (Rio and Qt6).
+Without `UI_PLATFORM`, it picks Rio if `rio` is already imported and Qt6 otherwise; it does not check which backends
+are installed.
 
 ### UI Backend Selection
 
 **Contributors:** the development install already includes Rio and Qt (the `extras` dependency
 group) — see [CONTRIBUTING.md](CONTRIBUTING.md#development-setup).
 
-For **user** installs, you can override backend selection with:
+For **user** installs, install the backend's extra and select it with `UI_PLATFORM` (`Rio` or `Qt6`; any other value
+raises `ImportError`):
 
 ```bash
-# Force Rio UI backend
+# Rio UI backend
 export UI_PLATFORM=Rio
 uv sync --extra rio
 
-# Force Qt6 UI backend
-export UI_PLATFORM=Qt
+# Qt6 UI backend
+export UI_PLATFORM=Qt6
 uv sync --extra qt
 ```
 
