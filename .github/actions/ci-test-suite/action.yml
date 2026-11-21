@@ -110,24 +110,9 @@ runs:
     - name: Stage ASan runtime next to the .pyd
       if: inputs.asan == 'true' && inputs.runner-os == 'Windows'
       shell: bash
-      run: |
-        set -euo pipefail
-        venv="${GITHUB_WORKSPACE}/.venv"
-        # Python 3.8+ won't load an extension's dependency DLLs from PATH (only system/exe/.pyd dirs),
-        # so copy the clang_rt ASan runtime next to every .pyd and the venv Scripts dir. (PDBs are
-        # already installed beside each .pyd, so cdb symbolizes from there.)
-        # The runtime must come from the pinned toolset that linked the .pyd (versions.cmake), not the
-        # image default in VCToolsInstallDir: MSVC ASan DLLs don't match across toolset versions, and
-        # 14.52's lacks exports a 14.44 build imports (c0000139 on import).
-        msvc="$(sed -n 's/^set(PY10X_REQUIRED_MSVC_VERSION \([0-9]\{4\}\)).*/\1/p' "${GITHUB_WORKSPACE}/cxx10x/cmake/versions.cmake")"
-        [ -n "$msvc" ] || { echo "PY10X_REQUIRED_MSVC_VERSION not found in cxx10x/cmake/versions.cmake"; exit 1; }
-        toolset="14.${msvc:2:2}"  # MSVC_VERSION 19xx ships as toolset 14.xx
-        asan="$(find "$(cygpath -u "$VCINSTALLDIR")Tools/MSVC" -path "*/MSVC/${toolset}.*/bin/Hostx64/x64/clang_rt.asan_dynamic-x86_64.dll" 2>/dev/null | head -1)"
-        [ -n "$asan" ] || { echo "clang_rt.asan_dynamic-x86_64.dll for MSVC ${toolset} not found under ${VCINSTALLDIR}Tools\\MSVC"; exit 1; }
-        echo "ASan runtime: $asan"
-        { echo "$venv/Scripts"; find "$venv" -name '*.pyd' -exec dirname {} \; ; } | sort -u | while IFS= read -r d; do
-          [ -d "$d" ] && cp -f "$asan" "$d/"
-        done
+      # The pinned toolset's clang_rt ASan DLL, checked against the .pyds' imports (see the script).
+      # PDBs are already installed beside each .pyd, so cdb symbolizes from there.
+      run: .venv/Scripts/python.exe .github/scripts/stage-asan-runtime.py
 
     - name: Locate cdb
       if: inputs.asan == 'true' && inputs.runner-os == 'Windows'
