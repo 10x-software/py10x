@@ -122,8 +122,10 @@ runs:
         msvc="$(sed -n 's/^set(PY10X_REQUIRED_MSVC_VERSION \([0-9]\{4\}\)).*/\1/p' "${GITHUB_WORKSPACE}/cxx10x/cmake/versions.cmake")"
         [ -n "$msvc" ] || { echo "PY10X_REQUIRED_MSVC_VERSION not found in cxx10x/cmake/versions.cmake"; exit 1; }
         toolset="14.${msvc:2:2}"  # MSVC_VERSION 19xx ships as toolset 14.xx
-        asan="$(find "$(cygpath -u "$VCINSTALLDIR")Tools/MSVC" -path "*/MSVC/${toolset}.*/bin/Hostx64/x64/clang_rt.asan_dynamic-x86_64.dll" 2>/dev/null | head -1)"
-        [ -n "$asan" ] || { echo "clang_rt.asan_dynamic-x86_64.dll for MSVC ${toolset} not found under ${VCINSTALLDIR}Tools\\MSVC"; exit 1; }
+        # -ipath: the side-by-side 14.44 toolset spells it bin/HostX64 (14.52: Hostx64); Git Bash's find is case-sensitive.
+        tools="$(cygpath -u "$VCINSTALLDIR")Tools/MSVC"
+        asan="$(find "$tools" -ipath "*/MSVC/${toolset}.*/bin/Hostx64/x64/clang_rt.asan_dynamic-x86_64.dll" 2>/dev/null | head -1)"
+        [ -n "$asan" ] || { echo "clang_rt.asan_dynamic-x86_64.dll for MSVC ${toolset} not found; ASan DLLs present:"; find "$tools" -iname 'clang_rt.asan*.dll' || true; exit 1; }
         echo "ASan runtime: $asan"
         { echo "$venv/Scripts"; find "$venv" -name '*.pyd' -exec dirname {} \; ; } | sort -u | while IFS= read -r d; do
           [ -d "$d" ] && cp -f "$asan" "$d/"
