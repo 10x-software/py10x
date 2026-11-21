@@ -65,19 +65,23 @@ class QuotableOverride(Bundle, MktDataBasis):
     quotable_class: type[MktQuotable]   = T(T.ID)
 
     @classmethod
-    def save_many(cls, quotable: MktQuotable, end_date: date = None, **kwargs) -> RC:
+    def save_many(cls, quotable: MktQuotable, end_date: date = None, replace = False, **kwargs) -> RC:
         quotable_class  = quotable.__class__
         calendar        = quotable.mkt_conventions.calendar
         start_date      = quotable.md_date
         end_date        = end_date or start_date
         dt_range        = (date.fromordinal(dt) for dt in range(start_date.toordinal(), end_date.toordinal()+1))
+        overrides       = (
+            cls.new_or_update(
+                quotable_class=quotable_class,
+                **cls.id_values(quotable) | {'md_date': dt},
+                **kwargs
+            ) for dt in dt_range
+        )
         return sum(
             (
-                QuotableOverrideMissingTenor.new_or_update(
-                    quotable_class = quotable_class,
-                    **cls.id_values(quotable) | {'md_date': dt},
-                    **kwargs
-                ).save() for dt in dt_range if calendar.is_bizday(dt)
+                override.save() for override in overrides
+                if calendar.is_bizday(override.md_date) and (replace or not override.get_revision())
             ),
             RC(True)
         )
@@ -92,7 +96,7 @@ class QuotableOverride(Bundle, MktDataBasis):
             f(
                 f(
                     f(**cls.id_values(quotable)),
-                    quotable.__class__.s_bclass,
+                    quotable.s_dir,
                 ),
                 quotable_class = quotable.__class__,
             )
