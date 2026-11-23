@@ -7,7 +7,7 @@ aiofiles==25.1.0 ; python_full_version >= '3.11.5' and sys_platform != 'emscript
     # via py10x-core
 alt-pytest-asyncio==0.9.5 ; python_full_version >= '3.11.5' and sys_platform != 'emscripten'
     # via py10x-core
-annotated-doc==0.0.6 ; python_full_version >= '3.11.5' and sys_platform != 'emscripten'
+annotated-doc==0.0.7 ; python_full_version >= '3.11.5' and sys_platform != 'emscripten'
     # via fastapi
 annotated-types==0.8.0 ; python_full_version >= '3.11.5' and sys_platform != 'emscripten'
     # via pydantic
@@ -36,7 +36,7 @@ backports-tarfile==1.2.0 ; python_full_version >= '3.11.5' and python_full_versi
     # via jaraco-context
 beautifulsoup4==4.15.0 ; python_full_version >= '3.11.5' and sys_platform != 'emscripten'
     # via yfinance
-blessed==1.52.0 ; python_full_version >= '3.11.5' and sys_platform != 'emscripten'
+blessed==1.53.0 ; python_full_version >= '3.11.5' and sys_platform != 'emscripten'
     # via revel
 blpapi==3.26.10.1 ; python_full_version >= '3.11.5' and sys_platform != 'emscripten'
     # via py10x-fin-base
@@ -48,7 +48,7 @@ cattrs==24.1.3 ; python_full_version >= '3.11.5' and python_full_version < '3.12
     # via requests-cache
 cattrs==26.2.1 ; python_full_version >= '3.12' and sys_platform != 'emscripten'
     # via requests-cache
-certifi==2026.10.23 ; python_full_version >= '3.11.5' and sys_platform != 'emscripten'
+certifi==2026.11.20 ; python_full_version >= '3.11.5' and sys_platform != 'emscripten'
     # via
     #   curl-cffi
     #   requests
@@ -59,7 +59,7 @@ cffi==2.1.1 ; python_full_version >= '3.11.5' and sys_platform != 'emscripten'
     #   curl-cffi
 chardet==7.7.0 ; python_full_version >= '3.11.5' and sys_platform != 'emscripten'
     # via encutils
-charset-normalizer==3.5.2 ; python_full_version >= '3.11.5' and sys_platform != 'emscripten'
+charset-normalizer==3.5.3 ; python_full_version >= '3.11.5' and sys_platform != 'emscripten'
     # via requests
 click==8.5.1 ; python_full_version >= '3.11.5' and sys_platform != 'emscripten'
     # via uvicorn
@@ -80,9 +80,9 @@ contourpy==1.3.3 ; python_full_version >= '3.11.5' and python_full_version < '3.
     # via matplotlib
 contourpy==1.4.0 ; python_full_version >= '3.12' and sys_platform != 'emscripten'
     # via matplotlib
-coverage==7.17.3 ; python_full_version >= '3.11.5' and sys_platform != 'emscripten'
+coverage==7.17.5 ; python_full_version >= '3.11.5' and sys_platform != 'emscripten'
     # via pytest-cov
-crawlerdetect==0.4.2 ; python_full_version >= '3.11.5' and sys_platform != 'emscripten'
+crawlerdetect==0.4.3 ; python_full_version >= '3.11.5' and sys_platform != 'emscripten'
     # via rio-ui
 cryptography==50.0.2 ; python_full_version >= '3.11.5' and sys_platform != 'emscripten'
     # via
@@ -164,17 +164,17 @@ jaraco-functools==4.6.0 ; python_full_version >= '3.11.5' and sys_platform != 'e
     # via keyring
 jax==0.10.2 ; python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform != 'emscripten'
     # via py10x-core
-jax==0.12.0.1 ; python_full_version >= '3.12' and sys_platform != 'emscripten'
+jax==0.12.1 ; python_full_version >= '3.12' and sys_platform != 'emscripten'
     # via py10x-core
 jaxlib==0.10.2 ; python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform != 'emscripten'
     # via jax
-jaxlib==0.12.0.1 ; python_full_version >= '3.12' and sys_platform != 'emscripten'
+jaxlib==0.12.1 ; python_full_version >= '3.12' and sys_platform != 'emscripten'
     # via jax
 jeepney==0.9.0 ; python_full_version >= '3.11.5' and sys_platform == 'linux'
     # via
     #   keyring
     #   secretstorage
-jinxed==2.1.0 ; python_full_version >= '3.11.5' and sys_platform != 'emscripten'
+jinxed==2.1.1 ; python_full_version >= '3.11.5' and sys_platform != 'emscripten'
     # via blessed
 keyring==25.7.0 ; python_full_version >= '3.11.5' and sys_platform != 'emscripten'
     # via py10x-core
@@ -206,7 +206,7 @@ matplotlib==3.11.2 ; python_full_version >= '3.11.5' and sys_platform != 'emscri
     # via py10x-core
 mdurl==0.1.2 ; python_full_version >= '3.11.5' and sys_platform != 'emscripten'
     # via markdown-it-py
-ml-dtypes==0.6.0 ; python_full_version >= '3.11.5' and sys_platform != 'emscripten'
+ml-dtypes==0.7.0 ; python_full_version >= '3.11.5' and sys_platform != 'emscripten'
     # via
     #   jax
     #   jaxlib
@@ -221,7 +221,7 @@ multipart==2.0.1 ; python_full_version >= '3.11.5' and sys_platform != 'emscript
     # via rio-ui
 mypy-extensions==1.2.0 ; python_full_version >= '3.11.5' and sys_platform != 'emscripten'
     # via isort
-narwhals==2.28.0 ; python_full_version >= '3.11.5' and sys_platform != 'emscripten'
+narwhals==2.29.0 ; python_full_version >= '3.11.5' and sys_platform != 'emscripten'
     # via
     #   rio-ui
     #   xbbg
@@ -286,7 +286,7 @@ pillow==13.0.0 ; python_full_version >= '3.11.5' and sys_platform != 'emscripten
     # via
     #   matplotlib
     #   rio-ui
-platformdirs==4.14.5 ; python_full_version >= '3.11.5' and sys_platform != 'emscripten'
+platformdirs==4.14.8 ; python_full_version >= '3.11.5' and sys_platform != 'emscripten'
     # via
     #   licensecheck
     #   requests-cache
@@ -325,12 +325,12 @@ pybind11-stubgen==2.5.5 ; python_full_version >= '3.11.5' and sys_platform != 'e
     # via py10x-core
 pycparser==3.12 ; python_full_version >= '3.11.5' and implementation_name != 'PyPy' and sys_platform != 'emscripten'
     # via cffi
-pydantic==2.14.3 ; python_full_version >= '3.11.5' and sys_platform != 'emscripten'
+pydantic==2.14.4 ; python_full_version >= '3.11.5' and sys_platform != 'emscripten'
     # via
     #   depgather
     #   fastapi
     #   licensecheck
-pydantic-core==2.50.4 ; python_full_version >= '3.11.5' and sys_platform != 'emscripten'
+pydantic-core==2.50.5 ; python_full_version >= '3.11.5' and sys_platform != 'emscripten'
     # via pydantic
 pyee==13.0.1 ; python_full_version >= '3.11.5' and sys_platform != 'emscripten'
     # via playwright
@@ -338,7 +338,7 @@ pygments==2.21.0 ; python_full_version >= '3.11.5' and sys_platform != 'emscript
     # via
     #   pytest
     #   rich
-pymongo==4.20.0 ; python_full_version >= '3.11.5' and sys_platform != 'emscripten'
+pymongo==4.20.1 ; python_full_version >= '3.11.5' and sys_platform != 'emscripten'
     # via py10x-core
 pyobjc-core==13.0 ; python_full_version >= '3.11.5' and sys_platform == 'darwin'
     # via
@@ -407,7 +407,7 @@ pywebview==6.2.1 ; python_full_version >= '3.11.5' and sys_platform != 'emscript
     # via webview-proc
 pywin32-ctypes==0.2.3 ; python_full_version >= '3.11.5' and sys_platform == 'win32'
     # via keyring
-pyyaml==6.0.3 ; python_full_version >= '3.11.5' and sys_platform != 'emscripten'
+pyyaml==6.0.4 ; python_full_version >= '3.11.5' and sys_platform != 'emscripten'
     # via uvicorn
 qtpy==2.4.3 ; python_full_version >= '3.11.5' and sys_platform == 'openbsd6'
     # via pywebview
@@ -470,7 +470,7 @@ setuptools-scm==10.3.4 ; python_full_version >= '3.11.5' and sys_platform != 'em
     #   py10x-fin-base
 six==1.17.0 ; python_full_version >= '3.11.5' and sys_platform != 'emscripten'
     # via python-dateutil
-soupsieve==4.1.1 ; python_full_version >= '3.11.5' and sys_platform != 'emscripten'
+soupsieve==4.1.3 ; python_full_version >= '3.11.5' and sys_platform != 'emscripten'
     # via beautifulsoup4
 sqlglot==30.15.0 ; python_full_version >= '3.11.5' and sys_platform != 'emscripten'
     # via
@@ -534,7 +534,7 @@ uniserde==0.4.1 ; python_full_version >= '3.11.5' and sys_platform != 'emscripte
     #   imy
     #   rio-ui
     #   unicall
-url-normalize==3.1.0 ; python_full_version >= '3.11.5' and sys_platform != 'emscripten'
+url-normalize==4.0.0 ; python_full_version >= '3.11.5' and sys_platform != 'emscripten'
     # via requests-cache
 urllib3==2.8.0 ; python_full_version >= '3.11.5' and sys_platform != 'emscripten'
     # via
@@ -544,7 +544,7 @@ uuid6==2025.0.1 ; python_full_version >= '3.11.5' and sys_platform != 'emscripte
     # via
     #   py10x-core
     #   py10x-kernel
-uv==0.13.8 ; python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform != 'emscripten'
+uv==0.13.9 ; python_full_version >= '3.11.5' and python_full_version < '3.12' and sys_platform != 'emscripten'
     # via
     #   licensecheck
     #   py10x-core
@@ -558,7 +558,7 @@ watchfiles==1.3.0 ; python_full_version >= '3.11.5' and sys_platform != 'emscrip
     # via
     #   rio-ui
     #   uvicorn
-wcwidth==0.9.4 ; python_full_version >= '3.11.5' and sys_platform != 'emscripten'
+wcwidth==0.9.5 ; python_full_version >= '3.11.5' and sys_platform != 'emscripten'
     # via blessed
 websockets==17.4 ; python_full_version >= '3.11.5' and sys_platform != 'emscripten'
     # via
