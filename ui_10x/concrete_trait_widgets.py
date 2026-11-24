@@ -36,6 +36,13 @@ class LineEditWidget(TraitWidget, ux.LineEdit, widget_type = Ui.WIDGET_TYPE.LINE
                 ##value = self.trait.from_str(str_value)
                 self.update_trait_value(value = str_value, invalidate = False)
 
+    #-- the clipboard on a right click: restore once UxClipBoard.popup() is ported (and UxClipBoard imported)
+    # def mouse_press_event(self, event: ux.MouseEvent):
+    #     if event.is_right_button() and not self.trait_editor.is_read_only():
+    #         UxClipBoard().popup(self, self.trait_editor.traitable, self.trait.name)
+    #     else:
+    #         ux.LineEdit.mouse_press_event(self, event)  #-- every other click, or Qt doesn't even place the cursor
+
     def _set_read_only(self, flag):
         self.set_read_only(flag)
 
