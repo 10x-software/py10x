@@ -6,7 +6,7 @@ from core_10x.trait import Ui
 
 from ui_10x.choice import Choice
 from ui_10x.trait_widget import TraitWidget
-from ui_10x.utils import UxClipBoard, ux, ux_push_button
+from ui_10x.utils import ux, ux_push_button
 
 if TYPE_CHECKING:
     from core_10x.trait import Trait
@@ -36,14 +36,6 @@ class LineEditWidget(TraitWidget, ux.LineEdit, widget_type = Ui.WIDGET_TYPE.LINE
                 ##value = self.trait.from_str(str_value)
                 self.update_trait_value(value = str_value, invalidate = False)
 
-    def mouse_press_event(self, event: ux.MouseEvent):
-        if event.is_right_button():
-            if not self.trait_editor.is_read_only():
-                cb = UxClipBoard()
-                cb.popup(self, self.traitable, self.trait.name)
-            else:
-                ux.LineEdit.mouse_press_event(self, event)
-
     def _set_read_only(self, flag):
         self.set_read_only(flag)
 
@@ -59,13 +51,24 @@ class LineEditWidget(TraitWidget, ux.LineEdit, widget_type = Ui.WIDGET_TYPE.LINE
 class TextEditWidget(TraitWidget, ux.TextEdit, widget_type = Ui.WIDGET_TYPE.TEXT):
     def _create(self):
         ux.TextEdit.__init__(self)
+        self.shown_text = ''
 
     def display_text(self) -> str:
         return self.to_plain_text()
 
     def focus_out_event(self, event):
-        value = self._value()
+        ux.TextEdit.focus_out_event(self, event)
+        text = self.to_plain_text()
+        if text == self.shown_text:  #-- focus just passed through: writing back would pin a computed value
+            return
+
+        self.shown_text = text
+        value           = self._value()
         self.update_trait_value(value = value) if value else self.update_trait_value(invalidate = True)
+
+    def _show(self, text: str):
+        self.set_plain_text(text)
+        self.shown_text = self.to_plain_text()  #-- as the widget reports it back (Qt may normalize line breaks)
 
     def _set_read_only(self, flag):
         self.set_read_only(flag)
@@ -76,7 +79,7 @@ class TextEditWidget(TraitWidget, ux.TextEdit, widget_type = Ui.WIDGET_TYPE.TEXT
     def _set_value(self, value):
         if not isinstance(value, str):
             value = ''
-        self.set_plain_text(value)
+        self._show(value)
 
 
 class TextEditForListWidget(TextEditWidget, widget_type = Ui.WIDGET_TYPE.TEXT4LIST):
@@ -87,7 +90,7 @@ class TextEditForListWidget(TextEditWidget, widget_type = Ui.WIDGET_TYPE.TEXT4LI
     def _set_value(self, value):
         if not isinstance(value, list):
             raise TypeError('list is expected')
-        self.set_plain_text('\n'.join(value))
+        self._show('\n'.join(value))
 
 
 class PasswordWidget(LineEditWidget, widget_type = Ui.WIDGET_TYPE.PASSWORD):
