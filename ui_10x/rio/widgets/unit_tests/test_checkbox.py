@@ -1,7 +1,7 @@
 import asyncio
 
 import rio.testing
-from ui_10x.rio.browser_helpers import wait_for_checkbox_state
+from ui_10x.rio.testlib.browser_helpers import wait_for_checkbox_state
 from ui_10x.rio.component_builder import DynamicComponent
 from ui_10x.rio.widgets import CheckBox
 

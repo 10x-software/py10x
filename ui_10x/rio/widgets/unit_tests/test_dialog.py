@@ -11,7 +11,7 @@ from __future__ import annotations
 import asyncio
 
 import rio.testing
-from ui_10x.rio.browser_helpers import UI_SETTLE_S
+from ui_10x.rio.testlib.browser_helpers import UI_SETTLE_S
 from ui_10x.rio.component_builder import DynamicComponent, UserSessionContext, session_context
 from ui_10x.rio.widgets import Label
 from ui_10x.rio.widgets.dialog import Dialog

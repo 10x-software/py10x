@@ -88,7 +88,7 @@ def test_bbg_adaptor_reproduces_dev_data_quotes(bbg_connector_mode):
         for pc in pcs:
             for q_cls, q_stub in mqs.quotable_class_and_stubs_generator(pc.md_date):
                 found_classes.add(q_cls)
-                q_id_traits = {'mkt_name': mqs.mkt_name, **q_stub, **pc.md_basis}
+                q_id_traits = {'mkt_name': mqs.mkt_name, **q_stub, **pc.md_basis, '_ignore_unknown_traits': True}   #-- FX spot has no tenor
                 dev_q       = q_cls.existing_instance(**q_id_traits, _throw = False)
                 if not dev_q:
                     assert (mqs.mkt_name, pc.md_date) in EXPECTED_MISSING

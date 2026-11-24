@@ -1,7 +1,7 @@
 import asyncio
 
 import rio.testing.browser_client
-from ui_10x.rio.browser_helpers import (
+from ui_10x.rio.testlib.browser_helpers import (
     wait_for_button_client_text,
     wait_for_js_truthy,
     wait_for_pressable_sensitive,

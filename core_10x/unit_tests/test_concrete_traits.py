@@ -12,10 +12,10 @@ def _test_i(data_type: type, values, expected_values):
     assert len(values) == len(expected_values)
 
     class TestableTraitable(Traitable):
-        xid: int            = T(T.ID, default = 1)
+        key: int            = T(T.ID, default = 1)
         value: data_type    = T(1)  # noinspection PyTypeHints
 
-    p = TestableTraitable(xid = 1)
+    p = TestableTraitable(key = 1)
     for v, ev in zip(values, expected_values, strict = True):
         if isinstance(ev, type) and issubclass(ev, Exception):
             try:

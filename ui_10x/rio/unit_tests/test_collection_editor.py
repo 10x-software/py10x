@@ -8,7 +8,7 @@ import rio.testing.browser_client
 from core_10x.code_samples.person import Person
 from core_10x.exec_control import BTP, CACHE_ONLY, INTERACTIVE
 from ui_10x.collection_editor import Collection, CollectionEditor
-from ui_10x.rio.browser_helpers import (
+from ui_10x.rio.testlib.browser_helpers import (
     COLLECTION_EDITOR_TIMEOUT_MS,
     UI_SETTLE_S,
     click_client_button,
