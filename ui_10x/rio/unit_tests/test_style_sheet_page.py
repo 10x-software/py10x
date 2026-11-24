@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 import rio.testing.browser_client
-from ui_10x.rio.browser_helpers import UI_SETTLE_S
+from ui_10x.rio.testlib.browser_helpers import UI_SETTLE_S
 from ui_10x.rio.component_builder import DynamicComponent, UserSessionContext
 from ui_10x.utils import UxDialog
 

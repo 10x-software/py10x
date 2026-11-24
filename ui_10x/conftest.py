@@ -1,5 +1,7 @@
 import pytest
 
+pytest.register_assert_rewrite('ui_10x.testlib')
+
 
 @pytest.fixture(autouse = True)
 def setup_ui_platform(monkeypatch):

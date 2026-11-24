@@ -1,7 +1,7 @@
 import asyncio
 
 import rio.testing
-from ui_10x.rio.browser_helpers import wait_for_group_box_column_text, wait_for_group_box_counts
+from ui_10x.rio.testlib.browser_helpers import wait_for_group_box_column_text, wait_for_group_box_counts
 from ui_10x.rio.component_builder import DynamicComponent
 from ui_10x.rio.widgets import CheckBox, GroupBox, Label, PushButton
 

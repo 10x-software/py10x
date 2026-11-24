@@ -9,7 +9,7 @@ import rio.testing
 from core_10x.exec_control import BTP, CACHE_ONLY, INTERACTIVE
 from core_10x.traitable import RT, T, Traitable, Ui
 from ui_10x.concrete_trait_widgets import TextEditForListWidget
-from ui_10x.rio.browser_helpers import UI_SETTLE_S, wait_for_js_value
+from ui_10x.rio.testlib.browser_helpers import UI_SETTLE_S, wait_for_js_value
 from ui_10x.rio.component_builder import DynamicComponent, UserSessionContext, session_context
 from ui_10x.traitable_editor import TraitableEditor
 

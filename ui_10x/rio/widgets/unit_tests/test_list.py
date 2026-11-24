@@ -1,7 +1,7 @@
 import asyncio
 
 import rio.testing.browser_client
-from ui_10x.rio.browser_helpers import UI_SETTLE_S, wait_for_list_item_count, wait_for_list_selection
+from ui_10x.rio.testlib.browser_helpers import UI_SETTLE_S, wait_for_list_item_count, wait_for_list_selection
 from ui_10x.rio.component_builder import DynamicComponent
 from ui_10x.rio.widgets import ListWidget
 

@@ -3,7 +3,7 @@ import asyncio
 import pytest
 import rio.testing
 from ui_10x import platform_interface as i
-from ui_10x.rio.browser_helpers import (
+from ui_10x.rio.testlib.browser_helpers import (
     wait_for_line_edit_disabled,
     wait_for_line_edit_tooltip,
     wait_for_line_edit_type,

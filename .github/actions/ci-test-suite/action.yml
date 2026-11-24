@@ -101,6 +101,9 @@ runs:
     - name: Setup PostgreSQL
       uses: ./.github/actions/setup-postgres
 
+    - name: Setup Qt
+      uses: ./.github/actions/setup-qt
+
     - name: Install Playwright chromium
       shell: bash
       run: |

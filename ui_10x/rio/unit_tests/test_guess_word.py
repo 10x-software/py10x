@@ -12,7 +12,7 @@ import rio.testing.browser_client
 from core_10x.exec_control import INTERACTIVE
 from ui_10x.examples import guess_word as gw
 from ui_10x.examples.guess_word import Game, _GuessWordData
-from ui_10x.rio.browser_helpers import (
+from ui_10x.rio.testlib.browser_helpers import (
     UI_SETTLE_S,
     click_client_button,
     ui_settle,

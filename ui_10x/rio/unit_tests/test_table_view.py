@@ -10,7 +10,7 @@ import rio.testing.browser_client
 import ui_10x.platform_interface as i
 from core_10x.exec_control import CACHE_ONLY
 from core_10x.traitable import RT, T, Traitable, Ui
-from ui_10x.rio.browser_helpers import UI_SETTLE_S, wait_for_js_truthy
+from ui_10x.rio.testlib.browser_helpers import UI_SETTLE_S, wait_for_js_truthy
 from ui_10x.rio.widgets.table import TableView
 
 import rio

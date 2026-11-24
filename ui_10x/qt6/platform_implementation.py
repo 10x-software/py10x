@@ -54,8 +54,18 @@ Color                           = QColor
 FontMetrics                     = QFontMetrics
 FontMetrics.__getattr__         = missing_attr
 
+#-- event handlers of the platform interface -> the virtuals Qt calls; __getattr__ only translates reads
+_EVENT_HANDLERS = {'mouse_press_event': 'mousePressEvent', 'focus_out_event': 'focusOutEvent'}
+
+def _define_qt_event_handlers(cls, **kwargs):
+    super(QWidget, cls).__init_subclass__(**kwargs)
+    for name, qt_name in _EVENT_HANDLERS.items():
+        if handler := cls.__dict__.get(name):
+            setattr(cls, qt_name, handler)
+
 Widget                          = QWidget
 Widget.__getattr__              = missing_attr
+Widget.__init_subclass__        = classmethod(_define_qt_event_handlers)
 
 Horizontal                      = Qt.Orientation.Horizontal
 Vertical                        = Qt.Orientation.Vertical
@@ -88,8 +98,10 @@ LineEdit                            = QLineEdit
 LineEdit.text_edited_connect        = lambda self, bound_method:    self.textEdited.connect(bound_method)
 LineEdit.editing_finished_connect   = lambda self, bound_method:  self.editingFinished.connect(bound_method)
 LineEdit.set_password_mode          = lambda self:                  self.setEchoMode(QLineEdit.EchoMode.Password)
+LineEdit.mouse_press_event          = QLineEdit.mousePressEvent     #-- the default an override passes the event on to
 
 TextEdit                        = QPlainTextEdit
+TextEdit.focus_out_event        = QPlainTextEdit.focusOutEvent
 
 CheckBox                        = QCheckBox
 CheckBox.state_changed_connect  = lambda self, bound_method:    self.stateChanged.connect(bound_method)
@@ -274,6 +286,10 @@ Separator                       = QLabel
 
 @cache
 def init(style = '') -> QApplication:
+    #-- Qt allows one QApplication per process: a cleared @cache memo (as after every test) must not make a second
+    if app := QApplication.instance():
+        return app
+
     if not style:
         style = platform.system()
 

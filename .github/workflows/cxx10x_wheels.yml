@@ -92,6 +92,9 @@ jobs:
       - name: Setup PostgreSQL
         uses: ./.github/actions/setup-postgres
 
+      - name: Setup Qt
+        uses: ./.github/actions/setup-qt
+
       - name: Install Playwright chromium
         run: uv run --no-sync playwright install --with-deps chromium
 

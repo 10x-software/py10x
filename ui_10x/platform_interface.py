@@ -78,6 +78,8 @@ class Color(abc.ABC, metaclass = ABCMetaSlotted): ...
 
 
 class Widget(abc.ABC, metaclass = ABCMetaSlotted):
+    """Qt deletes a widget's children with it, even ones Python still refers to; a Rio widget is just a Python object."""
+
     @abc.abstractmethod
     def __init__(self, *args, **kwargs) -> None: ...
 
@@ -169,7 +171,9 @@ class Splitter(Widget):
     def set_handle_width(self, width: int): ...
 
     @abc.abstractmethod
-    def set_stretch_factor(self, widget_index: int, factor: int): ...
+    def set_stretch_factor(self, widget_index: int, factor: int):
+        """Qt: the initial split only, each pane's size hint times its factor, so call it before the splitter is shown;
+        a resize keeps the panes' current proportions. Rio: the panes' proportions each time the splitter is built."""
 
     @abc.abstractmethod
     def replace_widget(self, widget_index: int, widget: Widget): ...
@@ -200,10 +204,12 @@ class LineEdit(Label, abc.ABC, metaclass = ABCMetaSlotted):
     def text(self) -> str: ...
 
     @abc.abstractmethod
-    def text_edited_connect(self, bound_method): ...
+    def text_edited_connect(self, bound_method):
+        """Calls `bound_method(text)`. Qt: at every keystroke; Rio: after a short delay, with the latest text."""
 
     @abc.abstractmethod
-    def editing_finished_connect(self, bound_method): ...
+    def editing_finished_connect(self, bound_method):
+        """Qt: on Enter, and on losing focus after a change; Rio: whenever focus is lost."""
 
     @abc.abstractmethod
     def set_read_only(self, readonly: bool): ...
@@ -215,7 +221,9 @@ class LineEdit(Label, abc.ABC, metaclass = ABCMetaSlotted):
     def set_tool_tip(self, tooltip: str): ...
 
     @abc.abstractmethod
-    def mouse_press_event(self, event: MouseEvent): ...
+    def mouse_press_event(self, event: MouseEvent):
+        """Override to handle clicks, passing the others on with `ux.LineEdit.mouse_press_event(self, event)`: without
+        it Qt doesn't even place the cursor. Qt: on press; Rio: on release."""
 
 
 class TextEdit(Widget, abc.ABC, metaclass = ABCMetaSlotted):
@@ -229,7 +237,9 @@ class TextEdit(Widget, abc.ABC, metaclass = ABCMetaSlotted):
     def set_read_only(self, readonly: bool): ...
 
     @abc.abstractmethod
-    def focus_out_event(self, event): ...
+    def focus_out_event(self, event):
+        """Override to act on losing focus, after `ux.TextEdit.focus_out_event(self, event)`. Called whether or not the
+        text was edited, in Qt also for a read-only widget."""
 
 
 class CheckBox(Label):
@@ -240,20 +250,24 @@ class CheckBox(Label):
     def is_checked(self) -> bool: ...
 
     @abc.abstractmethod
-    def state_changed_connect(self, bound_method): ...
+    def state_changed_connect(self, bound_method):
+        """Calls `bound_method(state)`. Qt: the int of a Qt.CheckState, 0 or 2; Rio: a bool."""
 
 
 class ComboBox(Widget): ...
 
 
 class GroupBox(Widget):
+    """`GroupBox(title)` or `GroupBox(parent)`. Qt: the parent owns the box; Rio ignores it."""
+
     @abc.abstractmethod
     def set_title(self, title: str): ...
 
 
 class RadioButton(Widget):
     @abc.abstractmethod
-    def set_checked(self, checked: bool): ...
+    def set_checked(self, checked: bool):
+        """In a ButtonGroup, unchecking the checked button leaves none checked in Rio, and does nothing in Qt."""
 
 
 class ButtonGroup(Widget):
@@ -279,6 +293,8 @@ MatchExactly = None
 
 
 class ListWidget(Widget):
+    """Clicking the selected item keeps it selected in Qt, and deselects it in Rio."""
+
     @abc.abstractmethod
     def add_item(self, item): ...
 
@@ -383,6 +399,8 @@ class CalendarWidget(Widget):
 
 
 class Dialog(Widget):
+    """Sized to its content, which text that wraps doesn't widen. Qt: by its layout's size hint; Rio: with a minimum width."""
+
     @abc.abstractmethod
     def set_window_title(self, title: str): ...
 
@@ -399,7 +417,9 @@ class Dialog(Widget):
     def set_modal(self, modal: bool): ...
 
     @abc.abstractmethod
-    def exec(self): ...
+    def exec(self):
+        """Qt: blocks until the dialog closes and returns its result. Rio: so too at top level, but in a session it
+        shows the dialog and returns at once, so use callbacks."""
 
     @abc.abstractmethod
     def show(self): ...

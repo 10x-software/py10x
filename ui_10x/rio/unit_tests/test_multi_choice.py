@@ -7,7 +7,7 @@ import asyncio
 import rio.testing.browser_client
 from core_10x.code_samples.directories import ANIMALS
 from ui_10x.choice import MultiChoice
-from ui_10x.rio.browser_helpers import (
+from ui_10x.rio.testlib.browser_helpers import (
     UI_SETTLE_S,
     wait_for_list_item_count,
     wait_for_selectable_item_text,

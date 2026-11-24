@@ -16,6 +16,7 @@ class TraitWidget:
     s_hinted_widgets = {}
 
     def __init_subclass__(cls, widget_type: Ui.WIDGET_TYPE = None, **kwargs):
+        super().__init_subclass__(**kwargs)     #-- the ux class may have its own (Qt's does)
         if widget_type:
             TraitWidget.s_hinted_widgets[widget_type] = cls
 
