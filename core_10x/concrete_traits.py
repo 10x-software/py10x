@@ -58,7 +58,7 @@ class bool_trait(primitive_trait, data_type = bool):
     s_fmt         = FORMATS[0]
 
     def to_id(self, value: bool) -> str:
-        return '0' if value else '1'
+        return '1' if value else '0'
 
     def from_str(self, s: str):
         res = super().from_str(s)
@@ -191,7 +191,7 @@ class date_trait(Trait, data_type = date):
         return XDateTime.str_to_date(value, format = XDateTime.FORMAT_X10)
 
     def to_id(self, value) -> str:
-        return XDateTime.date_to_str(value)
+        return XDateTime.date_to_str(value, format = XDateTime.FORMAT_X10)
 
 
 class bytes_trait(Trait, data_type = bytes):

@@ -1,8 +1,11 @@
+from datetime import date
+
 import pytest
 from core_10x.exec_control import INTERACTIVE
 from core_10x.traitable import RT, T, Traitable
 from core_10x.traitable_id import ID
 from core_10x.ts_store import TsStore
+from core_10x.xdate_time import XDateTime
 from py10x_kernel import BSaveRefs
 
 #----------------------------------------------------------------------------
@@ -293,3 +296,57 @@ def test_distinct_id_values_give_distinct_ids(first, second):
 ])
 def test_id_escapes_separator_and_backslash(x, y, expected):
     assert Pair(x = x, y = y).id().value == expected
+
+
+#----------------------------------------------------------------------------
+#   Date IDs do not depend on the display format
+#----------------------------------------------------------------------------
+
+
+class Dated(Traitable):
+    name: str   = RT(T.ID)
+    d: date     = RT(T.ID)
+    value: int  = RT()
+
+
+@pytest.fixture
+def set_date_format():
+    """Sets the process-wide display format, as the first read of EnvVars.date_format does; restores it after."""
+    original = XDateTime.s_default_format
+    yield XDateTime.set_default_format
+    XDateTime.set_default_format(original)
+
+
+@pytest.mark.parametrize('fmt', [XDateTime.FORMAT_ISO, XDateTime.FORMAT_US, XDateTime.FORMAT_EU])
+def test_date_id_does_not_depend_on_display_format(set_date_format, fmt):
+    set_date_format(XDateTime.FORMAT_X10)
+    before          = Dated(name = 'a', d = date(2026, 11, 15))
+    before.value    = 1
+    set_date_format(fmt)
+    after = Dated(name = 'a', d = date(2026, 11, 15))
+    assert after.id().value == before.id().value == 'a|20261115'
+    assert after.value == 1
+
+
+@pytest.mark.parametrize('fmt, expected', [
+    (XDateTime.FORMAT_ISO,  '2026-11-15'),
+    (XDateTime.FORMAT_US,   '11/15/2026'),
+])
+def test_date_display_follows_display_format(set_date_format, fmt, expected):
+    set_date_format(fmt)
+    assert Dated.trait('d').to_str(date(2026, 11, 15)) == expected
+
+
+#----------------------------------------------------------------------------
+#   Bool IDs
+#----------------------------------------------------------------------------
+
+
+class Flagged(Traitable):
+    name: str   = RT(T.ID)
+    on: bool    = RT(T.ID)
+
+
+@pytest.mark.parametrize('on, expected', [(True, 'a|1'), (False, 'a|0')])
+def test_bool_id_part(on, expected):
+    assert Flagged(name = 'a', on = on).id().value == expected

@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - **Endogenous IDs** (py10x-kernel; breaking for such data): in an ID of more than one part, each part is escaped (`\` → `\\`, `|` → `\|`) before joining with `|`. Distinct values could join to the same ID, e.g. `('a|', 'b')` and `('a', '|b')` both gave `a|||b`. Stored objects with such an ID whose values contain `|` or `\` get new IDs; all other IDs are unchanged.
 
+### Changed
+- **A `bool` ID trait** (breaking for such data) is written into the ID as `1` for `True` and `0` for `False`; it was the reverse. Stored objects with a `bool` ID trait get new IDs.
+
 ## [0.4.1] - 2026-11-18
 
 ### Fixed
