@@ -41,8 +41,8 @@ def _():
     **Running online:** [open this notebook on molab](https://molab.marimo.io/github/10x-software/py10x/blob/main/docs/notebooks/getting_started.py/server)
     (marimo's hosted service; sign in or create a free account to run cells).
 
-    **Four laws, in practice:** identity · dependency · persistence · presentation.
-    Here we exercise the first two interactively; persistence and derived UI are
+    **Five laws, in practice:** identity · dependency · persistence · presentation · resource.
+    Here we exercise the first two interactively; persistence, resources and derived UI are
     documented in the guides above.
     """)
     return

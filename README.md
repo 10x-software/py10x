@@ -11,9 +11,9 @@
 
 **10x** is about empowering engineers, researchers, and developers to become 10x more productive — not through better tooling at the edges, but by never rebuilding the same foundation twice. A **genaxy** is what makes that possible: a kind of system built around a small, generative core rather than assembled feature by feature. **10x Genaxy** is this one. This package (`py10x-core`) is its **substratum**.
 
-The **substratum** is that core: a handful of laws (principles), not a feature set. Today those are identity, dependency, persistence, and presentation; more may join them. Everything else follows from these. They aren't a checklist to memorize — they're vocabulary for describing a real-world problem, before any specific technology gets chosen.
+The **substratum** is that core: a handful of laws (principles), not a feature set. Today those are identity, dependency, persistence, presentation, and resource; more may join them. Everything else follows from these. They aren't a checklist to memorize — they're vocabulary for describing a real-world problem, before any specific technology gets chosen.
 
-That core is **generative**: you describe the entity — what it is, what it depends on, where it is stored, how it should be presented and interacted with — and the application, the report, the service you needed falls out of that description, largely for free.
+That core is **generative**: you describe the entity — what it is, what it depends on, where it is stored, how it should be presented and interacted with, what it needs from the world outside — and the application, the report, the service you needed falls out of that description, largely for free.
 
 Around the substratum sit **subject domains** — real fields of work, each built on the same core instead of reinventing it. Finance is the first (`py10x-fin-base`). More will follow. Domains surround the substratum the way planets surround a star — independent, distinct, but held by the same laws.
 
@@ -21,7 +21,7 @@ Most software is built domain-first: a finance system, a healthcare system, a lo
 
 10x Genaxy isn't the first genaxy — SecDb, Athena, and others came before it (See [lineage](LINEAGE.md)).
 
-**Another way to see it.** C++ took C and made objects first-class — data and behavior bundled together, without leaving C behind. 10x Genaxy does the same for Python, one level up: objects that know *who they are* (identity), *what they depend on* (dependency), *where they live* (persistence), and *how they look* (presentation). It is still Python — nothing new to compile, no new syntax — just with the four laws built in. If it helps, think of it as **Python++**.
+**Another way to see it.** C++ took C and made objects first-class — data and behavior bundled together, without leaving C behind. 10x Genaxy does the same for Python, one level up: objects that know *who they are* (identity), *what they depend on* (dependency), *where they live* (persistence), *how they look* (presentation), and *what they need from outside* (resource). It is still Python — nothing new to compile, no new syntax — just with the five laws built in. If it helps, think of it as **Python++**.
 
 In this README:
 
@@ -63,11 +63,13 @@ with CACHE_ONLY(), GRAPH_ON():
     print(dev2.energy)          # 120  ← shared via global cache
 ```
 
-Two of the four laws, in nine lines: `handle` is the *identity*, `energy` is a *dependency* on `coffee_cups`, tracked and recomputed automatically.
+Two of the five laws, in nine lines: `handle` is the *identity*, `energy` is a *dependency* on `coffee_cups`, tracked and recomputed automatically.
 
 ---
 
 ## 💾 Everything Is a Resource
+
+Resource is the fifth law: what a component *needs* is kept apart from *how and where* that need is provided, so an application is never tied to one particular database, server, cluster, or environment.
 
 Real systems rarely live in one database. 10x Genaxy treats every external dependency — a MongoDB cluster, a Postgres box, a DuckDB file, a credentials vault — as a `Resource`: addressed by a plain URI, resolved to a concrete driver through a small, pluggable registry. The Traitable Store you persist objects to is just one kind of `Resource`, alongside anything else your system depends on.
 

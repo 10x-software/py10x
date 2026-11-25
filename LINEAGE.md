@@ -42,7 +42,7 @@ The story above is personal, because it happened to me before 10x Genaxy existed
 
 That core is the **substratum**: a small set of laws (the underlying principles) from which the rest of the system is derived. Subject domains surround it the way planets surround a star — independent, distinct, but held by the same laws. SecDb, Athena, Quartz, and Beacon were genaxies; each had a substratum, and none could leave the building.
 
-**10x Genaxy** is this genaxy. Its substratum is the reusable 80% every industry-specific platform ends up building — identity, dependency tracking, persistence, and presentation — so a team only has to build the 20% that's actually theirs.
+**10x Genaxy** is this genaxy. Its substratum is the reusable 80% every industry-specific platform ends up building — identity, dependency tracking, persistence, presentation, and resources — so a team only has to build the 20% that's actually theirs.
 
 Concretely: `py10x-core` (the substratum) is a domain-agnostic Python framework built around a single idea — objects with deterministic identity (`Traitable`s), organized in a dependency graph that computes lazily and updates automatically, persisted transparently to whatever storage a team already runs. Finance is the first domain built on top of it (`py10x-fin-base`), but nothing about the core is finance-specific. Any subject domain with derived state and shared entities can build on the same foundation instead of reinventing it.
 
