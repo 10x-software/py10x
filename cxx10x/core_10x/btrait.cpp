@@ -7,6 +7,7 @@
 #include "btrait.h"
 #include "btraitable.h"
 #include "btraitable_processor.h"
+#include "stack_check.h"
 
 bool BTrait::s_use_instrumented_getters = false;
 
@@ -43,6 +44,7 @@ py::error_already_set BTrait::trait_error(const py::error_already_set &exc, BTra
 
 py::object BTrait::wrapper_f_get(BTraitable* obj) const {
     try {
+        check_stack();
         //-- f_get_instrumented may be unset (this trait was never actually instrumented) even
         // while instrumentation is active process-wide elsewhere -- fall back to f_get rather
         // than calling None.
@@ -55,6 +57,7 @@ py::object BTrait::wrapper_f_get(BTraitable* obj) const {
 
 py::object BTrait::wrapper_f_get(BTraitable* obj, const py::args& args) const {
     try {
+        check_stack();
         bool use_instrumented = s_use_instrumented_getters && !f_get_instrumented.is_none();
         return use_instrumented ? f_get_instrumented(obj, *args) : f_get(obj, *args);
     } catch (py::error_already_set& exc) {
@@ -64,6 +67,7 @@ py::object BTrait::wrapper_f_get(BTraitable* obj, const py::args& args) const {
 
 py::object BTrait::wrapper_f_set(BTraitable* obj, const py::object& value) const {
     try {
+        check_stack();
         return f_set(obj, this, value);
     } catch (py::error_already_set& exc) {
         throw trait_error(exc, obj, f_set, &value, nullptr);
@@ -72,6 +76,7 @@ py::object BTrait::wrapper_f_set(BTraitable* obj, const py::object& value) const
 
 py::object BTrait::wrapper_f_set(BTraitable* obj, const py::object& value, const py::args& args) const {
     try {
+        check_stack();
         return f_set(obj, this, value, *args);
     } catch (py::error_already_set& exc) {
         throw trait_error(exc, obj, f_set, &value, &args);
@@ -91,6 +96,7 @@ py::object BTrait::wrapper_f_verify(BTraitable* obj, const py::object& value) co
         return PyLinkage::RC_TRUE();
 
     try {
+        check_stack();
         return f_verify(obj, this, value);
     } catch (py::error_already_set& exc) {
         throw trait_error(exc, obj, f_verify, &value, nullptr);
@@ -99,10 +105,10 @@ py::object BTrait::wrapper_f_verify(BTraitable* obj, const py::object& value) co
 
 py::object BTrait::wrapper_f_from_str(BTraitable* obj, const py::object& value) const {
     try {
+        check_stack();
         auto res = f_from_str(obj, this, value);
         if (res.is(PyLinkage::XNone()))
-            throw py::type_error(py::str("{}.{} - failed to convert from '{}'")
-            .format(obj->class_name(), name(), value));
+            throw py::type_error(py::str("{}.{} - failed to convert from '{}'").format(obj->class_name(), name(), value));
 
         return res;
     } catch (py::error_already_set& exc) {
@@ -112,10 +118,10 @@ py::object BTrait::wrapper_f_from_str(BTraitable* obj, const py::object& value) 
 
 py::object BTrait::wrapper_f_from_any_xstr(BTraitable* obj, const py::object& value) const {
     try {
+        check_stack();
         auto res = f_from_any_xstr(obj, this, value);
         if (res.is(PyLinkage::XNone()))
-            throw py::type_error(py::str("{}.{} - failed to convert from '{}'")
-                                         .format(obj->class_name(), name(), value));
+            throw py::type_error(py::str("{}.{} - failed to convert from '{}'").format(obj->class_name(), name(), value));
         return res;
     } catch (py::error_already_set& exc) {
         throw trait_error(exc, obj, f_from_any_xstr, &value, nullptr);
@@ -124,6 +130,7 @@ py::object BTrait::wrapper_f_from_any_xstr(BTraitable* obj, const py::object& va
 
 bool BTrait::wrapper_f_is_acceptable_type(BTraitable* obj, const py::object& value) const {
     try {
+        check_stack();
         auto res = f_is_acceptable_type(obj, this, value);
         return py::cast<bool>(res);
     } catch (py::error_already_set& exc) {
@@ -133,6 +140,7 @@ bool BTrait::wrapper_f_is_acceptable_type(BTraitable* obj, const py::object& val
 
 py::object BTrait::wrapper_f_to_str(BTraitable* obj, const py::object& value) const {
     try {
+        check_stack();
         return f_to_str(obj, this, value);
     } catch (py::error_already_set& exc) {
         throw trait_error(exc, obj, f_to_str, &value, nullptr);
@@ -141,6 +149,7 @@ py::object BTrait::wrapper_f_to_str(BTraitable* obj, const py::object& value) co
 
 py::object BTrait::wrapper_f_serialize(const BTraitableClass* cls, const py::object& value) const {
     try {
+        check_stack();
         return f_serialize(this, value);
     } catch (py::error_already_set& exc) {
         throw trait_error(exc, cls, f_serialize, &value, nullptr);
@@ -149,6 +158,7 @@ py::object BTrait::wrapper_f_serialize(const BTraitableClass* cls, const py::obj
 
 py::object BTrait::wrapper_f_deserialize(const BTraitableClass* cls, const py::object& value) const {
     try {
+        check_stack();
         return f_deserialize(this, value);
     } catch (py::error_already_set& exc) {
         throw trait_error(exc, cls, f_deserialize, &value, nullptr);
@@ -157,6 +167,7 @@ py::object BTrait::wrapper_f_deserialize(const BTraitableClass* cls, const py::o
 
 py::object BTrait::wrapper_f_to_id(BTraitable* obj, const py::object& value) const {
     try {
+        check_stack();
         return f_to_id(obj, this, value);
     } catch (py::error_already_set& exc) {
         throw trait_error(exc, obj, f_to_id, &value, nullptr);
@@ -165,6 +176,7 @@ py::object BTrait::wrapper_f_to_id(BTraitable* obj, const py::object& value) con
 
 py::object BTrait::wrapper_f_choices(BTraitable *obj) const {
     try {
+        check_stack();
         return f_choices(obj, this);
     } catch (py::error_already_set& exc) {
         throw trait_error(exc, obj, f_choices, nullptr, nullptr);
@@ -177,6 +189,7 @@ py::object BTrait::shallow_copy(const py::object& value) const {
         return value;
 
     try {
+        check_stack();
         return f_shallow_copy(this, value);
     } catch (py::error_already_set& exc) {
         throw trait_error(exc, nullptr, nullptr, f_shallow_copy, &value, nullptr);
@@ -189,6 +202,7 @@ py::object BTrait::deep_copy(const py::object& value) const {
         return value;
 
     try {
+        check_stack();
         return f_deep_copy(this, value);
     } catch (py::error_already_set& exc) {
         throw trait_error(exc, nullptr, nullptr, f_deep_copy, &value, nullptr);
@@ -292,6 +306,7 @@ py::object BTrait::wrapper_f_style_sheet(BTraitable *obj) const {
         return PyLinkage::XNone();
 
     try {
+        check_stack();
         return f_style_sheet(obj);
     } catch (py::error_already_set& exc) {
         throw trait_error(exc, obj, f_style_sheet, nullptr, nullptr);
