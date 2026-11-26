@@ -58,6 +58,12 @@ Known follow-up work that is not scheduled yet. Each item is a short summary; th
   [#181](https://github.com/10x-software/py10x/issues/181). Its isolated cache is per thread, but its as-of helpers are
   set on classes, so other threads read historical data and leave it in the shared cache. Proposed: a thread-local
   stack of active contexts, from which the storage-helper descriptor derives and caches the helpers.
+- **`verify()` is skipped for a new object on which nothing was set** — added 2026-11-26, issue not filed yet.
+  `BTraitable::verify()` returns success while the object is still marked `LOAD_REQUIRED`, and `save()` verifies
+  before it finds out that the object is not in the store. So a new object built from its ID traits alone is written
+  with no verifier, no `NOT_EMPTY` check and no `post_verify` run. Reading any ordinary trait first makes the checks
+  run. To decide: resolve the lazy state before verifying in `StorableHelper.save`, or verify again once the object
+  turns out to be new.
 
 ## Callable instrumentation
 
