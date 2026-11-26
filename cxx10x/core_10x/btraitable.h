@@ -59,10 +59,10 @@
   adding extra overhead, except onetime detection of creation_cache
   reachability.
 
-- In debug mode deserialization (forced load)
-      - Set load_required=false
-      - Load in current cache (same as creation cache)
-      - If not found, it's an error
+- In debug mode deserialization (eager load)
+      - Lazy load right away each reference made in debug mode: an object already loaded is not reloaded
+      - A lazy load runs in debug mode only if the object was made in it and debug mode is still on
+      - If not found, and must_exist_in_storage==true, it's an error
  */
 class BTraitable;
 

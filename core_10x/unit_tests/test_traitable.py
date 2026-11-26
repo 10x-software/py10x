@@ -432,24 +432,86 @@ def test_traitable_ref_load(on_graph, debug, convert_values, use_parent_cache, u
         load_calls.clear()
 
         assert x.i == 1
-        expected = lambda n: {str(i): 1 for i in range(1, n + 1)}
-        if debug and not self_ref:
-            assert load_calls == expected(3)
-            assert x.x.x == x1  # found existing instance
-            assert x1.x is XNone  # reload in debug mode
-        else:
-            with BTP.create(-1, -1, -1, use_parent_cache = False, use_default_cache = False) if nested else contextlib.nullcontext():
-                assert load_calls == expected(1)
-                assert x.x
-                assert not self_ref or x == x.x
-                assert load_calls == expected(1)
-                assert x.x.i == 1 + int(not self_ref)
-                assert load_calls == expected(1 + int(not self_ref))
-                assert x.x.x == (x if self_ref else x1)  # found existing instance
-                assert x1.x is x  # no reload
+        expected    = lambda n: {str(i): 1 for i in range(1, n + 1)}
+        all_loads   = expected(1 + int(not self_ref))  # never 3: it's already loaded
+        with BTP.create(-1, -1, -1, use_parent_cache = False, use_default_cache = False) if nested else contextlib.nullcontext():
+            assert load_calls == (all_loads if debug else expected(1))  # debug mode loads references right away
+            assert x.x
+            assert not self_ref or x == x.x
+            assert load_calls == (all_loads if debug else expected(1))
+            assert x.x.i == 1 + int(not self_ref)
+            assert load_calls == all_loads
+            assert x.x.x == (x if self_ref else x1)  # found existing instance
+            assert x1.x is x  # no reload
 
     # TODO: change_flags; as_of context
     # TODO: nodes with args...
+
+
+def _ref_class(load_calls, missing = ()) -> type[Traitable]:
+    class X(Traitable):
+        i: int          = T(T.ID)
+        x: THIS_CLASS   = T()
+        y: int          = T()
+
+        @classmethod
+        def exists_in_store(cls, id: ID) -> bool:
+            return id.value not in missing
+
+        @classmethod
+        def load_data(cls, id: ID) -> dict | None:
+            load_calls[id.value] += 1
+            if id.value in missing:
+                return None
+            return {'_id': id.value, 'i': int(id.value), '_rev': 1, 'y': 1} | ({'x': {'_id': '2'}} if id.value == '1' else {})
+
+    return X
+
+
+@pytest.mark.parametrize('nested', [False, True])
+def test_debug_load_keeps_loaded_reference(nested):
+    load_calls  = collections.Counter()
+    x_class     = _ref_class(load_calls)
+    with BTP.create(-1, -1, 1, use_parent_cache = False, use_default_cache = False):
+        x2      = x_class.existing_instance_by_id(ID('2'))
+        x2.y    = 5  #-- loads 2, then changes it without saving
+        with BTP.create(-1, -1, -1, use_parent_cache = False, use_default_cache = False) if nested else contextlib.nullcontext():
+            x1 = x_class.existing_instance_by_id(ID('1'))
+            assert x1.y == 1
+            assert x1.x == x2
+            assert x2.y == 5
+        assert load_calls == {'1': 1, '2': 1}
+
+
+@pytest.mark.parametrize('own_cache', [False, True])
+def test_debug_load_skips_earlier_reference(own_cache):
+    load_calls  = collections.Counter()
+    x_class     = _ref_class(load_calls)
+    with BTP.create(-1, -1, 0, use_parent_cache = False, use_default_cache = False):
+        x2 = x_class.existing_instance_by_id(ID('2'))  #-- made with debug off, not loaded
+        with BTP.create(-1, -1, 1, use_parent_cache = not own_cache, use_default_cache = False):
+            x1 = x_class.existing_instance_by_id(ID('1'))
+            assert x1.x == x2
+            assert load_calls == {'1': 1}  #-- 2 lives in the outer cache, so it loads there only when read
+        assert x2.y == 1
+        assert load_calls == {'1': 1, '2': 1}
+
+
+@pytest.mark.parametrize('created_in_debug', [0, 1])
+@pytest.mark.parametrize('loaded_in_debug', [0, 1])
+def test_debug_load_needs_both_modes(created_in_debug, loaded_in_debug):
+    load_calls  = collections.Counter()
+    x_class     = _ref_class(load_calls, missing = {'2'})
+    with BTP.create(-1, -1, -1, use_parent_cache = False, use_default_cache = False):
+        with BTP.create(-1, -1, created_in_debug, use_parent_cache = True, use_default_cache = False):
+            x1 = x_class.existing_instance_by_id(ID('1'))
+        with BTP.create(-1, -1, loaded_in_debug, use_parent_cache = True, use_default_cache = False):
+            if created_in_debug and loaded_in_debug:
+                with pytest.raises(TraitMethodError, match = 'reference not found in store'):
+                    _ = x1.y  #-- 1 refers to 2, which is not in the store
+            else:
+                assert x1.y == 1
+        assert load_calls == ({'1': 1, '2': 1} if created_in_debug and loaded_in_debug else {'1': 1})
 
 
 def test_default_cache_traitable():

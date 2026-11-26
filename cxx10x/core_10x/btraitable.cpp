@@ -127,7 +127,9 @@ py::object BTraitable::lazy_load_if_needed() {
     if (flags & XCache::MUST_EXIST_IN_STORE && !my_class()->is_storable())
         throw runtime_error( "is an invalid lazy reference to non-storable that does not exist in memory" );
 
-    auto use = BTraitableProcessor::Use(BTraitableProcessor::create_with_cache(origin_cache(), flags), true);
+    //-- in debug mode only if made in it and still in it: one made outside loads as it would there
+    const auto debug = flags & ThreadContext::current_traitable_proc()->flags() & BTraitableProcessor::DEBUG;
+    auto use = BTraitableProcessor::Use(BTraitableProcessor::create_with_cache(origin_cache(), debug), true);
     clear_lazy_load_flags(flags);
     const auto serialized_data = _reload(flags & XCache::LOAD_REV_ONLY);
     set_lazy_load_flags(flags & BTraitableProcessor::DEBUG); // -- only keep the debug flag, if set
@@ -461,10 +463,10 @@ py::object BTraitable::deserialize_nx(const BTraitableClass *cls, const py::dict
 
     if (auto id = TID::deserialize_id(serialized_data, false); !id.is_none()) {     //-- external reference
         auto lazy_ref = cls->from_id(id);  // lazy reference
-        if (const auto obj = lazy_ref.cast<BTraitable*>(); obj->lazy_load_flags() & BTraitableProcessor::DEBUG) {
-            obj->set_lazy_load_flags(XCache::LOAD_REQUIRED);
-            obj->lazy_load_if_needed();
-        }
+        //-- eager load a reference made in debug mode while still in it: one made before may belong to an outer cache
+        const auto obj = lazy_ref.cast<BTraitable*>();
+        if (obj->lazy_load_flags() & ThreadContext::current_traitable_proc()->flags() & BTraitableProcessor::DEBUG)
+            obj->lazy_load_if_needed();     //-- an object already loaded stays as it is
         return lazy_ref;
     }
 
