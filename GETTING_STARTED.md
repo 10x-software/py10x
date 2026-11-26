@@ -1358,6 +1358,7 @@ with CONVERT_VALUES_OFF():
 - **Overhead**: Runtime type checking on every operation, detailed error tracking and reporting, performance impact on trait access and assignment
 - **Benefits**: Comprehensive error detection, detailed error messages with context, runtime validation of trait constraints, development and debugging support
 - **When to use**: During development, testing, or when debugging complex trait relationships and data validation issues
+- **References**: Loading an object also loads the objects it references that are not loaded yet, directly or indirectly, so one missing from the store raises at once rather than on first access. Objects already loaded stay as they are, with any values set but not saved. Only references made while debug mode is on load this way: one made before it was turned on still loads only when read, and so does one made in debug mode once it is off
 
 **DEBUG_OFF**: The opposite of DEBUG_ON - disables debug features for maximum performance.
 
@@ -1398,6 +1399,31 @@ with DEBUG_OFF():
     object = {calc.id_value()};
 original exception = TypeError: can only concatenate str (not "int") to str"""
         )
+```
+
+```python
+from core_10x.exec_control import DEBUG_ON
+from core_10x.traitable import T, Traitable
+from core_10x.traitable_id import ID
+from infra_10x.duckdb_store import DuckDbStore
+
+class Author(Traitable, keep_history=False):
+    name: str = T(T.ID)
+    city: str = T()
+
+class Book(Traitable, keep_history=False):
+    title: str      = T(T.ID)
+    author: Author  = T()
+
+with DuckDbStore():
+    with DEBUG_ON():
+        author = Author(name="Jane", city="Bath", _replace=True)
+        author.save().throw()
+        Book(title="Emma", author=author, _replace=True).save().throw()
+
+        author.city = "London"  # Not saved
+        Book.load(ID("Emma"))   # Its author is already loaded
+        assert author.city == "London"
 ```
 
 
