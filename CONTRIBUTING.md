@@ -82,6 +82,11 @@ live store skip automatically when the server is unreachable (see `core_10x/test
 instead). Install Mongo and/or Postgres only if you want those tests to run locally — see
 [INSTALLATION.md § Optional Database Dependencies](INSTALLATION.md#optional-database-dependencies).
 
+The Qt6 tests (`ui_10x/qt6/unit_tests/`) run headless, in the same session as the Rio ones: each is imported and run on
+a Qt-bound copy of the generic `ui_10x` modules (`ui_10x/qt6/testlib/qt_helpers.py`). They need the system libraries
+PyQt6 loads; where those are missing, e.g. on a bare Linux image, they skip the same way. CI installs them with
+`.github/actions/setup-qt`.
+
 Each pytest session gets its **own** database on each live backend and drops it at the end —
 the `live_store` fixture (`core_10x/testlib/test_databases.py`), which also hands out the
 stores. It is **requested, not autouse** and lazy per backend, so a run that never asks for a
@@ -153,8 +158,10 @@ py10x/
 │   └── *.py                # Core modules (traitable.py, resource.py, ...)
 ├── ui_10x/                 # UI components, trait editors, and backends
 │   ├── rio/                # Rio web UI backend, widgets, components
-│   │   ├── unit_tests/, manual_tests/, components/, widgets/
+│   │   ├── unit_tests/, manual_tests/, components/, widgets/, testlib/
 │   ├── qt6/                # Qt6 desktop backend
+│   │   ├── unit_tests/, manual_tests/, testlib/
+│   ├── testlib/            # Backend-neutral tests, run on both backends
 │   ├── unit_tests/
 │   ├── examples/           # Interactive UI demos
 │   └── ...
