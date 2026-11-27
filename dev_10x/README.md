@@ -508,7 +508,8 @@ package comes from the tag; `workflow_dispatch` builds one package without uploa
 1. **test**: full-history checkout; install core editable with **both** siblings built from this
    commit, passed as `--override`s (core's `main` pins at a sibling release commit still name the
    previous rc window); assert the built version equals the tag; run core's suite with the same
-   services as `build.yml` (Mongo replica set, Postgres, Playwright; `XX_TEST_STRICT=1`).
+   services as `build.yml` (Mongo replica set, Postgres, Qt libraries, Playwright;
+   `XX_TEST_STRICT=1`).
 2. **build_wheels**: cibuildwheel on ubuntu x86_64 / aarch64, macOS universal2, windows-2025.
 3. **build_sdist**: `uv build --sdist`, then a wheel from it. The sdist-state CMake configure
    (`sdist.cmake`) copies in what the package takes from outside its directory (`cxx10x/cmake/`,
