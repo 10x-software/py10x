@@ -133,6 +133,8 @@ class Bucketizer(Traitable, embeddable = True):
         known_tags = self.bucket_tags
         return bucketizing_value if not known_tags or bucketizing_value in known_tags else None
 
+    #-- TODO: remove the base_class argument from the by_* factories, and verify_base_class with it: no bucketizer keeps it.
+    #-- by_class checks known_subclasses against it; check them against the basket's base_class when added instead.
     @classmethod
     def verify_base_class(cls, base_class):
         if not base_class or not inspect.isclass(base_class) or not issubclass(base_class, Traitable):
@@ -163,23 +165,23 @@ class Bucketizer(Traitable, embeddable = True):
             if not all(inspect.isclass(ca) and issubclass(ca, base_class) for ca in known_subclasses):
                 raise AssertionError(f'Each class in subclasses_allowed must be a subclass of {base_class}')
 
-        return BucketizerByClass(base_class = base_class, buckets_spec = list(known_subclasses))
+        return BucketizerByClass(buckets_spec = list(known_subclasses))
 
     @classmethod
     def by_feature(cls, base_class: type[Traitable], feature_calc, *buckets_spec, bucket_tag_calc = None) -> Bucketizer:
         cls.verify_base_class(base_class)
         cls.verify_custom_f(feature_calc, 'feature_calc')
         if not bucket_tag_calc:
-            return BucketizerByFeature(base_class = base_class, f_bucketizing_value = feature_calc, buckets_spec = buckets_spec)
+            return BucketizerByFeature(f_bucketizing_value = feature_calc, buckets_spec = buckets_spec)
 
         cls.verify_custom_f(bucket_tag_calc, 'bucket_tag_calc')
-        return BucketizerByFeature(base_class = base_class, f_bucketizing_value = feature_calc, f_bucket_tag = bucket_tag_calc, buckets_spec = buckets_spec)
+        return BucketizerByFeature(f_bucketizing_value = feature_calc, f_bucket_tag = bucket_tag_calc, buckets_spec = buckets_spec)
 
     @classmethod
     def by_range(cls, base_class: type[Traitable], value_for_range_calc, *intervals_spec) -> Bucketizer:
         cls.verify_base_class(base_class)
         cls.verify_custom_f(value_for_range_calc, 'value_for_range_calc')
-        return BucketizerByRange(base_class = base_class, f_bucketizing_value = value_for_range_calc, buckets_spec = intervals_spec)
+        return BucketizerByRange(f_bucketizing_value = value_for_range_calc, buckets_spec = intervals_spec)
 
     @classmethod
     def by_breakpoints(
@@ -192,7 +194,6 @@ class Bucketizer(Traitable, embeddable = True):
         cls.verify_base_class(base_class)
         cls.verify_custom_f(value_for_range_calc, 'value_for_range_calc')
         return BucketizerByBreakPoints(
-            base_class          = base_class,
             f_bucketizing_value = value_for_range_calc,
             buckets_spec        = breakpoints,
             include_last        = include_last,

@@ -130,12 +130,12 @@ class DateCurve(AnonymousTraitable):
         return rc
 
     def set_curve_params_to_extrapolate(self) -> RC:
-        return self.set_curve_params(bounds_error = False, fill_value = 'extrapolate')
+        return self.set_curve_params(fill_value = 'extrapolate')
 
     ## extrapolate flat left (by the first value) and right (by last value)
     def set_curve_params_to_flat_extrapolate(self) -> RC:
         values = self.values
-        return self.set_curve_params(bounds_error = False, fill_value = (values[0], values[-1]))
+        return self.set_curve_params(fill_value = (values[0], values[-1]))
 
     def values_at(self, dates) -> tuple:
         return tuple(self.value(d) for d in dates)
