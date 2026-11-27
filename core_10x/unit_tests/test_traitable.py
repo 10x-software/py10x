@@ -145,6 +145,54 @@ def test_set_values():
     assert rc
 
 
+class UnknownTraitNamesEndogenous(Traitable):
+    name: str = RT(T.ID)
+    age: int  = RT()
+
+
+class UnknownTraitNamesStorable(Traitable):
+    name: str = T(T.ID)
+    age: int  = T()
+
+
+class UnknownTraitNamesExogenous(Traitable):
+    age: int = RT()
+
+
+@pytest.mark.parametrize(
+    'create',
+    [
+        lambda **kw: UnknownTraitNamesEndogenous(name = 'a', **kw),
+        lambda **kw: UnknownTraitNamesEndogenous(name = 'a', _replace = True, **kw),
+        lambda **kw: UnknownTraitNamesEndogenous(name = 'a', _update = True, **kw),
+        lambda **kw: UnknownTraitNamesEndogenous.new_or_replace(name = 'a', **kw),
+        lambda **kw: UnknownTraitNamesEndogenous.new_or_update(name = 'a', **kw),
+        lambda **kw: UnknownTraitNamesEndogenous.existing_instance(name = 'a', **kw),
+        lambda **kw: UnknownTraitNamesStorable.existing_instance(name = 'a', **kw),
+        lambda **kw: UnknownTraitNamesExogenous(**kw),
+    ],
+    ids = ['init', 'replace', 'update', 'new_or_replace', 'new_or_update', 'existing_runtime', 'existing_storable', 'exogenous'],
+)
+def test_constructors_unknown_trait_names(create):
+    with CACHE_ONLY():
+        UnknownTraitNamesStorable(name = 'a')  #-- for existing_instance to find
+
+        assert create(agee = 1).age is XNone
+
+        with pytest.raises(TypeError, match = r'UnknownTraitNames\w+\.agee - unknown trait'):
+            create(agee = 1, _ignore_unknown_traits = False)
+
+
+def test_set_values_unknown_trait_names():
+    x = UnknownTraitNamesExogenous()
+    assert x.set_values(agee = 1, age = 2)
+    assert x.age == 2
+
+    with pytest.raises(TypeError, match = r'UnknownTraitNamesExogenous\.agee - unknown trait'):
+        x.set_values(age = 3, agee = 1, _ignore_unknown_traits = False)
+    assert x.age == 3   #-- set before the unknown name was reached
+
+
 def test_item_access_raises_like_attribute():
     class X(Traitable):
         age: int

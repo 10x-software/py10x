@@ -109,8 +109,8 @@ public:
 
     static py::object exogenous_id();
 
-    void initialize(const py::dict &trait_values, bool replace_existing, bool update_existing);
-    bool accept_existing(const py::dict& trait_values);
+    void initialize(const py::dict &trait_values, bool replace_existing, bool update_existing, bool ignore_unknown_traits);
+    bool accept_existing(const py::dict& trait_values, bool ignore_unknown_traits);
     bool id_exists();
 
     void set_id_value(const py::object& id_value) const         { m_tid.set_id_value(id_value); }
@@ -320,7 +320,8 @@ public:
         return set_value(trait, value, args);
     }
 
-    py::object set_values(const py::dict& trait_values, bool ignore_unknown_traits = true);
+    py::object set_values(const py::dict& trait_values, bool ignore_unknown_traits);
+    [[noreturn]] void throw_unknown_trait(const py::handle& trait_name) const;
 
     py::object verify();
     py::object verify_trait(const BTrait* trait);
@@ -377,11 +378,9 @@ public:
     py::object          serialize_nx(bool embed);      //-- Nucleus' method
     py::list            serialize_id_traits();
     static py::dict     deserialize_id_traits(const BTraitableClass* cls, const py::object& serialized_data);
-    py::dict            id_trait_values(const py::kwargs& override_id_traits) const;
+    py::dict            id_trait_values(bool ignore_unknown_traits, const py::kwargs& override_id_traits) const;
 
-    py::object morph(const py::kwargs& override_id_traits) const {
-        return my_class()->py_class()(**id_trait_values(override_id_traits));
-    }
+    py::object          morph(bool ignore_unknown_traits, const py::kwargs& override_id_traits) const;
 
     static py::object   deserialize_object(const BTraitableClass* cls, const py::object& coll_name, const py::dict& serialized_data, bool reload = true);
     virtual void        deserialize_traits(const py::dict& trait_values);
