@@ -53,6 +53,18 @@ Traits are typed attributes that can be:
 
 **Note**: Any trait (`T()` or `RT()`) can be computed on-demand if a getter method is defined.
 
+A trait may not have the name of an inherited attribute that is not a trait, such as the `Traitable` methods `history` and `save`. A class may not replace an inherited trait with a plain attribute or method either. Both raise `TypeError` when the class is defined:
+
+```python
+import pytest
+from core_10x.traitable import Traitable, T
+
+with pytest.raises(TypeError, match='`history`: trait name collides'):
+    class Patient(Traitable):
+        patient_id: str = T(T.ID)
+        history: str    = T()
+```
+
 ### Object Identification
 
 All traitables have an ID and all traitables with the same ID share trait values:

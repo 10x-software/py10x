@@ -186,7 +186,7 @@ def test_pybind_signature_parses_docstring_first_line():
 
 
 class _TestTraitable(Traitable):
-    xid: int    = T(T.ID, default = 1)
+    key: int    = T(T.ID, default = 1)
     name: str   = T()
 
 

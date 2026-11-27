@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **A `bool` ID trait** (breaking for such data) is written into the ID as `1` for `True` and `0` for `False`; it was the reverse. Stored objects with a `bool` ID trait get new IDs.
+- **Trait names** (breaking): a trait with the name of an inherited attribute that is not a trait, e.g. `history`, `save` or `xid`, raises `TypeError` when the class is defined; the trait silently replaced the attribute. So does a plain attribute or method that replaces an inherited trait, which was silently ignored.
 
 ## [0.4.1] - 2026-11-18
 
