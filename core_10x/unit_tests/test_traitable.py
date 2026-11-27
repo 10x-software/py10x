@@ -1955,7 +1955,7 @@ class TestForwardRefTraitables:
         with pytest.raises(TypeError, match = 'undeclared name in string annotation'):
 
             class _BadFwd(Traitable):
-                xid: int                                = T(T.ID)
+                key: int                                = T(T.ID)
                 items: list[NeverEverExistsTraitable]   = T()  # noqa: F821
 
     def test_missing_annotation_name_errors_on_placeholder_use(self):
@@ -1967,7 +1967,7 @@ class TestForwardRefTraitables:
             'from core_10x.traitable import Traitable\n'
             '\n'
             'class MissingDate(Traitable):\n'
-            '    xid: str = T(T.ID)\n'
+            '    key: str = T(T.ID)\n'
             '    md_date: date = T()\n'
         )
         mod     = self._exec_module(source, 'test_traitable_missing_date_ann')
@@ -1979,12 +1979,12 @@ class TestForwardRefTraitables:
 
             unresolved = r'`test_traitable_missing_date_ann\.date` is not defined'
             with CACHE_ONLY(), CONVERT_VALUES_OFF(), DEBUG_ON():
-                obj = missing_date(xid = 'a')
+                obj = missing_date(key = 'a')
                 with pytest.raises(TraitMethodError, match = unresolved):
                     obj.md_date = '2025-03-12'
 
             with CACHE_ONLY(), CONVERT_VALUES_ON():
-                obj2 = missing_date(xid = 'b')
+                obj2 = missing_date(key = 'b')
                 with pytest.raises(TraitMethodError, match = unresolved):
                     obj2.md_date = '2025-03-12'
 
@@ -2473,3 +2473,103 @@ class TestEmbeddedSingleHolder:
             for obj in (p, q, leaf):
                 holders = cache.find_holders([obj])
                 assert [(type(holder), holder.id().value) for holder in holders] == [(_Holder, 'sh_a13')]
+
+
+class TestTraitNameCollisions:
+    """A trait may not replace an inherited attribute that is not a trait, nor be replaced by one."""
+
+    class Base(Traitable):
+        key: str = RT(T.ID)
+        foo: int = RT()
+
+    class Mixin:
+        def foo(self):
+            return 'mixin'
+
+    @staticmethod
+    def collides(*names: str):
+        return pytest.raises(TypeError, match = r'(.|\n)*'.join(f'`{name}`: trait name collides' for name in names))
+
+    @staticmethod
+    def collides_inherited(name: str):
+        return pytest.raises(TypeError, match = f'`{name}`: inherited trait collides')
+
+    def test_inherited_attribute(self):
+        with self.collides('history'):
+
+            class _Defined(Traitable):  # its own definition hides Traitable.history from getattr(cls, ...)
+                history: str = RT()
+
+        with self.collides('load'):
+
+            class _AnnotationOnly(Traitable):
+                load: str
+
+        with self.collides('save'):
+
+            class _OwnDefinitions(Traitable):
+                s_own_trait_definitions = {'save': RT(data_type = int)}
+
+        with self.collides('id'):
+
+            class _Kernel(Traitable):
+                id: str = RT()
+
+    def test_every_collision_is_reported(self):
+        with self.collides('save', 'load'):
+
+            class _Two(Traitable):
+                save: str = RT()
+                load: str = RT()
+
+    def test_mixin_attribute(self):
+        with self.collides('foo'):
+
+            class _MixinFirst(self.Mixin, self.Base):
+                foo: int = RT()
+
+        with self.collides_inherited('foo'):
+
+            class _MixinFirstNotRedefined(self.Mixin, self.Base):
+                pass
+
+        class _MixinLast(self.Base, self.Mixin):  # the inherited trait comes first in the MRO
+            foo: int = RT()
+
+        class _MixinLastNotRedefined(self.Base, self.Mixin):
+            pass
+
+    @pytest.mark.parametrize('attr', [5, None, lambda self: 5])
+    def test_attribute_over_an_inherited_trait(self, attr):
+        with self.collides_inherited('foo'):
+            type(self.Base)('Derived', (self.Base,), {'foo': attr, '__module__': __name__})
+
+    def test_annotated_value_over_an_inherited_trait(self):
+        with self.collides_inherited('foo'):
+
+            class _Annotated(self.Base):
+                foo: int = 5
+
+    def test_redefined_and_modified_traits_are_allowed(self):
+        class Redefined(self.Base):
+            foo: str = RT('a')
+
+        class Modified(self.Base):
+            foo = M(default = 2)
+
+        class WithGetter(self.Base):
+            def foo_get(self):
+                return 3
+
+        assert (Redefined(key = 'a').foo, Modified(key = 'a').foo, WithGetter(key = 'a').foo) == ('a', 2, 3)
+
+    def test_trait_deleted_in_a_base_may_come_back(self):
+        class Renamed(NamedTraitable, name_trait = 'code'):
+            code: str = T(T.ID)
+
+        class NamedAgain(Renamed, name_trait = 'name'):
+            code: str = T()
+            name: str = T(T.ID)
+
+        assert Renamed.trait('name') is None
+        assert NamedAgain.trait('name')

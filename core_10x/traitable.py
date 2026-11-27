@@ -382,6 +382,10 @@ class Traitable(BTraitable, Nucleus, metaclass = TraitableMetaclass):
 
         rc = RC(True)
         for trait_name, old_trait in trait_dir.items():
+            attr = getattr(cls, trait_name, old_trait)
+            if not isinstance(attr, (Trait, TraitDefinition, deleted_trait)):
+                rc <<= f'`{trait_name}`: inherited trait collides with an attribute that is not a trait: {attr!r}'
+
             trait_def = class_dict.get(trait_name, class_dict)
             if trait_def is class_dict and any(func_name in class_dict for func_name in Trait.method_defs(trait_name)):
                 if cls.check_trait_type(trait_name, trait_def, old_trait, type_annotations.get(trait_name), class_dict, module_dict, rc):
@@ -389,6 +393,10 @@ class Traitable(BTraitable, Nucleus, metaclass = TraitableMetaclass):
                     trait_dir[trait_name]   = Trait.create(trait_name, trait_def)
 
         for trait_name, trait_def in cls.own_trait_definitions():
+            inherited = getattr(super(cls, cls), trait_name, trait_def)  #-- cls's own attribute is trait_def itself
+            if not isinstance(inherited, (Trait, TraitDefinition, deleted_trait)):
+                rc <<= f'`{trait_name}`: trait name collides with an inherited attribute that is not a trait: {inherited!r}'
+
             trait_def.name          = trait_name
             trait_dir[trait_name]   = Trait.create(trait_name, trait_def)
 
