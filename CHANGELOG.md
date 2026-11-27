@@ -9,14 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-- **`_ignore_unknown_traits`** (py10x-kernel + core) on every method that takes trait values as keywords: the constructor, `new_or_replace`, `new_or_update`, `existing_instance`, `set_values`, `morph` and `id_trait_values`. A name that is not a trait is still skipped by default; `_ignore_unknown_traits=False` raises `TypeError` instead, and in `morph` and `id_trait_values` so does a name that is not an ID trait. Core needs the kernel of the same release.
-
 ### Fixed
 - **Endogenous IDs** (py10x-kernel; breaking for such data): in an ID of more than one part, each part is escaped (`\` → `\\`, `|` → `\|`) before joining with `|`. Distinct values could join to the same ID, e.g. `('a|', 'b')` and `('a', '|b')` both gave `a|||b`. Stored objects with such an ID whose values contain `|` or `\` get new IDs; all other IDs are unchanged.
 - **Debug mode no longer reloads references** (py10x-kernel): loading an object in debug mode loaded again each object it referenced that was made in debug mode, even one already loaded. Values set on it but not saved were lost, even with `reload=False`, and a chain where each object refers twice to the next took 2ⁿ−1 reads. Such references now load only if they aren't loaded yet. Debug mode also no longer applies once it is turned off: an object made in debug mode and read later loads its references only when they are read, and doesn't check the types of the values it loads.
 
 ### Changed
+- **Unknown trait names** (breaking; py10x-kernel + core): every method that takes trait values as keywords raises `TypeError` on a name that is not a trait: the constructor, `new_or_replace`, `new_or_update`, `existing_instance` and `set_values`, and so does converting a dict to a traitable. They skipped it, so a misspelled name went unnoticed. `morph` and `id_trait_values` also raise on a name that is not an ID trait. All of them take `_ignore_unknown_traits=True` to skip such names.
 - **A `bool` ID trait** (breaking for such data) is written into the ID as `1` for `True` and `0` for `False`; it was the reverse. Stored objects with a `bool` ID trait get new IDs.
 
 ## [0.4.1] - 2026-11-18

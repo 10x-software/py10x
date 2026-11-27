@@ -245,14 +245,14 @@ def test_id_trait_values_and_morph_unknown_trait_names():
 
     obj = R(name = 'a')
     assert obj.morph(name = 'b').name == 'b'
-    assert obj.id_trait_values(nmae = 'b', age = 1) == {'name': 'a'}
-    assert obj.morph(nmae = 'b', age = 1) == obj
-
     for method in (obj.id_trait_values, obj.morph):
         with pytest.raises(TypeError, match = r'R\.nmae - unknown trait'):
-            method(nmae = 'b', _ignore_unknown_traits = False)
+            method(nmae = 'b')
         with pytest.raises(TypeError, match = r'R\.age - not an ID trait'):
-            method(age = 1, _ignore_unknown_traits = False)
+            method(age = 1)
+
+    assert obj.id_trait_values(nmae = 'b', age = 1, _ignore_unknown_traits = True) == {'name': 'a'}
+    assert obj.morph(nmae = 'b', age = 1, _ignore_unknown_traits = True) == obj
 
 
 class _PendingRef(Traitable, keep_history = False):

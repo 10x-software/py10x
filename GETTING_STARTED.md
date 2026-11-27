@@ -540,6 +540,34 @@ with CACHE_ONLY():
     assert cfg.timeout == 10             # cleared
 ```
 
+#### Unknown Trait Names
+
+A keyword that is not a trait raises `TypeError` in the constructor, `new_or_replace`, `new_or_update`,
+`existing_instance` and `set_values`, so a misspelled name doesn't go unnoticed. `morph` and `id_trait_values` also
+raise on a trait that is not an ID trait. Pass `_ignore_unknown_traits=True` to skip such keywords, e.g. when they come
+from a dict with other keys:
+
+```python
+import pytest
+from core_10x.traitable import Traitable, T
+from core_10x.exec_control import CACHE_ONLY
+
+class Server(Traitable):
+    name: str = T(T.ID)
+    port: int = T()
+
+with CACHE_ONLY():
+    with pytest.raises(TypeError, match=r'Server\.prot - unknown trait'):
+        Server.new_or_replace(name='db', prot=5432)
+
+    row = {'name': 'db', 'port': 5432, 'comment': 'from a CSV'}
+    server = Server.new_or_replace(**row, _ignore_unknown_traits=True)
+    assert server.port == 5432
+
+    with pytest.raises(TypeError, match=r'Server\.port - not an ID trait'):
+        server.morph(port=5433)
+```
+
 #### ID_LIKE Traits
 
 ID_LIKE traits participate in ID construction **indirectly** by affecting ID traits through getters or setters, but are not included in the ID calculation directly. A common pattern is:
