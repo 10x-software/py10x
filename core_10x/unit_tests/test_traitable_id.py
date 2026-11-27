@@ -238,6 +238,23 @@ def test_id_trait_values_of_unshared_endogenous():
         assert obj.morph(b = 3).id().value == '1|3'
 
 
+def test_id_trait_values_and_morph_unknown_trait_names():
+    class R(Traitable):
+        name: str = RT(T.ID)
+        age: int  = RT()
+
+    obj = R(name = 'a')
+    assert obj.morph(name = 'b').name == 'b'
+    assert obj.id_trait_values(nmae = 'b', age = 1) == {'name': 'a'}
+    assert obj.morph(nmae = 'b', age = 1) == obj
+
+    for method in (obj.id_trait_values, obj.morph):
+        with pytest.raises(TypeError, match = r'R\.nmae - unknown trait'):
+            method(nmae = 'b', _ignore_unknown_traits = False)
+        with pytest.raises(TypeError, match = r'R\.age - not an ID trait'):
+            method(age = 1, _ignore_unknown_traits = False)
+
+
 class _PendingRef(Traitable, keep_history = False):
     a: int          = T(T.ID)
     b: int          = T(T.ID)

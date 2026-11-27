@@ -554,8 +554,10 @@ class Traitable(BTraitable, Nucleus, metaclass = TraitableMetaclass):
         _skip_init = False,
         _replace = False,
         _update = False,
+        _ignore_unknown_traits = True,
         **trait_values,
     ):
+        """A name in `trait_values` that is not a trait is skipped, or raises TypeError with `_ignore_unknown_traits = False`."""
         cls = self.__class__
 
         assert not (_replace and _update), f'{self.__class__}: _replace and _update cannot both be True'
@@ -567,7 +569,7 @@ class Traitable(BTraitable, Nucleus, metaclass = TraitableMetaclass):
         else:
             super().__init__(cls.s_bclass, ID(collection_name = _collection_name))
             if not _skip_init:
-                self.initialize(trait_values, _replace = _replace, _update = _update)
+                self.initialize(trait_values, _replace = _replace, _update = _update, _ignore_unknown_traits = _ignore_unknown_traits)
 
         self.__post_init__()
 
@@ -580,12 +582,12 @@ class Traitable(BTraitable, Nucleus, metaclass = TraitableMetaclass):
         return cls(_id = _id)
 
     @classmethod
-    def existing_instance(cls, _collection_name: str = None, _throw: bool = True, **trait_values) -> Self | None:
+    def existing_instance(cls, _collection_name: str = None, _throw: bool = True, _ignore_unknown_traits: bool = True, **trait_values) -> Self | None:
         if not cls.is_storable() and cls.is_id_endogenous():  # runtime endogenous instances are created on the fly
-            return cls(_collection_name = _collection_name, **trait_values)
+            return cls(_collection_name = _collection_name, _ignore_unknown_traits = _ignore_unknown_traits, **trait_values)
 
         obj = cls(_collection_name = _collection_name, _skip_init = True)
-        if not obj.accept_existing(trait_values):
+        if not obj.accept_existing(trait_values, _ignore_unknown_traits = _ignore_unknown_traits):
             if _throw:
                 raise ValueError(f'Instance does not exist: {cls}({trait_values})')
             return None
@@ -619,16 +621,16 @@ class Traitable(BTraitable, Nucleus, metaclass = TraitableMetaclass):
 
     @classmethod
     @deprecated('Use either new_or_replace or new_or_update methods instead.')
-    def update(cls, **kwargs) -> Self:
-        return cls(**kwargs, _replace = True)
+    def update(cls, _ignore_unknown_traits: bool = True, **kwargs) -> Self:
+        return cls(**kwargs, _replace = True, _ignore_unknown_traits = _ignore_unknown_traits)
 
     @classmethod
-    def new_or_replace(cls, **kwargs) -> Self:
-        return cls(**kwargs, _replace = True)
+    def new_or_replace(cls, _ignore_unknown_traits: bool = True, **kwargs) -> Self:
+        return cls(**kwargs, _replace = True, _ignore_unknown_traits = _ignore_unknown_traits)
 
     @classmethod
-    def new_or_update(cls, **kwargs) -> Self:
-        return cls(**kwargs, _update = True)
+    def new_or_update(cls, _ignore_unknown_traits: bool = True, **kwargs) -> Self:
+        return cls(**kwargs, _update = True, _ignore_unknown_traits = _ignore_unknown_traits)
 
     @classmethod
     @cache
@@ -646,7 +648,8 @@ class Traitable(BTraitable, Nucleus, metaclass = TraitableMetaclass):
         Runtime._post_build_trait_dir = cls._post_build_trait_dir
         return Runtime
 
-    def set_values(self, _ignore_unknown_traits = True, **trait_values) -> RC:
+    def set_values(self, _ignore_unknown_traits: bool = True, **trait_values) -> RC:
+        """A name that is not a trait is skipped, or raises TypeError with `_ignore_unknown_traits = False`."""
         return self._set_values(trait_values, _ignore_unknown_traits)
 
     def __getitem__(self, item):

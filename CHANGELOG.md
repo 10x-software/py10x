@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **`_ignore_unknown_traits`** (py10x-kernel + core) on every method that takes trait values as keywords: the constructor, `new_or_replace`, `new_or_update`, `existing_instance`, `set_values`, `morph` and `id_trait_values`. A name that is not a trait is still skipped by default; `_ignore_unknown_traits=False` raises `TypeError` instead, and in `morph` and `id_trait_values` so does a name that is not an ID trait. Core needs the kernel of the same release.
+
 ### Fixed
 - **Endogenous IDs** (py10x-kernel; breaking for such data): in an ID of more than one part, each part is escaped (`\` → `\\`, `|` → `\|`) before joining with `|`. Distinct values could join to the same ID, e.g. `('a|', 'b')` and `('a', '|b')` both gave `a|||b`. Stored objects with such an ID whose values contain `|` or `\` get new IDs; all other IDs are unchanged.
 - **Debug mode no longer reloads references** (py10x-kernel): loading an object in debug mode loaded again each object it referenced that was made in debug mode, even one already loaded. Values set on it but not saved were lost, even with `reload=False`, and a chain where each object refers twice to the next took 2ⁿ−1 reads. Such references now load only if they aren't loaded yet. Debug mode also no longer applies once it is turned off: an object made in debug mode and read later loads its references only when they are read, and doesn't check the types of the values it loads.

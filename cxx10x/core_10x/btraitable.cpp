@@ -191,7 +191,7 @@ py::object BTraitable::endogenous_id() {
 //  - trait-name value pairs will be processed in the order they are given
 //      -- if setters/getters are used for ID traits, different orders may result in unexpected behavior
 //======================================================================================================================
-void BTraitable::initialize(const py::dict& trait_values, const bool replace_existing=false, const bool update_existing=false) {
+void BTraitable::initialize(const py::dict& trait_values, const bool replace_existing, const bool update_existing, const bool ignore_unknown_traits) {
     bool non_id_values_set = false;
     if (const auto cls = my_class(); cls->is_id_endogenous()) {
         const auto current = ThreadContext::current_traitable_proc();
@@ -211,7 +211,7 @@ void BTraitable::initialize(const py::dict& trait_values, const bool replace_exi
         //-- vector, not unordered_map: must preserve kwarg order
         std::vector<std::pair<const BTrait *, py::object>> non_id_traits_set;
         for (auto &[trait_name, value] : trait_values) {
-            if (const auto trait = cls->find_trait(trait_name.cast<py::object>())) {    // skipping unknown trait names
+            if (const auto trait = cls->find_trait(trait_name.cast<py::object>())) {
                 auto py_value = value.cast<py::object>();
                 if (py_value.is(PyLinkage::XNone()))    //-- skipping XNone (deferring ID trait value to the getter)
                     continue;
@@ -225,6 +225,8 @@ void BTraitable::initialize(const py::dict& trait_values, const bool replace_exi
                 if (const BRC rc(proc->set_trait_value(this, trait, py_value)); !rc)
                     throw py::value_error(rc.error());
             }
+            else if (!ignore_unknown_traits)
+                throw_unknown_trait(trait_name);
         }
         const auto replace = (lazy_load_flags() & XCache::LOAD_REQUIRED_MUST_EXIST) ? true : replace_existing; // -- if existing is a lazy reference, replace it
         if (const BRC rc(proc->share_object(this,!replace, replace)); !rc)
@@ -243,7 +245,7 @@ void BTraitable::initialize(const py::dict& trait_values, const bool replace_exi
     else {        // ID exogenous
         m_tid.set_id_value(exogenous_id());
         clear_lazy_load_flags(XCache::LOAD_REQUIRED_MUST_EXIST);
-        if (const BRC rc(set_values(trait_values)); !rc)
+        if (const BRC rc(set_values(trait_values, ignore_unknown_traits)); !rc)
             throw py::value_error(py::str(rc.error()));
     }
 
@@ -258,11 +260,11 @@ bool BTraitable::id_exists() {
     return ThreadContext::current_traitable_proc()->accept_existing(this);
 }
 
-bool BTraitable::accept_existing(const py::dict& trait_values) {
+bool BTraitable::accept_existing(const py::dict& trait_values, const bool ignore_unknown_traits) {
     if (const auto cls = my_class(); !cls->is_id_endogenous())
         return false;
 
-    if (BRC rc(set_values(trait_values)); !rc)
+    if (BRC rc(set_values(trait_values, ignore_unknown_traits)); !rc)
         throw py::value_error(py::str(rc.error()));
 
     return ThreadContext::current_traitable_proc()->accept_existing(this);
@@ -322,6 +324,10 @@ py::object BTraitable::verify_trait_value(const BTrait* trait, const py::object&
     return trait->wrapper_f_verify(this, value);
 }
 
+void BTraitable::throw_unknown_trait(const py::handle& trait_name) const {
+    throw py::type_error(py::str("{}.{} - unknown trait").format(class_name(), trait_name));
+}
+
 py::object BTraitable::set_values(const py::dict& trait_values, bool ignore_unknown_traits) {
     const OriginScope scope(this);
     auto proc = ThreadContext::current_traitable_proc();
@@ -330,7 +336,7 @@ py::object BTraitable::set_values(const py::dict& trait_values, bool ignore_unkn
         const auto trait = my_class()->find_trait(trait_name);
         if (!trait) {
             if (!ignore_unknown_traits)
-                throw py::type_error(py::str("{}.{} - unknown trait").format(class_name(), trait_name));
+                throw_unknown_trait(trait_name);
 
             continue;
         }
@@ -375,7 +381,16 @@ py::list  BTraitable::serialize_id_traits() {
     return serialized_id;
 }
 
-py::dict BTraitable::id_trait_values(const py::kwargs& override_id_traits) const {
+py::dict BTraitable::id_trait_values(const bool ignore_unknown_traits, const py::kwargs& override_id_traits) const {
+    if (!ignore_unknown_traits)
+        for (auto item : override_id_traits) {
+            const auto trait = my_class()->find_trait(item.first.cast<py::object>());
+            if (!trait)
+                throw_unknown_trait(item.first);
+            if (!trait->flags_on(BTraitFlags::ID))
+                throw py::type_error(py::str("{}.{} - not an ID trait").format(class_name(), item.first));
+        }
+
     const auto cache = ThreadContext::current_traitable_proc()->cache();   //-- one proc/cache lookup for the whole call
     const auto& my_tid = tid();
 
@@ -399,6 +414,10 @@ py::dict BTraitable::id_trait_values(const py::kwargs& override_id_traits) const
     }
 
     return result;
+}
+
+py::object BTraitable::morph(const bool ignore_unknown_traits, const py::kwargs& override_id_traits) const {
+    return my_class()->py_class()(**id_trait_values(ignore_unknown_traits, override_id_traits));
 }
 
 py::dict BTraitable::deserialize_id_traits(const BTraitableClass *cls, const py::object& serialized_data) {
