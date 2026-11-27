@@ -306,25 +306,25 @@ PYBIND11_MODULE(py10x_kernel, m)
             .def(py::init<const BTraitableClass*, const py::object&>())
             .def("initialize",                  &BTraitable::initialize,
                     "Initialize object",
-                    "trait_values"_a, "_replace"_a=false, "_update"_a=false, "_ignore_unknown_traits"_a=true
+                    "trait_values"_a, "_replace"_a=false, "_update"_a=false, "_ignore_unknown_traits"_a=false
                     )
             .def("share",                       &BTraitable::share,
                         "Share object",
                         "accept_existing"_a
                 )
             .def("accept_existing",             &BTraitable::accept_existing,
-                        "trait_values"_a, "_ignore_unknown_traits"_a=true
+                        "trait_values"_a, "_ignore_unknown_traits"_a=false
                 )
             .def("id_exists",                   &BTraitable::id_exists)
             .def("id",                          &BTraitable::id)
             .def("id_value",                    &BTraitable::id_value)
             .def("id_trait_values",             &BTraitable::id_trait_values,
-                        "ID trait values, some replaced; a name that is not an ID trait is skipped, or raises TypeError with _ignore_unknown_traits=False",
-                        py::kw_only(), "_ignore_unknown_traits"_a=true
+                        "ID trait values, some replaced; a name that is not an ID trait raises TypeError, or is skipped with _ignore_unknown_traits=True",
+                        py::kw_only(), "_ignore_unknown_traits"_a=false
                 )
             .def("morph",                       &BTraitable::morph,
-                        "Object with some ID traits replaced; a name that is not an ID trait is skipped, or raises TypeError with _ignore_unknown_traits=False",
-                        py::kw_only(), "_ignore_unknown_traits"_a=true
+                        "Object with some ID traits replaced; a name that is not an ID trait raises TypeError, or is skipped with _ignore_unknown_traits=True",
+                        py::kw_only(), "_ignore_unknown_traits"_a=false
                 )
             .def("_collection_name_get",        &BTraitable::custom_coll_name)
             //-- keep_alive: the TID is a non-owning view into the traitable, so the traitable

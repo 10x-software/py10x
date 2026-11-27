@@ -494,7 +494,7 @@ def test_computed_trait():
 
     with GRAPH_ON() as g1:
         print('in', g1.cache())
-        x = X(x=10,y=1)
+        x = X(x=10)
         print('getting z')
         assert x.z == 11
         with GRAPH_ON() as g2:

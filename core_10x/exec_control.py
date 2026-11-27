@@ -7,6 +7,8 @@ from core_10x.traitable_id import ID
 
 # TODO: consider splitting rename DEBUG into TYPE_CHECK and EAGER_LOAD.
 # TODO: consider making CONVERT/TYPE_CHECK mode default.
+# TODO: add IGNORE_UNKNOWN_TRAITS, a FlagsContext under which every method taking trait values as keywords skips a name
+#  that is not a trait, as `_ignore_unknown_traits = True` does, to deal with external sources or old data.
 
 
 class ExecControl:
