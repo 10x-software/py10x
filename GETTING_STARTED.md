@@ -271,10 +271,13 @@ person.age = 25  # Valid age - succeeds
 person['age'] = 26  # By name - same as person.age = 26, setter included
 assert person['age'] == 26
 
-# Programmatic setting with accumulated RC
+# Programmatic setting: setters run in keyword order and stop at the first failure
 result = person.set_values(age=30, email='bob@example.com')
-if not result:
-    assert False, f"Set failed: {result.errors()}"
+assert result, f"Set failed: {result.error()}"
+
+result = person.set_values(age=200, email='carol@example.com')
+assert "Age cannot exceed 150" in result.error()
+assert person.email == 'bob@example.com'  # not reached
 ```
 
 ### Verifiers (Validation on verify() and save())
