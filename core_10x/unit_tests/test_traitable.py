@@ -211,6 +211,24 @@ def test_item_access_raises_like_attribute():
     assert x.age == 5
 
 
+def test_set_values_stops_at_first_error():
+    class X(Traitable):
+        before: int
+        age: int
+        after: int
+
+        def age_set(self, trait, value: int) -> RC:
+            if value < 0:
+                return RC(False, 'age must be >= 0')
+            return self.raw_set_trait_value(trait, value)
+
+    x  = X()
+    rc = x.set_values(before = 1, age = -1, after = 2)
+    assert 'age must be >= 0' in rc.error()
+    assert x.before == 1
+    assert x.after is XNone
+
+
 def test_traitable_trait_default_by_id():
     class Company(Traitable):
         name: str = T(T.ID)
