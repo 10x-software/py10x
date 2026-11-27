@@ -114,7 +114,7 @@ if __name__ == '__main__':
         name        = 'T2',
         book1_name  = 'Book3',
         book2_name  = 'Book2',
-        basket      = FiBasket(bucket = BucketDict(data = {f3: 4.}))
+        basket      = FiBasket(the_bucket = BucketDict(data = {f3: 4.}))
     )
 
     b1 = Book(_replace = True, name = 'Book1', customer_book = False)

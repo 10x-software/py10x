@@ -605,8 +605,9 @@ class TestCompoundFilters:
             kw = dict(
                 test_id = f's{i + 1}',
                 **data,
-                _collection_name    = coll_name,
-                _replace            = True,
+                _collection_name       = coll_name,
+                _replace               = True,
+                _ignore_unknown_traits = True,  #-- non_existing
             )
             if not i:
                 kw.update(opt = 'set', ref = RefTarget(key = 'r1'))

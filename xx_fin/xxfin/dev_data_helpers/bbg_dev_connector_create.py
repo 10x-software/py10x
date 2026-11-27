@@ -15,7 +15,8 @@ def run():
     for mqs in MktQuotablesScope.load_many():
         for pc in PricingContext.load_many(f(mkt_data_provider_name = 'XX_DEV')):
             for quotable_class, stub in mqs.quotable_class_and_stubs_generator(pc.md_date):
-                dev_q = quotable_class.existing_instance(mkt_name = mqs.mkt_name, **stub, **pc.md_basis, _throw = False)
+                #-- unknown: FX spot has no tenor
+                dev_q = quotable_class.existing_instance(mkt_name = mqs.mkt_name, **stub, **pc.md_basis, _throw = False, _ignore_unknown_traits = True)
                 if dev_q:
                     adaptor_cls                     = MktDataAdaptor.adaptor(quotable_class, provider_name = 'BBG')
                     ticker                          = adaptor_cls.ticker(dev_q)
