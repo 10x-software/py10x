@@ -64,6 +64,13 @@ Known follow-up work that is not scheduled yet. Each item is a short summary; th
   with no verifier, no `NOT_EMPTY` check and no `post_verify` run. Reading any ordinary trait first makes the checks
   run. To decide: resolve the lazy state before verifying in `StorableHelper.save`, or verify again once the object
   turns out to be new.
+- **`T.READ_ONLY`: what is left** — added 2026-11-28, issue not filed yet. The kernel now enforces the flag: no set in
+  the scope the object lives in, a what-if value allowed in a scope below, and no loading (see `CHANGELOG.md`). Left
+  open: `raw_set_value` goes around the check and can still set such a trait, until the value is invalidated; a
+  what-if value saved from a scope below lands in the stored copy that a store searches by, by decision, and nothing
+  warns of it; and nothing is refused when the class is defined for combinations that cannot work or were not tried: a
+  `READ_ONLY` trait with a custom setter (called only for a what-if), with a `T.TS_TIME` / `T.TS_USER` flag (the store
+  sets its stamp back after a save), or with `T.ID` and no getter (the constructor can no longer be given the value).
 
 ## Callable instrumentation
 

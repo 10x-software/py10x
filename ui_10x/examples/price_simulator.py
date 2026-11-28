@@ -2,13 +2,13 @@ import random
 import threading
 
 from core_10x.py_class import PyClass
-from core_10x.traitable import RC, RT, T, Traitable
+from core_10x.traitable import RC, RT, T, Traitable, Ui
 
 from ui_10x.table_view import TableView
 from ui_10x.utils import UxAsync, ux
 
 class MarketSymbol(Traitable):
-    symbol: str         = RT(T.READONLY)
+    symbol: str         = RT(Ui(flags = Ui.READ_ONLY))
     bid: float          = RT()
     price: float        = RT()
     ask: float          = RT()

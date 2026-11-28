@@ -16,7 +16,7 @@ public:
     static constexpr unsigned RESERVED      = 0x1;
     static constexpr unsigned ID            = 0x2;
     static constexpr unsigned HASH          = 0x4;
-    static constexpr unsigned READONLY      = 0x8;
+    static constexpr unsigned READ_ONLY     = 0x8;      //-- never set, never loaded: the value comes from the getter or the default
     static constexpr unsigned NOT_EMPTY     = 0x10;
     static constexpr unsigned RUNTIME       = 0x20;
     static constexpr unsigned EMBEDDED      = 0x40;

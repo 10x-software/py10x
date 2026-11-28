@@ -229,6 +229,47 @@ else:
     assert False, 'EVAL_ONCE trait must not be modified'
 ```
 
+A trait marked `T.READ_ONLY` is never set in the scope its object lives in: there its value always comes from its getter, or from its default. `set_value()` returns a failed `RC`; an assignment raises, and so does a constructor that is given a value for it. A stored `T.READ_ONLY` trait is written on save, so a store can search by it, but it is not loaded back: after loading, the value still follows its getter.
+
+In a scope below the object's own, a nested `GRAPH_ON()` or a [`Scenario`](#scenario--named-scopes), the trait can be given a what-if value. It stands in front of the real value there and is gone when that scope is left. `save()` adds no check: an object saved from such a scope is written as that scope sees it.
+
+```python
+from core_10x.exec_control import GRAPH_ON
+from core_10x.traitable import Traitable, T, RT
+
+class Rectangle(Traitable):
+    name: str     = RT(T.ID)
+    width: float  = RT()
+    height: float = RT()
+    area: float   = RT(T.READ_ONLY)  // 'always computed, never set'
+
+    def area_get(self) -> float:
+        return self.width * self.height
+
+r = Rectangle(name='r')
+r.width  = 2.
+r.height = 3.
+assert r.area == 6.
+
+assert not r.set_value('area', 10.)   # a failed RC, no exception
+try:
+    r.area = 10.
+except RuntimeError as e:
+    assert 'READ_ONLY' in str(e)
+else:
+    assert False, 'READ_ONLY trait must not be set'
+
+r.width = 4.
+assert r.area == 12.
+
+with GRAPH_ON():        # a scope below the one r lives in
+    r.area = 100.       # a what-if value
+    assert r.area == 100.
+assert r.area == 12.
+```
+
+To make a trait only not editable in a form, while code still sets it, give it the UI flag instead: `Ui(flags=Ui.READ_ONLY)`. A `T.READ_ONLY` trait is shown read-only in a form as well.
+
 ### Setters (Validation and Transformation)
 
 Setters provide validation and data transformation. They are automatically called on assignment:
@@ -2157,13 +2198,13 @@ with MongoStore.instance(hostname='localhost', dbname='test'):
     result = editor.dialog(save=True).exec()
 ```
 
-The editor builds its form from UI hints declared with each trait: the `// 'text'` tooltip, a `Ui(...)` widget and label, the `T.READONLY` / `T.HIDDEN` flags, a `*_choices` method for a pick list, and a `*_style_sheet` method for colors that follow the value:
+The editor builds its form from UI hints declared with each trait: the `// 'text'` tooltip, a `Ui(...)` widget, label and flags such as `Ui.READ_ONLY`, the `T.HIDDEN` flag, a `*_choices` method for a pick list, and a `*_style_sheet` method for colors that follow the value:
 
 ```python
 from core_10x.traitable import Traitable, T, RT, Ui
 
 class Order(Traitable):
-    order_id: str = RT(T.ID | T.READONLY)  // 'shown, not editable'
+    order_id: str = RT(T.ID, Ui(flags=Ui.READ_ONLY))  // 'shown, not editable'
     side: str     = RT('BUY', Ui.choice('Buy/Sell'))
     qty: int      = RT(0)
     audit: str    = RT(T.HIDDEN)  // 'not shown in editors'
@@ -3537,6 +3578,7 @@ with CACHE_ONLY():
 - Use `T()` for traits that need persistence and searching; `RT()` (or a bare annotation) for in-memory-only traits
 - Use `T(T.ID)` for the minimum set of fields that uniquely identify an entity — ID traits determine global sharing
 - Implement `_get` methods for computed/derived values; avoid storing values that can be derived
+- Mark a computed trait `T.READ_ONLY` when nobody may set it; a stored one is then written for the store to search by, and is never loaded back
 - Use `_set` methods to validate on assignment; use `_verify` methods for deferred per-trait validation and `post_verify()` for cross-trait checks (both run at `verify()` / `save()` time); mark required traits `T.NOT_EMPTY`
 - Describe each trait with `// 'text'` — it is the UI tooltip and the `tip` in `describe_class()`
 - Use converters (`_from_str`, `_from_any_xstr`) for transparent type coercion rather than manual casting at every call site

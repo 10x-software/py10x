@@ -582,6 +582,7 @@ void BTraitable::deserialize_traits(const py::dict& trait_values) {
         const auto trait = trait_handle.cast<BTrait*>();
         if (trait->flags_on(BTraitFlags::RESERVED)
             || trait->flags_on(BTraitFlags::RUNTIME)
+            || trait->flags_on(BTraitFlags::READ_ONLY)      //-- its stored copy is for the store's searches only: a loaded value would stand in the getter's way
             || (trait->flags_on(BTraitFlags::EVAL_ONCE) && is_valid(trait))
             || (trait->flags_on(BTraitFlags::ID) && is_set(trait)))
             continue;

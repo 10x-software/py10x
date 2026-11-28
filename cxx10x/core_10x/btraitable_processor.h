@@ -107,6 +107,7 @@ public:
     [[nodiscard]] bool      flags_on(unsigned flags) const  { return m_flags & flags; }
 
     static void             check_value(BTraitable *obj, const BTrait *trait, const py::object &value);
+    [[nodiscard]] bool      is_read_only_here(const BTraitable *obj, const BTrait *trait) const;
 
     virtual void            begin_using();
     virtual void            end_using() const;

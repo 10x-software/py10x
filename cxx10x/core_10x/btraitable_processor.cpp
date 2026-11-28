@@ -167,7 +167,22 @@ void BTraitableProcessor::check_value(BTraitable *obj, const BTrait *trait, cons
         throw py::type_error(py::str("{}.{} ({}) - invalid value '{}'").format(obj->class_name(), trait->name(), trait->data_type(), value));
 }
 
+//-- a failed RC, not an exception: a constructor given such a value throws it, as for any failed set
+static py::object read_only_rc(BTraitable *obj, const BTrait *trait) {
+    BRC rc;
+    (void)rc.add_error(py::str("{}.{} - a READ_ONLY trait may not be set in the scope its object lives in").format(obj->class_name(), trait->name()));
+    return rc();
+}
+
+//-- a set writes into this processor's cache: in the object's own scope it would replace the real value, below it is a what-if
+bool BTraitableProcessor::is_read_only_here(const BTraitable *obj, const BTrait *trait) const {
+    return trait->flags_on(BTraitFlags::READ_ONLY) && obj->origin_cache_is(cache());
+}
+
 py::object BTraitableProcessor::set_trait_value(BTraitable *obj, const BTrait *trait, const py::object& value) {
+    if (is_read_only_here(obj, trait))
+        return read_only_rc(obj, trait);
+
     if (trait->flags_on(BTraitFlags::ID) && obj->tid().is_valid() && obj->is_set(trait)) {
         const auto trait_value=get_trait_value(obj, trait);
         const auto trait_type = trait->flags_on(BTraitFlags::FAUX) ? "ID_LIKE" : "ID";
@@ -182,6 +197,9 @@ py::object BTraitableProcessor::set_trait_value(BTraitable *obj, const BTrait *t
 }
 
 py::object BTraitableProcessor::set_trait_value(BTraitable *obj, BTrait *trait, const py::object& value, const py::args& args) {
+    if (is_read_only_here(obj, trait))
+        return read_only_rc(obj, trait);
+
     const auto converted_value = adjust_set_value(obj, trait, value);
     if (!trait->f_set.is_none()) {    // custom setter is defined
         const auto guard = upward_deps_off();
