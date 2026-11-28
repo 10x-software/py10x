@@ -62,8 +62,6 @@ class UiHint:
         trait_flags = trait.flags
         if trait_flags & T.HIDDEN.value():
             self.flags |= self.HIDDEN
-        if trait_flags & T.READ_ONLY.value():    #-- a trait nobody may set is not editable in a form either
-            self.flags |= self.READ_ONLY
 
     def flags_on(self, flags: int) -> bool:
         return bool(self.flags & flags)

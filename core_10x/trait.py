@@ -185,6 +185,10 @@ class Trait(BTrait, metaclass = TraitMetaclass):
         if self.getter_params:
             self.set_getter_has_args()
 
+        #-- a READ_ONLY trait with no setter cannot be set at all, so a form may not edit it; with a setter it is set through its inputs
+        if self.flags & T.READ_ONLY.value() and self.f_set is None:
+            self.ui_hint.set_reset_flags(Ui.READ_ONLY)
+
     def create_f_get(self, f, attr_name: str, rc: RC, pybind = False):
         if not f:  #-- no custom getter, just the default value
             f           = lambda traitable: self.default_value()

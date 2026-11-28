@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pytest
 from core_10x.exec_control import CACHE_ONLY, DEBUG_ON, GRAPH_OFF, GRAPH_ON
+from core_10x.rc import RC, RC_TRUE
 from core_10x.scenario import Scenario
 from core_10x.trait_definition import RT, T
 from core_10x.trait_filter import EQ, f
@@ -28,6 +29,33 @@ class Stored(Traitable):
 
     def v_get(self) -> int:
         return self.a * 10
+
+
+class WithSetters(Traitable):
+    x: int      = RT(T.ID)
+    a: int      = RT()
+    v: int      = RT(T.READ_ONLY)
+    own: int    = RT(T.READ_ONLY)
+    mute: int   = RT(T.READ_ONLY)
+
+    def v_get(self) -> int:
+        return self.a * 10
+
+    def v_set(self, trait, value) -> RC:        #-- sets its input: v itself stays computed
+        return self.set_value('a', value // 10)
+
+    def own_get(self) -> int:
+        return self.a
+
+    def own_set(self, trait, value) -> RC:      #-- tries to store the trait itself
+        return self.raw_set_value(trait.name, value)
+
+    def mute_get(self) -> int:
+        return self.a
+
+    def mute_set(self, trait, value) -> RC:     #-- the same, with the RC dropped
+        self.raw_set_value(trait.name, value)
+        return RC_TRUE
 
 
 def test_read_only_value_comes_from_the_getter_or_the_default():
@@ -68,6 +96,69 @@ def test_read_only_set_returns_a_failed_rc():
 def test_read_only_given_to_a_constructor_throws(build):
     with CACHE_ONLY(), pytest.raises(ValueError, match = MAY_NOT_BE_SET):
         build()
+
+
+def test_read_only_raw_set_is_refused():
+    """The check is in the raw set, where every set ends: there is no way around it."""
+    with GRAPH_ON():
+        x   = Computed(x = 1)
+        x.a = 2
+
+        for rc in (x.raw_set_value('v', 5), x.raw_set_trait_value(Computed.trait('v'), 5)):
+            assert not rc
+            assert MAY_NOT_BE_SET in rc.error()
+
+        assert x.v == 20
+
+        with GRAPH_ON():    #-- a what-if below the object's scope
+            x.raw_set_value('v', 99).throw()
+            assert x.v == 99
+
+        assert x.v == 20
+
+
+def test_read_only_setter_sets_the_inputs():
+    """A setter of a READ_ONLY trait is called: it sets other traits, and the trait itself stays computed."""
+    with GRAPH_ON():
+        x   = WithSetters(x = 1)
+        x.a = 2
+
+        x.set_value('v', 70).throw()
+        assert (x.a, x.v) == (7, 70)
+
+        x.v = 50
+        assert (x.a, x.v) == (5, 50)
+
+        x.a = 3
+        assert x.v == 30
+
+    with CACHE_ONLY():
+        y = WithSetters(x = 2, v = 40, _replace = True)     #-- a constructor goes the same way
+        assert (y.a, y.v) == (4, 40)
+
+
+def test_read_only_setter_may_not_store_the_trait_itself():
+    with GRAPH_ON():
+        x   = WithSetters(x = 1)
+        x.a = 2
+
+        rc = x.set_value('own', 9)
+        assert not rc
+        assert MAY_NOT_BE_SET in rc.error()
+        with pytest.raises(RuntimeError, match = MAY_NOT_BE_SET):
+            x.own = 9
+
+        x.set_value('mute', 9).throw()  #-- a dropped RC: success is reported, and nothing is stored
+        assert (x.own, x.mute) == (2, 2)
+
+        with GRAPH_ON():                #-- below the object's scope it may
+            x.own = 9
+            assert (x.own, x.a) == (9, 2)
+
+        assert x.own == 2
+
+    with CACHE_ONLY(), pytest.raises(ValueError, match = MAY_NOT_BE_SET):
+        WithSetters(x = 3, own = 4, _replace = True)
 
 
 def test_read_only_may_be_set_as_a_what_if_below_the_objects_scope():
@@ -189,6 +280,7 @@ def test_read_only_trait_is_read_only_in_a_form():
 
     assert X.trait('v').ui_hint.flags_on(Ui.READ_ONLY)
     assert not X.trait('plain').ui_hint.flags_on(Ui.READ_ONLY)
+    assert not WithSetters.trait('v').ui_hint.flags_on(Ui.READ_ONLY)    #-- its setter takes the value: a form may edit it
 
     #-- the UI's own flag: a form may not edit it, and code still sets it
     assert X.trait('shown').ui_hint.flags_on(Ui.READ_ONLY)

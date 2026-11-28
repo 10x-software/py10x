@@ -229,7 +229,9 @@ else:
     assert False, 'EVAL_ONCE trait must not be modified'
 ```
 
-A trait marked `T.READ_ONLY` is never set in the scope its object lives in: there its value always comes from its getter, or from its default. `set_value()` returns a failed `RC`; an assignment raises, and so does a constructor that is given a value for it. A stored `T.READ_ONLY` trait is written on save, so a store can search by it, but it is not loaded back: after loading, the value still follows its getter.
+A trait marked `T.READ_ONLY` never holds a set value in the scope its object lives in: there its value always comes from its getter, or from its default. `set_value()` and `raw_set_value()` return a failed `RC`; an assignment raises, and so does a constructor that is given a value for it. A stored `T.READ_ONLY` trait is written on save, so a store can search by it, but it is not loaded back: after loading, the value still follows its getter.
+
+A `T.READ_ONLY` trait may still have a setter. The setter is called and can set other traits, the inputs its getter reads, but it cannot store the trait itself: see [Setters Can Propagate Values to Other Traits](#setters-can-propagate-values-to-other-traits).
 
 In a scope below the object's own, a nested `GRAPH_ON()` or a [`Scenario`](#scenario--named-scopes), the trait can be given a what-if value. It stands in front of the real value there and is gone when that scope is left. `save()` adds no check: an object saved from such a scope is written as that scope sees it.
 
@@ -268,7 +270,7 @@ with GRAPH_ON():        # a scope below the one r lives in
 assert r.area == 12.
 ```
 
-To make a trait only not editable in a form, while code still sets it, give it the UI flag instead: `Ui(flags=Ui.READ_ONLY)`. A `T.READ_ONLY` trait is shown read-only in a form as well.
+To make a trait only not editable in a form, while code still sets it, give it the UI flag instead: `Ui(flags=Ui.READ_ONLY)`. A `T.READ_ONLY` trait with no setter is shown read-only in a form as well; one with a setter stays editable, since the setter takes the value.
 
 ### Setters (Validation and Transformation)
 
@@ -423,6 +425,42 @@ person.full_name = "Madonna"  # Sets first_name="Madonna", last_name=""
 assert person.first_name == "Madonna"
 assert person.last_name == ""
 assert person.full_name == "Madonna"  # Computed by getter
+```
+
+Mark such a trait `T.READ_ONLY` and the kernel holds the setter to this: it is called and sets the inputs, while storing the trait itself is refused. The trait then always follows its getter, so what depends on it stays right. Return the `RC` of `raw_set_value()` from a setter: a setter that drops it reports success although nothing was stored.
+
+```python
+from core_10x.traitable import Traitable, T, RT, RC
+
+class Room(Traitable):
+    name: str     = RT(T.ID)
+    width: float  = RT()
+    length: float = RT()
+    area: float   = RT(T.READ_ONLY)
+    volume: float = RT(T.READ_ONLY)
+
+    def area_get(self) -> float:
+        return self.width * self.length
+
+    def area_set(self, trait, value: float) -> RC:
+        return self.set_value('width', value / self.length)  # an input is set; area itself stays computed
+
+    def volume_get(self) -> float:
+        return self.area * 2.5
+
+    def volume_set(self, trait, value: float) -> RC:
+        return self.raw_set_value(trait.name, value)         # tries to store the trait itself
+
+room = Room(name='study')
+room.length = 4.
+room.area   = 12.               # the setter sets width
+assert room.width == 3.
+
+room.length = 5.
+assert room.area == 15.         # still computed
+
+assert not room.set_value('volume', 100.)   # refused: a failed RC
+assert room.volume == 37.5
 ```
 
 **Key Difference from Converters:**
@@ -3578,7 +3616,7 @@ with CACHE_ONLY():
 - Use `T()` for traits that need persistence and searching; `RT()` (or a bare annotation) for in-memory-only traits
 - Use `T(T.ID)` for the minimum set of fields that uniquely identify an entity — ID traits determine global sharing
 - Implement `_get` methods for computed/derived values; avoid storing values that can be derived
-- Mark a computed trait `T.READ_ONLY` when nobody may set it; a stored one is then written for the store to search by, and is never loaded back
+- Mark a computed trait `T.READ_ONLY` when it must always follow its getter; give it a setter only to set its inputs. A stored one is written for the store to search by, and is never loaded back
 - Use `_set` methods to validate on assignment; use `_verify` methods for deferred per-trait validation and `post_verify()` for cross-trait checks (both run at `verify()` / `save()` time); mark required traits `T.NOT_EMPTY`
 - Describe each trait with `// 'text'` — it is the UI tooltip and the `tip` in `describe_class()`
 - Use converters (`_from_str`, `_from_any_xstr`) for transparent type coercion rather than manual casting at every call site
