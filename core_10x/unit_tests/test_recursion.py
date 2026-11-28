@@ -33,11 +33,11 @@ class Recursive(Traitable):
 
     def s_set(self, trait, value) -> RC:
         self.u = value
-        return self.raw_set_value(trait, value)
+        return self.raw_set_trait_value(trait, value)
 
     def u_set(self, trait, value) -> RC:
         self.s = value
-        return self.raw_set_value(trait, value)
+        return self.raw_set_trait_value(trait, value)
 
     def choice_choices(self, trait) -> tuple:
         return self.get_choices(trait)

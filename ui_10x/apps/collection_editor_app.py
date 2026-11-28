@@ -26,16 +26,21 @@ class CEApp(Traitable):
         return EnvVars.main_ts_store_uri
 
     def main_store_uri_set(self, trait, value) -> RC:
-        self.raw_set_value(trait, value)
-        EnvVars.main_ts_store_uri = value
-        return RC_TRUE
+        rc = self.raw_set_trait_value(trait, value)
+        if rc:
+            EnvVars.main_ts_store_uri = value
+
+        return rc
 
     def exclude_packages_get(self) -> list:
         root_name = self.top_package
         return [f'{root_name}.{name}' for name in self.s_exclude_packages]
 
     def current_class_set(self, trait, value) -> RC:
-        self.raw_set_value(trait, value)
+        rc = self.raw_set_trait_value(trait, value)
+        if not rc:
+            return rc
+
         coll            = Collection(cls = value)
         ce              = CollectionEditor(coll = coll)
         self.col_editor = ce

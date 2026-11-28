@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **Collection editor app** (ui): setting the store URI or the class raised a `TypeError`. Its two setters passed the trait object to `raw_set_value()`, which takes a trait name; they now call `raw_set_trait_value()` and return its `RC`.
 - **Endogenous IDs** (py10x-kernel; breaking for such data): in an ID of more than one part, each part is escaped (`\` → `\\`, `|` → `\|`) before joining with `|`. Distinct values could join to the same ID, e.g. `('a|', 'b')` and `('a', '|b')` both gave `a|||b`. Stored objects with such an ID whose values contain `|` or `\` get new IDs; all other IDs are unchanged.
 - **Debug mode no longer reloads references** (py10x-kernel): loading an object in debug mode loaded again each object it referenced that was made in debug mode, even one already loaded. Values set on it but not saved were lost, even with `reload=False`, and a chain where each object refers twice to the next took 2ⁿ−1 reads. Such references now load only if they aren't loaded yet. Debug mode also no longer applies once it is turned off: an object made in debug mode and read later loads its references only when they are read, and doesn't check the types of the values it loads.
 
